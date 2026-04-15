@@ -15,6 +15,7 @@ import bcrypt
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -102,6 +103,9 @@ def _seed_database() -> None:
             note="Password reset required on first login.",
         )
 
+    except IntegrityError:
+        db.rollback()
+        log.info("Seed skipped — another worker already seeded the database")
     except Exception:
         db.rollback()
         log.exception("Seed failed — rolling back")
