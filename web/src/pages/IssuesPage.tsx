@@ -255,7 +255,7 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-slate-800">{issue.title}</p>
             {overdue && (
-              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" title="Overdue" />
+              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" aria-label="Overdue" />
             )}
           </div>
           {issue.related_lot && (

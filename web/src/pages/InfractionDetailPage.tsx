@@ -284,8 +284,6 @@ function EventTimeline({ events }: { events: InfractionEvent[] }) {
 export default function InfractionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const infractionId = Number(id);
-  const qc = useQueryClient();
-
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showNoticeGen, setShowNoticeGen] = useState(false);
 

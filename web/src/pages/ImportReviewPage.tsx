@@ -239,7 +239,7 @@ function PartyCard({
       {showMerge && (
         <MergeSearchModal
           party={party}
-          onSelect={(partyId, partyName) => {
+          onSelect={(partyId, _partyName) => {
             setAction.mutate({ action: "merge", merge_target_party_id: partyId });
           }}
           onClose={() => setShowMerge(false)}

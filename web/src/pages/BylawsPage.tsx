@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, ChevronDown, ChevronUp, Pencil, X } from "lucide-react";
-import { bylawsApi, type Bylaw, type BylawCategory, type BylawListItem, type FineSchedule } from "../lib/api";
+import { bylawsApi, type Bylaw, type BylawCategory, type BylawListItem } from "../lib/api";
 
 const CATEGORIES: { value: BylawCategory; label: string }[] = [
   { value: "noise", label: "Noise" },
@@ -351,7 +351,6 @@ export default function BylawsPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editBylaw, setEditBylaw] = useState<Bylaw | null>(null);
-  const qc = useQueryClient();
 
   const { data: bylaws, isLoading } = useQuery({
     queryKey: ["bylaws", { categoryFilter, search, showInactive }],

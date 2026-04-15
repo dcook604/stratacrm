@@ -18,9 +18,9 @@ const columns = [
     header: "Type",
     cell: (info) =>
       info.getValue() === "corporation" ? (
-        <Building className="w-4 h-4 text-slate-500" title="Corporation" />
+        <Building className="w-4 h-4 text-slate-500" aria-label="Corporation" />
       ) : (
-        <User className="w-4 h-4 text-slate-400" title="Individual" />
+        <User className="w-4 h-4 text-slate-400" aria-label="Individual" />
       ),
     size: 50,
   }),
