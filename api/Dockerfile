@@ -1,22 +1,20 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# System dependencies:
-# - libpq-dev + gcc: psycopg2 build
-# - WeasyPrint PDF rendering stack:
-#     libpango*, libharfbuzz*, libcairo2, libgdk-pixbuf2.0-0, shared-mime-info
-# - Fonts: fonts-liberation gives Times/Arial/Courier equivalents used in notice template
-# - fontconfig: needed by pango to locate fonts at runtime
+# System dependencies for WeasyPrint PDF rendering:
+#   libpango*, libharfbuzz*, libcairo2, libgdk-pixbuf-2.0-0, shared-mime-info
+# Fonts: fonts-liberation provides Times/Arial/Courier equivalents
+# fontconfig: needed by pango to locate fonts at runtime
+# Note: psycopg2-binary ships pre-compiled wheels — libpq-dev/gcc not required
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
-    gcc \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     libharfbuzz0b \
     libcairo2 \
-    libgdk-pixbuf2.0-0 \
-    libffi-dev \
+    libgdk-pixbuf-2.0-0 \
     fontconfig \
     fonts-liberation \
     shared-mime-info \
