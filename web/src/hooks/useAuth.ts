@@ -7,6 +7,7 @@ export function useMe() {
     queryFn: authApi.me,
     retry: false,
     staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
