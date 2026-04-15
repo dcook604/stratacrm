@@ -25,6 +25,8 @@ services:
   api:
     # No direct port binding — web container proxies all /api/ traffic
     ports: !reset []
+    labels:
+      - "traefik.enable=false"
     environment:
       HTTPS_ONLY: "true"
       SAME_SITE: "strict"
