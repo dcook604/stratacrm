@@ -45,11 +45,9 @@ async function request<T>(
   });
 
   if (res.status === 401) {
-    // Session expired — redirect to login (unless already there, to avoid reload loop)
+    // Clear CSRF token; React Router's RequireAuth handles redirect to /login
+    // via <Navigate> — no window.location.href to avoid page reload loops.
     clearCsrfToken();
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
     throw new ApiError(401, "Session expired");
   }
 
