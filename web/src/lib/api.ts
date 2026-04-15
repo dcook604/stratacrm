@@ -45,9 +45,11 @@ async function request<T>(
   });
 
   if (res.status === 401) {
-    // Session expired — redirect to login
+    // Session expired — redirect to login (unless already there, to avoid reload loop)
     clearCsrfToken();
-    window.location.href = "/login";
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
     throw new ApiError(401, "Session expired");
   }
 
