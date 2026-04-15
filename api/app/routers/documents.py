@@ -1,0 +1,165 @@
+"""Document storage router — upload, list, download generic file attachments."""
+
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form, status
+from fastapi.responses import Response
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.database import get_db
+from app.dependencies import get_current_user, require_csrf, require_write
+from app.models import Document, User
+from app.schemas.documents import DocumentOut
+
+router = APIRouter(prefix="/documents", tags=["documents"])
+
+_ALLOWED_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
+
+
+def _doc_out(doc: Document) -> DocumentOut:
+    return DocumentOut(
+        id=doc.id,
+        original_filename=doc.original_filename,
+        mime_type=doc.mime_type,
+        file_size_bytes=doc.file_size_bytes,
+        linked_entity_type=doc.linked_entity_type,
+        linked_entity_id=doc.linked_entity_id,
+        uploaded_at=doc.uploaded_at,
+        download_url=f"/api/documents/{doc.id}/download",
+    )
+
+
+@router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_csrf)])
+async def upload_document(
+    request: Request,
+    file: UploadFile = File(...),
+    entity_type: str = Form(...),
+    entity_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write),
+):
+    if file.content_type and file.content_type not in _ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"File type '{file.content_type}' is not allowed."
+        )
+
+    data = await file.read()
+    if len(data) > _MAX_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds 20 MB limit.")
+
+    os.makedirs(settings.uploads_dir, exist_ok=True)
+    safe_name = os.path.basename(file.filename or "upload")
+    # Avoid collisions: prefix with entity type/id
+    storage_filename = f"{entity_type}_{entity_id}_{doc_safe(safe_name)}"
+    storage_path = os.path.join(settings.uploads_dir, storage_filename)
+
+    # If path already exists, append a counter
+    if os.path.exists(storage_path):
+        base, ext = os.path.splitext(storage_filename)
+        counter = 1
+        while os.path.exists(storage_path):
+            storage_path = os.path.join(settings.uploads_dir, f"{base}_{counter}{ext}")
+            counter += 1
+
+    with open(storage_path, "wb") as f:
+        f.write(data)
+
+    doc = Document(
+        storage_path=storage_path,
+        original_filename=safe_name,
+        mime_type=file.content_type,
+        file_size_bytes=len(data),
+        uploaded_by_id=current_user.id,
+        linked_entity_type=entity_type,
+        linked_entity_id=entity_id,
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return _doc_out(doc)
+
+
+def doc_safe(name: str) -> str:
+    """Sanitize filename — keep only alphanumeric, dot, dash, underscore."""
+    import re
+    return re.sub(r"[^\w.\-]", "_", name)[:200]
+
+
+@router.get("", response_model=list[DocumentOut])
+def list_documents(
+    entity_type: str = Query(...),
+    entity_id: int = Query(...),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    docs = db.execute(
+        select(Document)
+        .where(Document.linked_entity_type == entity_type)
+        .where(Document.linked_entity_id == entity_id)
+        .order_by(Document.uploaded_at.desc())
+    ).scalars().all()
+    return [_doc_out(d) for d in docs]
+
+
+@router.get("/{document_id}/download")
+def download_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    doc = db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not os.path.exists(doc.storage_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    with open(doc.storage_path, "rb") as f:
+        data = f.read()
+
+    return Response(
+        content=data,
+        media_type=doc.mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{doc.original_filename or "download"}"'
+        },
+    )
+
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_csrf)])
+def delete_document(
+    document_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write),
+):
+    doc = db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Remove file from disk (best-effort)
+    if doc.storage_path and os.path.exists(doc.storage_path):
+        try:
+            os.remove(doc.storage_path)
+        except OSError:
+            pass
+
+    db.delete(doc)
+    db.commit()

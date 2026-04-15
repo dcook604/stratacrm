@@ -1,0 +1,76 @@
+version: "3.9"
+
+# Spectrum 4 Strata CRM — BCS2611
+# Development: docker compose up
+# Production: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   (or let Coolify manage it — see README.md)
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spectrum4
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: spectrum4_crm
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spectrum4 -d spectrum4_crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Do not expose this port in production — only internal access needed.
+    # Uncomment for local development DB access:
+    # ports:
+    #   - "5432:5432"
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://spectrum4:${DB_PASSWORD:-changeme}@db:5432/spectrum4_crm
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production-min-32-chars}
+      DEBUG: ${DEBUG:-false}
+      HTTPS_ONLY: ${HTTPS_ONLY:-false}
+      SAME_SITE: ${SAME_SITE:-lax}
+      SMTP_HOST: ${SMTP_HOST:-10.0.9.1}
+      SMTP_PORT: ${SMTP_PORT:-10025}
+      MAIL_FROM: ${MAIL_FROM:-crm@spectrum4.ca}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Spectrum 4 Strata Council}
+      LISTMONK_BASE_URL: ${LISTMONK_BASE_URL:-http://listmonk:9000}
+      LISTMONK_USERNAME: ${LISTMONK_USERNAME:-listmonk}
+      LISTMONK_PASSWORD: ${LISTMONK_PASSWORD:-changeme}
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    # In production, api should NOT be exposed directly — web proxies all /api/ traffic.
+    # Uncomment for local development direct API access:
+    # ports:
+    #   - "8000:8000"
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+  uploads:

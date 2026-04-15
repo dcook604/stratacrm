@@ -1,0 +1,55 @@
+version: "3.9"
+
+# Production overrides for Coolify + Traefik deployment.
+#
+# Usage (manual):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Coolify usage:
+#   1. In Coolify → New Resource → Docker Compose → point at this repo.
+#   2. Set "Docker Compose File" to docker-compose.yml.
+#   3. Set "Docker Compose Override File" to docker-compose.prod.yml.
+#   4. Configure the domain (crm.spectrum4.ca) in Coolify's UI.
+#   5. Set all required environment variables in Coolify's UI (see README.md).
+#
+# The Traefik labels below assume Coolify's built-in Traefik instance.
+# Update DOMAIN to match your actual domain if different.
+
+x-domain: &domain "crm.spectrum4.ca"
+
+services:
+  db:
+    # No port binding in production — internal only
+    ports: !reset []
+
+  api:
+    # No direct port binding — web container proxies all /api/ traffic
+    ports: !reset []
+    environment:
+      HTTPS_ONLY: "true"
+      SAME_SITE: "strict"
+      DEBUG: "false"
+
+  web:
+    # Remove dev port binding; Traefik handles ingress
+    ports: !reset []
+    networks:
+      - coolify
+      - default
+    labels:
+      - "traefik.enable=true"
+      # HTTP → HTTPS redirect (Coolify's Traefik handles this globally, but explicit here)
+      - "traefik.http.routers.crm-http.rule=Host(`crm.spectrum4.ca`)"
+      - "traefik.http.routers.crm-http.entrypoints=http"
+      - "traefik.http.routers.crm-http.middlewares=redirect-to-https@docker"
+      # HTTPS router
+      - "traefik.http.routers.crm.rule=Host(`crm.spectrum4.ca`)"
+      - "traefik.http.routers.crm.entrypoints=https"
+      - "traefik.http.routers.crm.tls=true"
+      - "traefik.http.routers.crm.tls.certresolver=letsencrypt"
+      # Backend service
+      - "traefik.http.services.crm.loadbalancer.server.port=80"
+
+networks:
+  coolify:
+    external: true
