@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Building2, Users, BookOpen, AlertTriangle,
-  Wrench, FileText, Radio, Upload, LogOut,
+  Wrench, FileText, Upload, LogOut,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
@@ -22,7 +22,6 @@ const NAV: NavItem[] = [
   { to: "/infractions", icon: AlertTriangle, label: "Infractions" },
   { to: "/incidents", icon: FileText, label: "Incidents" },
   { to: "/issues", icon: Wrench, label: "Issues" },
-  { to: "/communications", icon: Radio, label: "Communications", available: false },
 ];
 
 export default function Sidebar() {

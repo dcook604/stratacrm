@@ -1,11 +1,10 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Building2, Users, AlertTriangle, FileText, Wrench,
-  Activity, Clock, Radio,
+  Activity, Clock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { dashboardApi, syncApi, type DashboardStats } from "../lib/api";
+import { dashboardApi, type DashboardStats } from "../lib/api";
 import { formatDateTime } from "../lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -42,37 +41,6 @@ function StatCard({
     </Link>
   ) : (
     <div>{content}</div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Listmonk sync button
-// ---------------------------------------------------------------------------
-
-function ListmonkSyncButton() {
-  const [result, setResult] = useState<string | null>(null);
-  const mutation = useMutation({
-    mutationFn: syncApi.listmonk,
-    onSuccess: (data) => setResult(data.message),
-    onError: (e: Error) => setResult(`Error: ${e.message}`),
-  });
-
-  return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <button
-        className="btn btn-secondary flex items-center gap-2"
-        disabled={mutation.isPending}
-        onClick={() => { setResult(null); mutation.mutate(); }}
-      >
-        <Radio className="w-4 h-4" />
-        {mutation.isPending ? "Syncing…" : "Sync Residents to Listmonk"}
-      </button>
-      {result && (
-        <span className={`text-sm ${mutation.isError ? "text-red-600" : "text-green-700"}`}>
-          {result}
-        </span>
-      )}
-    </div>
   );
 }
 
@@ -240,19 +208,6 @@ export default function DashboardPage() {
 
       {/* Needs attention */}
       {data && <AttentionSection data={data} />}
-
-      {/* Listmonk sync */}
-      <div className="card p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Radio className="w-4 h-4 text-slate-500" />
-          <h2 className="font-semibold text-slate-900 text-sm">Audience Sync</h2>
-        </div>
-        <p className="text-sm text-slate-500 mb-4">
-          Push current owners and tenants (with email addresses) to the Listmonk mailing list
-          <strong> "{" "}Spectrum 4 Residents"</strong>.
-        </p>
-        <ListmonkSyncButton />
-      </div>
 
       {/* Recent activity */}
       <div className="card">
