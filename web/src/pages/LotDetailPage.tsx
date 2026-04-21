@@ -44,6 +44,8 @@ export default function LotDetailPage() {
       square_feet: lot.square_feet ?? undefined,
       parking_stalls: lot.parking_stalls ?? "",
       storage_lockers: lot.storage_lockers ?? "",
+      bike_lockers: lot.bike_lockers ?? "",
+      scooter_lockers: lot.scooter_lockers ?? "",
       notes: lot.notes ?? "",
     });
     setEditing(true);
@@ -158,6 +160,22 @@ export default function LotDetailPage() {
                 onChange={(e) => setForm((f) => ({ ...f, storage_lockers: e.target.value }))}
               />
             </div>
+            <div>
+              <label className="label">Bike Lockers</label>
+              <input
+                className="input"
+                value={form.bike_lockers ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, bike_lockers: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="label">Scooter Lockers</label>
+              <input
+                className="input"
+                value={form.scooter_lockers ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, scooter_lockers: e.target.value }))}
+              />
+            </div>
             <div className="col-span-2">
               <label className="label">Notes</label>
               <textarea
@@ -177,6 +195,8 @@ export default function LotDetailPage() {
             />
             <Field label="Parking Stalls" value={lot.parking_stalls} />
             <Field label="Storage Lockers" value={lot.storage_lockers} />
+            <Field label="Bike Lockers" value={lot.bike_lockers} />
+            <Field label="Scooter Lockers" value={lot.scooter_lockers} />
             <div className="col-span-2">
               <Field label="Notes" value={lot.notes} />
             </div>

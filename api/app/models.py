@@ -215,6 +215,8 @@ class Lot(Base):
     square_feet = Column(Numeric(8, 2), nullable=True)
     parking_stalls = Column(Text, nullable=True)           # free text: "P1-042, P2-007"
     storage_lockers = Column(Text, nullable=True)
+    bike_lockers = Column(Text, nullable=True)
+    scooter_lockers = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

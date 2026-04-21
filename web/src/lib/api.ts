@@ -181,6 +181,8 @@ export interface Lot {
   square_feet: string | null;
   parking_stalls: string | null;
   storage_lockers: string | null;
+  bike_lockers: string | null;
+  scooter_lockers: string | null;
   notes: string | null;
   updated_at: string;
   current_assignments: LotAssignmentDetail[];

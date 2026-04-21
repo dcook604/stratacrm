@@ -31,6 +31,8 @@ class LotUpdate(BaseModel):
     square_feet: Optional[Decimal] = None
     parking_stalls: Optional[str] = None
     storage_lockers: Optional[str] = None
+    bike_lockers: Optional[str] = None
+    scooter_lockers: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -41,6 +43,8 @@ class LotOut(BaseModel):
     square_feet: Optional[Decimal]
     parking_stalls: Optional[str]
     storage_lockers: Optional[str]
+    bike_lockers: Optional[str]
+    scooter_lockers: Optional[str]
     notes: Optional[str]
     updated_at: datetime
     current_assignments: List[AssignmentDetail] = []
