@@ -5,6 +5,7 @@ Revises: 003
 Create Date: 2026-04-21
 """
 from alembic import op
+import sqlalchemy as sa
 
 revision = "004"
 down_revision = "003"
@@ -66,10 +67,10 @@ def upgrade():
     conn = op.get_bind()
     for sl, unit in SL_TO_UNIT.items():
         conn.execute(
-            "UPDATE lots SET unit_number = :unit WHERE strata_lot_number = :sl",
+            sa.text("UPDATE lots SET unit_number = :unit WHERE strata_lot_number = :sl"),
             {"unit": unit, "sl": sl},
         )
 
 
 def downgrade():
-    op.get_bind().execute("UPDATE lots SET unit_number = NULL")
+    op.get_bind().execute(sa.text("UPDATE lots SET unit_number = NULL"))
