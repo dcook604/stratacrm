@@ -22,6 +22,11 @@ class LoginResponse(BaseModel):
     csrf_token: str
 
 
+class MeResponse(BaseModel):
+    user: UserOut
+    csrf_token: str
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str

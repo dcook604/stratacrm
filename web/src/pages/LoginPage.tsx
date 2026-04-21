@@ -8,12 +8,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const login = useLogin();
   const navigate = useNavigate();
-  const { data: user } = useMe();
+  const { data } = useMe();
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) navigate("/dashboard", { replace: true });
-  }, [user, navigate]);
+    if (data?.user) navigate("/dashboard", { replace: true });
+  }, [data, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -14,7 +14,7 @@ from app.audit import log_action
 from app.database import get_db
 from app.dependencies import get_current_user, require_csrf
 from app.models import User
-from app.schemas.auth import ChangePasswordRequest, LoginRequest, LoginResponse, UserOut
+from app.schemas.auth import ChangePasswordRequest, LoginRequest, LoginResponse, MeResponse, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
@@ -67,9 +67,10 @@ def logout(
     return {"detail": "Logged out"}
 
 
-@router.get("/me", response_model=UserOut)
-def me(current_user: User = Depends(get_current_user)):
-    return UserOut.model_validate(current_user)
+@router.get("/me", response_model=MeResponse)
+def me(request: Request, current_user: User = Depends(get_current_user)):
+    csrf_token = request.session.get("csrf_token", "")
+    return MeResponse(user=UserOut.model_validate(current_user), csrf_token=csrf_token)
 
 
 @router.post("/change-password", dependencies=[Depends(require_csrf)])

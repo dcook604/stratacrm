@@ -98,6 +98,11 @@ export interface LoginResponse {
   csrf_token: string;
 }
 
+export interface MeResponse {
+  user: User;
+  csrf_token: string;
+}
+
 export interface ContactMethod {
   id: number;
   method_type: ContactMethodType;
@@ -241,7 +246,7 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post<LoginResponse>("/auth/login", { email, password }),
   logout: () => api.post<{ detail: string }>("/auth/logout"),
-  me: () => api.get<User>("/auth/me"),
+  me: () => api.get<MeResponse>("/auth/me"),
   changePassword: (current_password: string, new_password: string) =>
     api.post("/auth/change-password", { current_password, new_password }),
 };

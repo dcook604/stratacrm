@@ -16,7 +16,7 @@ import IncidentsPage from "./pages/IncidentsPage";
 import IssuesPage from "./pages/IssuesPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading } = useMe();
+  const { data, isLoading } = useMe();
 
   if (isLoading) {
     return (
@@ -26,7 +26,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
+  if (!data?.user) {
     return <Navigate to="/login" replace />;
   }
 

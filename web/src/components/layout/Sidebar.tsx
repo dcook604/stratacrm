@@ -25,7 +25,8 @@ const NAV: NavItem[] = [
 ];
 
 export default function Sidebar() {
-  const { data: user } = useMe();
+  const { data: meData } = useMe();
+  const user = meData?.user;
   const logout = useLogout();
   const navigate = useNavigate();
 
