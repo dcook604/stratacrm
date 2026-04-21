@@ -31,7 +31,11 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   async function handleLogout() {
-    await logout.mutateAsync();
+    try {
+      await logout.mutateAsync();
+    } catch {
+      // onError already cleared token and cache
+    }
     navigate("/login");
   }
 

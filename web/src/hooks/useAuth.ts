@@ -29,7 +29,7 @@ export function useLogin() {
       authApi.login(email, password),
     onSuccess: (data) => {
       setCsrfToken(data.csrf_token);
-      qc.setQueryData(["me"], data.user);
+      qc.setQueryData(["me"], data);
     },
   });
 }
