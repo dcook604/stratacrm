@@ -28,7 +28,6 @@ from app.models import Lot, StrataCorporation, User, UserRole
 from app.routers import auth as auth_router
 from app.routers import lots as lots_router
 from app.routers import parties as parties_router
-from app.routers import imports as imports_router
 from app.routers import bylaws as bylaws_router
 from app.routers import infractions as infractions_router
 from app.routers import incidents as incidents_router
@@ -216,7 +215,6 @@ API_PREFIX = "/api"
 app.include_router(auth_router.router, prefix=API_PREFIX)
 app.include_router(lots_router.router, prefix=API_PREFIX)
 app.include_router(parties_router.router, prefix=API_PREFIX)
-app.include_router(imports_router.router, prefix=API_PREFIX)
 app.include_router(bylaws_router.router, prefix=API_PREFIX)
 app.include_router(infractions_router.router, prefix=API_PREFIX)
 app.include_router(incidents_router.router, prefix=API_PREFIX)
