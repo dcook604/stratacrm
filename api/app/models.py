@@ -201,7 +201,7 @@ class Party(Base):
     contact_methods = relationship(
         "ContactMethod", back_populates="party", cascade="all, delete-orphan", order_by="ContactMethod.id"
     )
-    assignments = relationship("LotAssignment", back_populates="party")
+    assignments = relationship("LotAssignment", back_populates="party", cascade="all, delete-orphan", passive_deletes=True)
 
 
 class Lot(Base):
