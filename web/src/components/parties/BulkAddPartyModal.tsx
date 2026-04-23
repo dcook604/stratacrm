@@ -7,39 +7,48 @@ interface Props {
   onClose: () => void;
 }
 
-// CSV template columns and a sample row
+// ---------------------------------------------------------------------------
+// Template definition
+// ---------------------------------------------------------------------------
+
+// Column order matters — must match TEMPLATE_ROWS below
 const TEMPLATE_HEADERS = [
-  "full_name",
-  "party_type",
-  "is_property_manager",
-  "mailing_address_line1",
-  "mailing_city",
-  "mailing_province",
-  "mailing_postal_code",
+  "full_name",         // Required. e.g. "Smith, Jane" or "ABC Holdings Ltd."
+  "role",              // Required. See valid values below.
+  "lot_unit",          // Unit number matching an existing lot, e.g. "0110"
+  "party_type",        // "individual" (default) or "corporation"
   "email",
-  "cell_phone",
+  "cell_phone",        // Format: 604-555-0100
   "home_phone",
   "work_phone",
+  "mailing_address_line1",
+  "mailing_city",
+  "mailing_province",  // e.g. BC
+  "mailing_postal_code",
+  "is_property_manager", // true or false (default false)
   "notes",
-  "lot_unit",
-  "role",
 ];
 
-const TEMPLATE_SAMPLE = [
-  "Smith, Jane",
-  "individual",
-  "false",
-  "1234 Oak Street",
-  "Vancouver",
-  "BC",
-  "V5K 0A1",
-  "jane@example.com",
-  "604-555-0100",
-  "",
-  "",
-  "",
-  "0110",
-  "owner_occupant",
+// Valid role values:
+//   owner_occupant       — owner who lives in the unit
+//   owner_absentee       — owner who does not live in the unit
+//   tenant               — tenant / renter
+//   emergency_contact    — emergency contact only
+//   key_holder           — key holder only
+//   agent                — strata agent
+//   property_manager_of_record
+
+const TEMPLATE_ROWS = [
+  // Owner occupant — lives at the unit, no separate mailing address needed
+  ["Smith, Jane",        "owner_occupant",  "0110", "individual", "jane.smith@email.com",  "604-555-0101", "",             "",             "",                    "",          "",   "",        "false", ""],
+  // Owner absentee — owns but does not live there; has separate mailing address
+  ["Wong, David",        "owner_absentee",  "0210", "individual", "dwong@email.com",       "604-555-0202", "",             "",             "456 Elsewhere Ave",   "Vancouver", "BC", "V6B 2W9", "false", ""],
+  // Tenant
+  ["Park, Daniel",       "tenant",          "0110", "individual", "dpark@email.com",        "",            "778-555-0303", "",             "",                    "",          "",   "",        "false", "Form K filed"],
+  // Corporate owner
+  ["Maple Holdings Ltd.","owner_absentee",  "0305", "corporation","admin@mapleholdings.ca", "",            "",             "604-555-0404", "1166 Alberni St 700", "Vancouver", "BC", "V6E 3Z3", "false", ""],
+  // Emergency contact (no lot assignment — leave lot_unit and role blank if not assigning)
+  ["Lee, Susan",         "emergency_contact","0210","individual", "slee@email.com",         "604-555-0505","",             "",             "",                    "",          "",   "",        "false", ""],
 ];
 
 const ROLE_VALUES: LotAssignmentRole[] = [
@@ -48,8 +57,13 @@ const ROLE_VALUES: LotAssignmentRole[] = [
 ];
 
 function downloadTemplate() {
-  const rows = [TEMPLATE_HEADERS.join(","), TEMPLATE_SAMPLE.join(",")];
-  const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+  const lines = [
+    TEMPLATE_HEADERS.join(","),
+    ...TEMPLATE_ROWS.map((r) =>
+      r.map((cell) => (cell.includes(",") ? `"${cell}"` : cell)).join(",")
+    ),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -180,8 +194,10 @@ export default function BulkAddPartyModal({ onClose }: Props) {
             <div className="flex-1">
               <p className="text-sm font-medium text-slate-800">Step 1 — Download the template</p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Fill in one party per row. Columns: full_name, party_type (individual/corporation),
-                email, cell_phone, home_phone, work_phone, mailing address fields, lot_unit, role.
+                One party per row. Key columns: <strong>full_name</strong>, <strong>role</strong>{" "}
+                (owner_occupant / owner_absentee / tenant / emergency_contact / key_holder),{" "}
+                <strong>lot_unit</strong> (e.g. 0110). The template includes sample rows for
+                owners, tenants, and corporate owners. Delete the sample rows before uploading.
               </p>
             </div>
             <button
