@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Plus, Trash2 } from "lucide-react";
-import { partiesApi, type ContactMethodType, type PartyType } from "../../lib/api";
+import { partiesApi, lotsApi, type ContactMethodType, type PartyType, type LotAssignmentRole } from "../../lib/api";
 
 interface Props {
   onClose: () => void;
@@ -12,6 +12,16 @@ interface CmForm {
   value: string;
   is_primary: boolean;
 }
+
+const ROLES: { value: LotAssignmentRole; label: string }[] = [
+  { value: "owner_occupant",          label: "Owner Occupant" },
+  { value: "owner_absentee",          label: "Owner Absentee" },
+  { value: "tenant",                  label: "Tenant" },
+  { value: "emergency_contact",       label: "Emergency Contact" },
+  { value: "key_holder",              label: "Key Holder" },
+  { value: "agent",                   label: "Agent" },
+  { value: "property_manager_of_record", label: "Property Manager" },
+];
 
 export default function AddPartyModal({ onClose }: Props) {
   const qc = useQueryClient();
@@ -28,16 +38,33 @@ export default function AddPartyModal({ onClose }: Props) {
   const [contactMethods, setContactMethods] = useState<CmForm[]>([
     { method_type: "email", value: "", is_primary: true },
   ]);
+  const [lotId, setLotId] = useState<string>("");
+  const [role, setRole] = useState<LotAssignmentRole>("owner_occupant");
   const [error, setError] = useState<string | null>(null);
 
+  const { data: lotsData } = useQuery({
+    queryKey: ["lots", "all"],
+    queryFn: () => lotsApi.list({ limit: 500 }),
+  });
+  const lots = lotsData?.items ?? [];
+
   const mut = useMutation({
-    mutationFn: () =>
-      partiesApi.create({
+    mutationFn: async () => {
+      const party = await partiesApi.create({
         ...form,
         contact_methods: contactMethods.filter((cm) => cm.value.trim()),
-      }),
+      });
+      if (lotId) {
+        await lotsApi.createAssignment(Number(lotId), {
+          party_id: party.id,
+          role,
+        });
+      }
+      return party;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["parties"] });
+      qc.invalidateQueries({ queryKey: ["lots"] });
       onClose();
     },
     onError: (e: Error) => setError(e.message),
@@ -185,6 +212,35 @@ export default function AddPartyModal({ onClose }: Props) {
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             />
+          </div>
+
+          {/* Assign to lot */}
+          <div className="border-t border-slate-200 pt-4">
+            <label className="label">Assign to Lot <span className="text-slate-400 font-normal">(optional)</span></label>
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                className="input"
+                value={lotId}
+                onChange={(e) => setLotId(e.target.value)}
+              >
+                <option value="">— Select lot —</option>
+                {lots.map((lot) => (
+                  <option key={lot.id} value={lot.id}>
+                    SL{lot.strata_lot_number}{lot.unit_number ? ` — Unit ${lot.unit_number}` : ""}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                value={role}
+                onChange={(e) => setRole(e.target.value as LotAssignmentRole)}
+                disabled={!lotId}
+              >
+                {ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {error && (

@@ -7,8 +7,6 @@ import LotsPage from "./pages/LotsPage";
 import LotDetailPage from "./pages/LotDetailPage";
 import PartiesPage from "./pages/PartiesPage";
 import PartyDetailPage from "./pages/PartyDetailPage";
-import ImportPage from "./pages/ImportPage";
-import ImportReviewPage from "./pages/ImportReviewPage";
 import BylawsPage from "./pages/BylawsPage";
 import InfractionsPage from "./pages/InfractionsPage";
 import InfractionDetailPage from "./pages/InfractionDetailPage";
@@ -52,8 +50,6 @@ export default function App() {
           <Route path="lots/:id" element={<LotDetailPage />} />
           <Route path="parties" element={<PartiesPage />} />
           <Route path="parties/:id" element={<PartyDetailPage />} />
-          <Route path="import" element={<ImportPage />} />
-          <Route path="import/:batchId" element={<ImportReviewPage />} />
           <Route path="bylaws" element={<BylawsPage />} />
           <Route path="infractions" element={<InfractionsPage />} />
           <Route path="infractions/:id" element={<InfractionDetailPage />} />

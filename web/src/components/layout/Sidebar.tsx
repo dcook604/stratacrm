@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Building2, Users, BookOpen, AlertTriangle,
-  Wrench, FileText, Upload, LogOut,
+  Wrench, FileText, LogOut,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
@@ -17,7 +17,6 @@ const NAV: NavItem[] = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/lots", icon: Building2, label: "Lots" },
   { to: "/parties", icon: Users, label: "Parties" },
-  { to: "/import", icon: Upload, label: "Import" },
   { to: "/bylaws", icon: BookOpen, label: "Bylaws" },
   { to: "/infractions", icon: AlertTriangle, label: "Infractions" },
   { to: "/incidents", icon: FileText, label: "Incidents" },

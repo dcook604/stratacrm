@@ -194,7 +194,7 @@ export default function PartiesPage() {
                 {!isLoading && !data?.items.length && (
                   <tr>
                     <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400">
-                      No parties found. Use the PDF import (Session 2) to populate from the owner list.
+                      No parties found. Add a party using the button above.
                     </td>
                   </tr>
                 )}
