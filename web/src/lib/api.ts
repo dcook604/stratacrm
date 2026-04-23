@@ -285,7 +285,31 @@ export const partiesApi = {
     api.post<ContactMethod>(`/parties/${partyId}/contact-methods`, body),
   deleteContactMethod: (partyId: number, cmId: number) =>
     api.delete(`/parties/${partyId}/contact-methods/${cmId}`),
+  bulkCreate: (rows: BulkPartyRow[]) =>
+    api.post<BulkPartyResult>("/parties/bulk", rows),
 };
+
+export interface BulkPartyRow {
+  full_name: string;
+  party_type?: PartyType;
+  is_property_manager?: boolean;
+  mailing_address_line1?: string;
+  mailing_city?: string;
+  mailing_province?: string;
+  mailing_postal_code?: string;
+  email?: string;
+  cell_phone?: string;
+  home_phone?: string;
+  work_phone?: string;
+  notes?: string;
+  lot_unit?: string;
+  role?: LotAssignmentRole;
+}
+
+export interface BulkPartyResult {
+  created: number;
+  errors: { row: number; name: string; error: string }[];
+}
 
 export const dashboardApi = {
   stats: () => api.get<DashboardStats>("/dashboard/stats"),

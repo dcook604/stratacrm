@@ -7,9 +7,10 @@ import {
   flexRender,
   createColumnHelper,
 } from "@tanstack/react-table";
-import { Search, Plus, ChevronLeft, ChevronRight, Eye, Building, User } from "lucide-react";
+import { Search, Plus, Upload, ChevronLeft, ChevronRight, Eye, Building, User } from "lucide-react";
 import { partiesApi, type PartyListItem } from "../lib/api";
 import AddPartyModal from "../components/parties/AddPartyModal";
+import BulkAddPartyModal from "../components/parties/BulkAddPartyModal";
 
 const col = createColumnHelper<PartyListItem>();
 
@@ -89,6 +90,7 @@ export default function PartiesPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["parties", page, search],
@@ -122,9 +124,14 @@ export default function PartiesPage() {
             {data ? `${data.total} parties` : "Loading…"}
           </p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary">
-          <Plus className="w-4 h-4" /> Add Party
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowBulk(true)} className="btn-secondary flex items-center gap-2">
+            <Upload className="w-4 h-4" /> Bulk Upload
+          </button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary">
+            <Plus className="w-4 h-4" /> Add Party
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-4">
@@ -233,6 +240,7 @@ export default function PartiesPage() {
       </div>
 
       {showAdd && <AddPartyModal onClose={() => setShowAdd(false)} />}
+      {showBulk && <BulkAddPartyModal onClose={() => setShowBulk(false)} />}
     </div>
   );
 }

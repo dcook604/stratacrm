@@ -111,3 +111,25 @@ class PaginatedParties(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class BulkPartyRow(BaseModel):
+    full_name: str
+    party_type: PartyType = PartyType.individual
+    is_property_manager: bool = False
+    mailing_address_line1: Optional[str] = None
+    mailing_city: Optional[str] = None
+    mailing_province: Optional[str] = None
+    mailing_postal_code: Optional[str] = None
+    email: Optional[str] = None
+    cell_phone: Optional[str] = None
+    home_phone: Optional[str] = None
+    work_phone: Optional[str] = None
+    notes: Optional[str] = None
+    lot_unit: Optional[str] = None
+    role: Optional[LotAssignmentRole] = None
+
+
+class BulkPartyResult(BaseModel):
+    created: int
+    errors: List[dict]
