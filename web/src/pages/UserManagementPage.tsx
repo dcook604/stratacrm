@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi, type User } from "../lib/api";
 import { useMeUser } from "../hooks/useAuth";
-import { Shield, UserPlus, Key, RotateCcw, AlertTriangle, X, Check, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Key, AlertTriangle, X, Check, Eye, EyeOff } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Add User Modal
@@ -497,7 +497,6 @@ function RoleBadge({ role }: { role: string }) {
 // ---------------------------------------------------------------------------
 
 export default function UserManagementPage() {
-  const currentUser = useMeUser();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [resetPwdUser, setResetPwdUser] = useState<User | null>(null);

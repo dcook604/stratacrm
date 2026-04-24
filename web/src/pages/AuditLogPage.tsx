@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { auditLogApi, type AuditLogEntry, type AuditLogResponse } from "../lib/api";
+import { auditLogApi, type AuditLogResponse } from "../lib/api";
 import { formatDateTime } from "../lib/utils";
-import { Activity, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Action labels
