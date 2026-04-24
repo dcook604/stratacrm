@@ -157,6 +157,84 @@ def create_party(
     return get_party(party.id, db=db, _=current_user)
 
 
+@router.post("/bulk", response_model=BulkPartyResult, status_code=status.HTTP_200_OK,
+             dependencies=[Depends(require_csrf)])
+def bulk_create_parties(
+    request: Request,
+    rows: list[BulkPartyRow],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write),
+):
+    """Create multiple parties from a pre-parsed CSV payload. Each row may
+    optionally include a lot_unit and role to create a LotAssignment."""
+    created = 0
+    errors: list[dict] = []
+
+    # Build unit→lot lookup once
+    all_lots = db.execute(select(Lot)).scalars().all()
+    unit_to_lot: dict[str, Lot] = {
+        lot.unit_number.upper(): lot
+        for lot in all_lots
+        if lot.unit_number
+    }
+
+    for idx, row in enumerate(rows):
+        try:
+            party = Party(
+                party_type=row.party_type,
+                full_name=row.full_name.strip(),
+                is_property_manager=row.is_property_manager,
+                mailing_address_line1=row.mailing_address_line1 or None,
+                mailing_city=row.mailing_city or None,
+                mailing_province=row.mailing_province or None,
+                mailing_postal_code=row.mailing_postal_code or None,
+                mailing_country="Canada",
+                notes=row.notes or None,
+            )
+            db.add(party)
+            db.flush()
+
+            for method_type, value in [
+                (ContactMethodType.email,      row.email),
+                (ContactMethodType.cell_phone, row.cell_phone),
+                (ContactMethodType.home_phone, row.home_phone),
+                (ContactMethodType.work_phone, row.work_phone),
+            ]:
+                if value and value.strip():
+                    db.add(ContactMethod(
+                        party_id=party.id,
+                        method_type=method_type,
+                        value=value.strip(),
+                        is_primary=True,
+                    ))
+
+            if row.lot_unit and row.role:
+                lot = unit_to_lot.get(row.lot_unit.upper().strip())
+                if lot:
+                    db.add(LotAssignment(
+                        lot_id=lot.id,
+                        party_id=party.id,
+                        role=row.role,
+                        is_current=True,
+                    ))
+                else:
+                    errors.append({"row": idx + 1, "name": row.full_name,
+                                   "error": f"Unit '{row.lot_unit}' not found — party created without assignment"})
+
+            log_action(db, action="create", entity_type="party", entity_id=party.id,
+                       changes={"full_name": party.full_name, "source": "bulk_upload"},
+                       actor_id=current_user.id, actor_email=current_user.email, request=request)
+            created += 1
+
+        except Exception as exc:
+            db.rollback()
+            errors.append({"row": idx + 1, "name": row.full_name, "error": str(exc)})
+            continue
+
+    db.commit()
+    return BulkPartyResult(created=created, errors=errors)
+
+
 @router.put("/{party_id}", response_model=PartyOut, dependencies=[Depends(require_csrf)])
 def update_party(
     party_id: int,
@@ -305,81 +383,3 @@ def delete_contact_method(
                actor_id=current_user.id, actor_email=current_user.email, request=request)
     db.delete(cm)
     db.commit()
-
-
-@router.post("/bulk", response_model=BulkPartyResult, status_code=status.HTTP_200_OK,
-             dependencies=[Depends(require_csrf)])
-def bulk_create_parties(
-    request: Request,
-    rows: list[BulkPartyRow],
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_write),
-):
-    """Create multiple parties from a pre-parsed CSV payload. Each row may
-    optionally include a lot_unit and role to create a LotAssignment."""
-    created = 0
-    errors: list[dict] = []
-
-    # Build unit→lot lookup once
-    all_lots = db.execute(select(Lot)).scalars().all()
-    unit_to_lot: dict[str, Lot] = {
-        lot.unit_number.upper(): lot
-        for lot in all_lots
-        if lot.unit_number
-    }
-
-    for idx, row in enumerate(rows):
-        try:
-            party = Party(
-                party_type=row.party_type,
-                full_name=row.full_name.strip(),
-                is_property_manager=row.is_property_manager,
-                mailing_address_line1=row.mailing_address_line1 or None,
-                mailing_city=row.mailing_city or None,
-                mailing_province=row.mailing_province or None,
-                mailing_postal_code=row.mailing_postal_code or None,
-                mailing_country="Canada",
-                notes=row.notes or None,
-            )
-            db.add(party)
-            db.flush()
-
-            for method_type, value in [
-                (ContactMethodType.email,      row.email),
-                (ContactMethodType.cell_phone, row.cell_phone),
-                (ContactMethodType.home_phone, row.home_phone),
-                (ContactMethodType.work_phone, row.work_phone),
-            ]:
-                if value and value.strip():
-                    db.add(ContactMethod(
-                        party_id=party.id,
-                        method_type=method_type,
-                        value=value.strip(),
-                        is_primary=True,
-                    ))
-
-            if row.lot_unit and row.role:
-                lot = unit_to_lot.get(row.lot_unit.upper().strip())
-                if lot:
-                    db.add(LotAssignment(
-                        lot_id=lot.id,
-                        party_id=party.id,
-                        role=row.role,
-                        is_current=True,
-                    ))
-                else:
-                    errors.append({"row": idx + 1, "name": row.full_name,
-                                   "error": f"Unit '{row.lot_unit}' not found — party created without assignment"})
-
-            log_action(db, action="create", entity_type="party", entity_id=party.id,
-                       changes={"full_name": party.full_name, "source": "bulk_upload"},
-                       actor_id=current_user.id, actor_email=current_user.email, request=request)
-            created += 1
-
-        except Exception as exc:
-            db.rollback()
-            errors.append({"row": idx + 1, "name": row.full_name, "error": str(exc)})
-            continue
-
-    db.commit()
-    return BulkPartyResult(created=created, errors=errors)

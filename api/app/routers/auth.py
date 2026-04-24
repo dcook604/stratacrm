@@ -1,7 +1,8 @@
-"""Authentication router: login, logout, me, change-password."""
+"""Authentication router: login, logout, me, change-password, forgot/reset password."""
 
+import hashlib
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -11,10 +12,20 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import log_action
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, require_csrf
+from app.email import send_email
 from app.models import User
-from app.schemas.auth import ChangePasswordRequest, LoginRequest, LoginResponse, MeResponse, UserOut
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    MeResponse,
+    ResetPasswordRequest,
+    UserOut,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
@@ -98,3 +109,100 @@ def change_password(
     db.commit()
 
     return {"detail": "Password changed"}
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/15minute")
+def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Request a password reset email.
+    Always returns 200 to prevent email enumeration.
+    """
+    user = db.execute(
+        select(User).where(User.email == body.email.lower())
+    ).scalar_one_or_none()
+
+    if user and user.is_active:
+        # Generate a cryptographically random token
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+        # Store hash + expiry (1 hour)
+        user.password_reset_token = token_hash
+        user.password_reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        db.commit()
+
+        # Build reset link
+        reset_link = f"{request.base_url}reset-password?token={raw_token}"
+
+        # Send email (best-effort — log failure but don't expose it)
+        send_email(
+            to_address=user.email,
+            subject="Password Reset — Spectrum 4 Strata CRM",
+            body_text=(
+                f"Hello {user.full_name},\n\n"
+                f"A password reset was requested for your Spectrum 4 Strata CRM account.\n\n"
+                f"Click the link below to reset your password. This link expires in 1 hour.\n\n"
+                f"{reset_link}\n\n"
+                f"If you did not request this reset, please ignore this email.\n\n"
+                f"— Spectrum 4 Strata Council"
+            ),
+            body_html=(
+                f"<p>Hello {user.full_name},</p>"
+                f"<p>A password reset was requested for your Spectrum 4 Strata CRM account.</p>"
+                f"<p><a href=\"{reset_link}\">Click here to reset your password</a></p>"
+                f"<p>This link expires in 1 hour.</p>"
+                f"<p>If you did not request this reset, please ignore this email.</p>"
+                f"<p>— Spectrum 4 Strata Council</p>"
+            ),
+        )
+
+    return {"message": "If an account exists with that email, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+def reset_password(
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Reset password using a token received via email.
+    """
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    now = datetime.now(timezone.utc)
+
+    user = db.execute(
+        select(User).where(
+            User.password_reset_token == token_hash,
+            User.password_reset_token_expires_at > now,
+        )
+    ).scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    # Hash new password
+    user.password_hash = bcrypt.hashpw(
+        body.new_password.encode(), bcrypt.gensalt(rounds=12)
+    ).decode()
+
+    # Clear reset token fields
+    user.password_reset_token = None
+    user.password_reset_token_expires_at = None
+    user.password_reset_required = False
+
+    log_action(
+        db, action="password_reset", entity_type="user", entity_id=user.id,
+        actor_id=user.id, actor_email=user.email,
+        changes={"password": "reset via forgot-password flow"},
+    )
+    db.commit()
+
+    return {"message": "Password has been reset successfully."}

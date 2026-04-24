@@ -136,6 +136,8 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
     password_reset_required = Column(Boolean, nullable=False, default=True)
+    password_reset_token = Column(String(64), nullable=True, unique=True)
+    password_reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

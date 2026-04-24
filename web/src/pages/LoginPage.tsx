@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLogin, useMe } from "../hooks/useAuth";
 
 export default function LoginPage() {
@@ -75,6 +75,14 @@ export default function LoginPage() {
                 className="input"
                 placeholder="••••••••••"
               />
+              <div className="flex items-center justify-end mt-1">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             {error && (
