@@ -45,7 +45,7 @@ def list_lots(
     _: User = Depends(get_current_user),
     search: Optional[str] = Query(None, description="Filter by unit number or SL#"),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=250),
+    limit: int = Query(50, ge=1, le=1000),
 ):
     stmt = (
         select(Lot)
