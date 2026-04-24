@@ -170,10 +170,10 @@ def bulk_create_parties(
     created = 0
     errors: list[dict] = []
 
-    # Build unit→lot lookup once
+    # Build unit→lot lookup once; strip leading zeros so "0808" matches "808"
     all_lots = db.execute(select(Lot)).scalars().all()
     unit_to_lot: dict[str, Lot] = {
-        lot.unit_number.upper(): lot
+        lot.unit_number.upper().lstrip("0") or lot.unit_number.upper(): lot
         for lot in all_lots
         if lot.unit_number
     }
@@ -209,7 +209,8 @@ def bulk_create_parties(
                     ))
 
             if row.lot_unit and row.role:
-                lot = unit_to_lot.get(row.lot_unit.upper().strip())
+                normalized_unit = row.lot_unit.upper().strip().lstrip("0") or row.lot_unit.upper().strip()
+                lot = unit_to_lot.get(normalized_unit)
                 if lot:
                     db.add(LotAssignment(
                         lot_id=lot.id,
