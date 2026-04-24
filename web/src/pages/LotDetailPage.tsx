@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit2, Check, X } from "lucide-react";
+import { ArrowLeft, Edit2, Check, X, Trash2 } from "lucide-react";
 import { lotsApi, type Lot } from "../lib/api";
 import { ROLE_LABELS, roleBadgeClass, formatDate } from "../lib/utils";
 
@@ -34,6 +34,15 @@ export default function LotDetailPage() {
       qc.invalidateQueries({ queryKey: ["lots"] });
       setEditing(false);
       setForm({});
+    },
+  });
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const deleteAssignmentMut = useMutation({
+    mutationFn: (assignmentId: number) => lotsApi.deleteAssignment(lotId, assignmentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lot", lotId] });
+      setConfirmDeleteId(null);
     },
   });
 
@@ -230,6 +239,34 @@ export default function LotDetailPage() {
                     {a.start_date && ` · From ${formatDate(a.start_date)}`}
                     {a.form_k_filed_date && ` · Form K: ${formatDate(a.form_k_filed_date)}`}
                   </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {confirmDeleteId === a.id ? (
+                    <>
+                      <span className="text-xs text-slate-500">Remove?</span>
+                      <button
+                        onClick={() => deleteAssignmentMut.mutate(a.id)}
+                        disabled={deleteAssignmentMut.isPending}
+                        className="text-xs font-medium text-red-600 hover:text-red-700"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(a.id)}
+                      className="text-slate-400 hover:text-red-500 transition-colors"
+                      title="Remove assignment"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
