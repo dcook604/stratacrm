@@ -15,6 +15,8 @@ import InfractionsPage from "./pages/InfractionsPage";
 import InfractionDetailPage from "./pages/InfractionDetailPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import IssuesPage from "./pages/IssuesPage";
+import UserManagementPage from "./pages/UserManagementPage";
+import AuditLogPage from "./pages/AuditLogPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useMe();
@@ -61,6 +63,8 @@ export default function App() {
           <Route path="infractions/:id" element={<InfractionDetailPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="issues" element={<IssuesPage />} />
+          <Route path="users" element={<UserManagementPage />} />
+          <Route path="audit-log" element={<AuditLogPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

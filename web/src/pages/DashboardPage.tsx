@@ -211,9 +211,17 @@ export default function DashboardPage() {
 
       {/* Recent activity */}
       <div className="card">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-slate-500" />
-          <h2 className="font-semibold text-slate-900 text-sm">Recent Activity</h2>
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-slate-500" />
+            <h2 className="font-semibold text-slate-900 text-sm">Recent Activity</h2>
+          </div>
+          <Link
+            to="/audit-log"
+            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            View all activity →
+          </Link>
         </div>
         {!data?.recent_audit?.length ? (
           <div className="px-6 py-8 text-center text-slate-400 text-sm">No activity yet.</div>

@@ -1,4 +1,4 @@
-"""Authentication router: login, logout, me, change-password, forgot/reset password."""
+"""Authentication router: login, logout, me, change-password, forgot/reset password, admin user management."""
 
 import hashlib
 import secrets
@@ -8,22 +8,27 @@ import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.audit import log_action
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_user, require_csrf
+from app.dependencies import get_current_user, require_csrf, require_admin
 from app.email import send_email
 from app.models import User
 from app.schemas.auth import (
+    AdminAssignTempPasswordRequest,
+    AdminResetPasswordRequest,
     ChangePasswordRequest,
+    CreateUserRequest,
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
     MeResponse,
     ResetPasswordRequest,
+    UpdateUserRequest,
+    UserListResponse,
     UserOut,
 )
 
@@ -206,3 +211,201 @@ def reset_password(
     db.commit()
 
     return {"message": "Password has been reset successfully."}
+
+
+# ---------------------------------------------------------------------------
+# Admin user management endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/users", response_model=UserListResponse, dependencies=[Depends(require_csrf)])
+def list_users(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """List all users (admin only)."""
+    users = db.execute(
+        select(User).order_by(User.full_name.asc())
+    ).scalars().all()
+
+    return UserListResponse(
+        items=[UserOut.model_validate(u) for u in users],
+        total=len(users),
+    )
+
+
+@router.post("/users", response_model=UserOut, dependencies=[Depends(require_csrf)])
+def create_user(
+    body: CreateUserRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    request: Request = None,
+):
+    """Create a new user (admin only)."""
+    # Check for duplicate email
+    existing = db.execute(
+        select(User).where(User.email == body.email.lower())
+    ).scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists",
+        )
+
+    user = User(
+        email=body.email.lower(),
+        full_name=body.full_name,
+        role=body.role,
+        password_hash=bcrypt.hashpw(
+            body.temporary_password.encode(), bcrypt.gensalt(rounds=12)
+        ).decode(),
+        is_active=True,
+        password_reset_required=True,
+    )
+    db.add(user)
+    db.flush()
+
+    log_action(
+        db, action="create", entity_type="user", entity_id=user.id,
+        actor_id=current_user.id, actor_email=current_user.email,
+        changes={"email": user.email, "full_name": user.full_name, "role": user.role.value},
+        request=request,
+    )
+    db.commit()
+    db.refresh(user)
+
+    return UserOut.model_validate(user)
+
+
+@router.get("/users/{user_id}", response_model=UserOut, dependencies=[Depends(require_csrf)])
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Get a single user by ID (admin only)."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return UserOut.model_validate(user)
+
+
+@router.put("/users/{user_id}", response_model=UserOut, dependencies=[Depends(require_csrf)])
+def update_user(
+    user_id: int,
+    body: UpdateUserRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    request: Request = None,
+):
+    """Update user details (admin only). Cannot deactivate yourself."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    changes = {}
+
+    if body.email is not None and body.email.lower() != user.email:
+        # Check for duplicate email
+        existing = db.execute(
+            select(User).where(User.email == body.email.lower(), User.id != user_id)
+        ).scalar_one_or_none()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A user with this email already exists",
+            )
+        changes["email"] = {"from": user.email, "to": body.email.lower()}
+        user.email = body.email.lower()
+
+    if body.full_name is not None and body.full_name != user.full_name:
+        changes["full_name"] = {"from": user.full_name, "to": body.full_name}
+        user.full_name = body.full_name
+
+    if body.role is not None and body.role != user.role:
+        changes["role"] = {"from": user.role.value, "to": body.role.value}
+        user.role = body.role
+
+    if body.is_active is not None:
+        # Prevent deactivating yourself
+        if not body.is_active and user.id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You cannot deactivate your own account",
+            )
+        if body.is_active != user.is_active:
+            changes["is_active"] = {"from": user.is_active, "to": body.is_active}
+            user.is_active = body.is_active
+
+    if changes:
+        log_action(
+            db, action="update", entity_type="user", entity_id=user.id,
+            actor_id=current_user.id, actor_email=current_user.email,
+            changes=changes, request=request,
+        )
+        db.commit()
+        db.refresh(user)
+
+    return UserOut.model_validate(user)
+
+
+@router.post("/users/{user_id}/reset-password", dependencies=[Depends(require_csrf)])
+def admin_reset_password(
+    user_id: int,
+    body: AdminResetPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    request: Request = None,
+):
+    """Admin-initiated password reset for a user. Sets a new password directly."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.password_hash = bcrypt.hashpw(
+        body.new_password.encode(), bcrypt.gensalt(rounds=12)
+    ).decode()
+    user.password_reset_required = False
+    user.password_reset_token = None
+    user.password_reset_token_expires_at = None
+
+    log_action(
+        db, action="update", entity_type="user", entity_id=user.id,
+        actor_id=current_user.id, actor_email=current_user.email,
+        changes={"password": "reset by admin"},
+        request=request,
+    )
+    db.commit()
+
+    return {"detail": f"Password for {user.email} has been reset."}
+
+
+@router.post("/users/{user_id}/assign-temp-password", dependencies=[Depends(require_csrf)])
+def admin_assign_temp_password(
+    user_id: int,
+    body: AdminAssignTempPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    request: Request = None,
+):
+    """Assign a temporary password to a user, forcing them to change on next login."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.password_hash = bcrypt.hashpw(
+        body.temporary_password.encode(), bcrypt.gensalt(rounds=12)
+    ).decode()
+    user.password_reset_required = True
+    user.password_reset_token = None
+    user.password_reset_token_expires_at = None
+
+    log_action(
+        db, action="update", entity_type="user", entity_id=user.id,
+        actor_id=current_user.id, actor_email=current_user.email,
+        changes={"password": "temporary password assigned by admin", "password_reset_required": True},
+        request=request,
+    )
+    db.commit()
+
+    return {"detail": f"Temporary password assigned to {user.email}. User must change on next login."}

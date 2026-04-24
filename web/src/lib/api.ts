@@ -90,7 +90,10 @@ export interface User {
   email: string;
   full_name: string;
   role: UserRole;
+  is_active: boolean;
   password_reset_required: boolean;
+  last_login_at: string | null;
+  created_at: string | null;
 }
 
 export interface LoginResponse {
@@ -253,6 +256,17 @@ export const authApi = {
     api.post<{ message: string }>("/auth/forgot-password", { email }),
   resetPassword: (token: string, new_password: string) =>
     api.post<{ message: string }>("/auth/reset-password", { token, new_password }),
+  // Admin user management
+  listUsers: () => api.get<{ items: User[]; total: number }>("/auth/users"),
+  getUser: (id: number) => api.get<User>(`/auth/users/${id}`),
+  createUser: (body: { email: string; full_name: string; role: string; temporary_password: string }) =>
+    api.post<User>("/auth/users", body),
+  updateUser: (id: number, body: { email?: string; full_name?: string; role?: string; is_active?: boolean }) =>
+    api.put<User>(`/auth/users/${id}`, body),
+  adminResetPassword: (id: number, new_password: string) =>
+    api.post<{ detail: string }>(`/auth/users/${id}/reset-password`, { new_password }),
+  adminAssignTempPassword: (id: number, temporary_password: string) =>
+    api.post<{ detail: string }>(`/auth/users/${id}/assign-temp-password`, { temporary_password }),
 };
 
 export const lotsApi = {
@@ -649,6 +663,39 @@ export interface ListmonkSyncResult {
 
 export const syncApi = {
   listmonk: () => api.post<ListmonkSyncResult>("/sync/listmonk"),
+};
+
+// ---------------------------------------------------------------------------
+// Audit log types
+// ---------------------------------------------------------------------------
+
+export interface AuditLogEntry {
+  id: number;
+  actor_email: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: number | null;
+  changes: Record<string, unknown> | null;
+  occurred_at: string | null;
+  ip_address: string | null;
+}
+
+export interface AuditLogResponse {
+  items: AuditLogEntry[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export const auditLogApi = {
+  list: (params?: { skip?: number; limit?: number; action?: string; entity_type?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.skip != null) qs.set("skip", String(params.skip));
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    if (params?.action) qs.set("action", params.action);
+    if (params?.entity_type) qs.set("entity_type", params.entity_type);
+    return api.get<AuditLogResponse>(`/audit-log?${qs}`);
+  },
 };
 
 

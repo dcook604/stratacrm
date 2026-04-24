@@ -227,7 +227,7 @@ app.include_router(sync_router.router, prefix=API_PREFIX)
 # Dashboard stats endpoint
 # ---------------------------------------------------------------------------
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func as sqlfunc
 from app.database import get_db
@@ -289,7 +289,7 @@ def dashboard_stats(
     recent_audit = db.execute(
         select(AuditLog)
         .order_by(AuditLog.occurred_at.desc())
-        .limit(20)
+        .limit(5)
     ).scalars().all()
 
     return {
@@ -329,6 +329,60 @@ def dashboard_stats(
             for e in recent_audit
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Audit log endpoint (paginated, for full activity log page)
+# ---------------------------------------------------------------------------
+
+
+@app.get(f"{API_PREFIX}/audit-log")
+def get_audit_log(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    action: str = Query(None, description="Filter by action type"),
+    entity_type: str = Query(None, description="Filter by entity type"),
+):
+    query = select(AuditLog)
+
+    if action:
+        query = query.where(AuditLog.action == action)
+    if entity_type:
+        query = query.where(AuditLog.entity_type == entity_type)
+
+    # Get total count
+    count_query = select(sqlfunc.count()).select_from(query.subquery())
+    total = db.execute(count_query).scalar() or 0
+
+    # Get paginated results
+    entries = db.execute(
+        query.order_by(AuditLog.occurred_at.desc())
+        .offset(skip)
+        .limit(limit)
+    ).scalars().all()
+
+    from app.schemas.audit import AuditLogResponse, AuditLogEntry
+
+    return AuditLogResponse(
+        items=[
+            AuditLogEntry(
+                id=e.id,
+                actor_email=e.actor_email,
+                action=e.action,
+                entity_type=e.entity_type,
+                entity_id=e.entity_id,
+                changes=e.changes,
+                occurred_at=e.occurred_at.isoformat() if e.occurred_at else None,
+                ip_address=e.ip_address,
+            )
+            for e in entries
+        ],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @app.get(f"{API_PREFIX}/health")

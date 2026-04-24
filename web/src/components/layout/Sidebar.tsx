@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Building2, Users, BookOpen, AlertTriangle,
-  Wrench, FileText, LogOut,
+  Wrench, FileText, LogOut, Shield,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
@@ -11,6 +11,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   available?: boolean;
+  adminOnly?: boolean;
 }
 
 const NAV: NavItem[] = [
@@ -21,6 +22,7 @@ const NAV: NavItem[] = [
   { to: "/infractions", icon: AlertTriangle, label: "Infractions" },
   { to: "/incidents", icon: FileText, label: "Incidents" },
   { to: "/issues", icon: Wrench, label: "Issues" },
+  { to: "/users", icon: Shield, label: "Users", adminOnly: true },
 ];
 
 export default function Sidebar() {
@@ -49,7 +51,9 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ to, icon: Icon, label, available = true }) =>
+        {NAV
+          .filter(({ adminOnly }) => !adminOnly || user?.role === "admin")
+          .map(({ to, icon: Icon, label, available = true }) =>
           available ? (
             <NavLink
               key={to}
