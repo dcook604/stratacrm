@@ -55,9 +55,12 @@ def list_lots(
     )
 
     if search:
+        from sqlalchemy import or_
         try:
             sl_num = int(search)
-            stmt = stmt.where(Lot.strata_lot_number == sl_num)
+            stmt = stmt.where(
+                or_(Lot.strata_lot_number == sl_num, Lot.unit_number.ilike(f"%{search}%"))
+            )
         except ValueError:
             stmt = stmt.where(Lot.unit_number.ilike(f"%{search}%"))
 
