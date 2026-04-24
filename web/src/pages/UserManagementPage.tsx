@@ -54,16 +54,16 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Add User</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
           <div>
             <label htmlFor="add-email" className="label">Email address</label>
             <input
@@ -207,16 +207,16 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
   const isSelf = currentUser?.id === user.id;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Edit User</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
           <div>
             <label htmlFor="edit-email" className="label">Email address</label>
             <input
@@ -352,18 +352,18 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">
             {isTemp ? "Assign Temporary Password" : "Reset Password"}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5">
           <div className="rounded-md bg-blue-50 border border-blue-200 px-4 py-3">
             <p className="text-sm text-blue-700">
               <strong>{user.full_name}</strong> {"<"}{user.email}{">"}
@@ -509,18 +509,19 @@ export default function UserManagementPage() {
   const users = data?.items ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">User Management</h1>
           <p className="text-sm text-slate-500 mt-1">
             Manage user accounts, roles, and passwords
           </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
+        <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
           <UserPlus className="w-4 h-4" />
-          Add user
+          <span className="hidden sm:inline">Add user</span>
+          <span className="sm:hidden">Add</span>
         </button>
       </div>
 

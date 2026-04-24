@@ -101,16 +101,16 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-16 px-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Issue" : "Create Issue"}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+        <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
           {error && (
             <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
           )}
@@ -134,7 +134,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Priority</label>
               <select
@@ -215,7 +215,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t flex justify-end gap-3">
+        <div className="px-4 sm:px-6 py-4 border-t flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
           <button onClick={onClose} className="btn btn-secondary">Cancel</button>
           <button
             className="btn btn-primary"
@@ -377,10 +377,10 @@ export default function IssuesPage() {
   const overdueCount = issues?.filter(isOverdue).length ?? 0;
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+          <h1 className="text-lg md:text-xl font-semibold text-slate-900 flex items-center gap-2">
             <Wrench className="w-5 h-5 text-slate-500" />
             Issues
           </h1>
@@ -388,24 +388,24 @@ export default function IssuesPage() {
             Maintenance and council action items
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1.5" />Create Issue
+        <button className="btn btn-primary self-start sm:self-auto" onClick={() => setShowCreate(true)}>
+          <Plus className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">Create Issue</span><span className="sm:hidden ml-1">New</span>
         </button>
       </div>
 
       {issues && (
-        <div className="flex gap-4">
-          <div className="card px-4 py-3 text-center min-w-[80px]">
+        <div className="flex gap-2 md:gap-4">
+          <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
             <p className="text-2xl font-bold text-amber-600">{activeCount}</p>
             <p className="text-xs text-slate-500 mt-0.5">Active</p>
           </div>
           {overdueCount > 0 && (
-            <div className="card px-4 py-3 text-center min-w-[80px] border-red-200">
+            <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] border-red-200">
               <p className="text-2xl font-bold text-red-600">{overdueCount}</p>
               <p className="text-xs text-slate-500 mt-0.5">Overdue</p>
             </div>
           )}
-          <div className="card px-4 py-3 text-center min-w-[80px]">
+          <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
             <p className="text-2xl font-bold text-slate-600">{issues.length}</p>
             <p className="text-xs text-slate-500 mt-0.5">Showing</p>
           </div>
@@ -460,8 +460,9 @@ export default function IssuesPage() {
         </label>
       </div>
 
-      <div className="card p-0 overflow-hidden">
-        <table className="w-full">
+      <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Title</th>
@@ -494,6 +495,7 @@ export default function IssuesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showCreate && (

@@ -51,6 +51,8 @@ def send_email(
             msg.attach(pdf_part)
 
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
+            if settings.smtp_username and settings.smtp_password:
+                smtp.login(settings.smtp_username, settings.smtp_password)
             smtp.sendmail(settings.mail_from, [to_address], msg.as_string())
 
         log.info("email_sent", to=to_address, subject=subject)

@@ -117,26 +117,26 @@ function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-16 px-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[80vh] flex flex-col sm:max-h-[80vh]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Bylaw" : "New Bylaw"}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
         </div>
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+        <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
           {error && <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {field("bylaw_number", "Bylaw Number", "text")}
             {field("section", "Section", "text")}
           </div>
           {field("title", "Title", "text")}
           {field("full_text", "Full Text", "textarea")}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {field("category", "Category", "select")}
             {field("active_from", "Active From", "date")}
           </div>
         </div>
-        <div className="px-6 py-4 border-t flex justify-end gap-3">
+        <div className="px-4 sm:px-6 py-4 border-t flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
           <button onClick={onClose} className="btn btn-secondary">Cancel</button>
           <button
             className="btn btn-primary"
@@ -368,23 +368,23 @@ export default function BylawsPage() {
   }
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Bylaw Library</h1>
+          <h1 className="text-lg md:text-xl font-semibold text-slate-900">Bylaw Library</h1>
           <p className="text-sm text-slate-500 mt-0.5">Versioned bylaw reference with fine schedules</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 mr-1.5" />New Bylaw
+        <button className="btn btn-primary self-start sm:self-auto" onClick={() => setShowForm(true)}>
+          <Plus className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">New Bylaw</span><span className="sm:hidden ml-1">New</span>
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:flex-wrap sm:items-center">
         <input
           type="search"
           placeholder="Search bylaws…"
-          className="input w-56"
+          className="input w-full sm:w-56"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -410,8 +410,9 @@ export default function BylawsPage() {
       </div>
 
       {/* Table */}
-      <div className="card p-0 overflow-hidden">
-        <table className="w-full">
+      <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[500px]">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Bylaw #</th>
@@ -433,6 +434,7 @@ export default function BylawsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showForm && (

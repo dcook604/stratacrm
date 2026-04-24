@@ -13,9 +13,11 @@ class Settings(BaseSettings):
     https_only: bool = False  # set True behind TLS in production
     same_site: str = "lax"   # "strict" in production
 
-    # Email (OpenSMTPD relay)
+    # Email (SMTP relay)
     smtp_host: str = "10.0.9.1"
     smtp_port: int = 10025
+    smtp_username: str = ""
+    smtp_password: str = ""
     mail_from: str = "crm@spectrum4.ca"
     mail_from_name: str = "Spectrum 4 Strata Council"
 

@@ -94,10 +94,10 @@ export default function LotsPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Lots</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Lots</h1>
           <p className="text-slate-500 text-sm mt-1">
             {data ? `${data.total} lots total` : "Loading…"}
           </p>
@@ -105,8 +105,8 @@ export default function LotsPage() {
       </div>
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-        <div className="relative flex-1 max-w-xs">
+      <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="relative flex-1 max-w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -129,7 +129,7 @@ export default function LotsPage() {
       </form>
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden -mx-4 sm:mx-0">
         {error ? (
           <div className="px-6 py-8 text-center text-red-600 text-sm">Failed to load lots.</div>
         ) : (
@@ -184,7 +184,7 @@ export default function LotsPage() {
 
         {/* Pagination */}
         {(data?.total ?? 0) > PAGE_SIZE && (
-          <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between text-sm">
+          <div className="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between text-sm gap-2">
             <span className="text-slate-500">
               Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, data?.total ?? 0)} of{" "}
               {data?.total}

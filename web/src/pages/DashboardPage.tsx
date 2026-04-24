@@ -25,13 +25,13 @@ function StatCard({
   color: string;
 }) {
   const content = (
-    <div className="card p-5 flex items-center gap-4">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-        <Icon className="w-5 h-5 text-white" />
+    <div className="card p-4 md:p-5 flex items-center gap-3 md:gap-4">
+      <div className={`w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+        <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
       </div>
-      <div>
-        <p className="text-2xl font-bold text-slate-900">{value ?? "—"}</p>
-        <p className="text-sm text-slate-500 leading-tight">{label}</p>
+      <div className="min-w-0">
+        <p className="text-xl md:text-2xl font-bold text-slate-900">{value ?? "—"}</p>
+        <p className="text-xs md:text-sm text-slate-500 leading-tight truncate">{label}</p>
       </div>
     </div>
   );
@@ -56,13 +56,13 @@ function AttentionSection({ data }: { data: DashboardStats }) {
 
   return (
     <div className="card border-amber-200 bg-amber-50/50">
-      <div className="px-6 py-4 border-b border-amber-200 flex items-center gap-2">
+      <div className="px-4 md:px-6 py-4 border-b border-amber-200 flex items-center gap-2">
         <Clock className="w-4 h-4 text-amber-600" />
         <h2 className="font-semibold text-amber-900 text-sm">Needs Attention</h2>
       </div>
       <div className="divide-y divide-amber-100">
         {hasOverdueNotices && (
-          <div className="px-6 py-3">
+          <div className="px-4 md:px-6 py-3">
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2">
               Notices — Response Window Expired (14+ days)
             </p>
@@ -86,7 +86,7 @@ function AttentionSection({ data }: { data: DashboardStats }) {
           </div>
         )}
         {hasOverdueIssues && (
-          <div className="px-6 py-3">
+          <div className="px-4 md:px-6 py-3">
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2">
               Overdue Issues
             </p>
@@ -141,7 +141,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-slate-500 text-sm mt-1">Spectrum 4 — Strata Plan BCS2611</p>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
 
       {/* Recent activity */}
       <div className="card">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="px-4 md:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-slate-500" />
             <h2 className="font-semibold text-slate-900 text-sm">Recent Activity</h2>
@@ -224,23 +224,23 @@ export default function DashboardPage() {
           </Link>
         </div>
         {!data?.recent_audit?.length ? (
-          <div className="px-6 py-8 text-center text-slate-400 text-sm">No activity yet.</div>
+          <div className="px-4 md:px-6 py-8 text-center text-slate-400 text-sm">No activity yet.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {data.recent_audit.map((entry) => (
-              <li key={entry.id} className="px-6 py-3 flex items-center gap-3 text-sm">
+              <li key={entry.id} className="px-4 md:px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm">
                 <span className="inline-block w-16 text-xs font-medium text-slate-500 shrink-0">
                   {ACTION_LABELS[entry.action] ?? entry.action}
                 </span>
-                <span className="text-slate-700 flex-1">
+                <span className="text-slate-700 flex-1 min-w-0">
                   <span className="font-medium capitalize">{entry.entity_type.replace(/_/g, " ")}</span>
                   {entry.entity_id ? ` #${entry.entity_id}` : ""}
                 </span>
-                <span className="text-slate-400 text-xs shrink-0">
+                <span className="text-slate-400 text-xs shrink-0 flex flex-wrap gap-x-2">
                   {entry.actor_email && (
-                    <span className="mr-2">{entry.actor_email}</span>
+                    <span className="truncate max-w-[120px] sm:max-w-none">{entry.actor_email}</span>
                   )}
-                  {formatDateTime(entry.occurred_at)}
+                  <span className="whitespace-nowrap">{formatDateTime(entry.occurred_at)}</span>
                 </span>
               </li>
             ))}
