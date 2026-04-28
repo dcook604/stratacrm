@@ -16,6 +16,7 @@ from app.audit import log_action
 from app.config import settings
 from app.database import get_db
 from app.dependencies import (
+    generate_csrf_token,
     get_current_user,
     require_csrf,
     require_admin,
@@ -120,13 +121,13 @@ def login(
     db.commit()
 
     # Build response with CSRF cookie (Double Submit Cookie pattern)
-    csrf_token = set_csrf_cookie(request)
+    csrf_token = generate_csrf_token()
     content = LoginResponse(
         user=UserOut.model_validate(user),
         csrf_token=csrf_token,
     ).model_dump(mode="json")
     response = JSONResponse(content=content)
-    set_csrf_cookie(request, response)
+    set_csrf_cookie(request, response, token=csrf_token)
     return response
 
 

@@ -47,9 +47,15 @@ def get_csrf_from_cookie(request: Request) -> str | None:
     return request.cookies.get(_CSRF_COOKIE)
 
 
-def set_csrf_cookie(request: Request, response: Response) -> str:
-    """Generate a new CSRF token, store it in a non-HTTP-only cookie, and return it."""
-    token = secrets.token_urlsafe(32)
+def generate_csrf_token() -> str:
+    """Generate a new CSRF token without setting any cookie."""
+    return secrets.token_urlsafe(32)
+
+
+def set_csrf_cookie(request: Request, response: Response, token: str | None = None) -> str:
+    """Set CSRF token cookie on response. Generates a new token if one is not provided."""
+    if token is None:
+        token = generate_csrf_token()
     response.set_cookie(
         key=_CSRF_COOKIE,
         value=token,
