@@ -178,10 +178,11 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
   const [fullName, setFullName] = useState(user.full_name);
   const [role, setRole] = useState(user.role);
   const [isActive, setIsActive] = useState(user.is_active);
+  const [pwdResetRequired, setPwdResetRequired] = useState(user.password_reset_required);
   const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
-    mutationFn: (body: { email?: string; full_name?: string; role?: string; is_active?: boolean }) =>
+    mutationFn: (body: { email?: string; full_name?: string; role?: string; is_active?: boolean; password_reset_required?: boolean }) =>
       authApi.updateUser(user.id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
@@ -195,11 +196,12 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
     e.preventDefault();
     setError(null);
 
-    const body: { email?: string; full_name?: string; role?: string; is_active?: boolean } = {};
+    const body: { email?: string; full_name?: string; role?: string; is_active?: boolean; password_reset_required?: boolean } = {};
     if (email !== user.email) body.email = email;
     if (fullName !== user.full_name) body.full_name = fullName;
     if (role !== user.role) body.role = role;
     if (isActive !== user.is_active) body.is_active = isActive;
+    if (pwdResetRequired !== user.password_reset_required) body.password_reset_required = pwdResetRequired;
 
     if (Object.keys(body).length === 0) {
       onClose();
@@ -277,6 +279,22 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
               {isSelf && (
                 <p className="text-xs text-slate-500">You cannot deactivate your own account</p>
               )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={pwdResetRequired}
+                onChange={(e) => setPwdResetRequired(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500" />
+            </label>
+            <div>
+              <p className="text-sm font-medium text-slate-900">Require password change on next login</p>
+              <p className="text-xs text-slate-500">Uncheck if this user has already set their password</p>
             </div>
           </div>
 

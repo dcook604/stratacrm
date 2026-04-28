@@ -404,6 +404,10 @@ def update_user(
             changes["is_active"] = {"from": user.is_active, "to": body.is_active}
             user.is_active = body.is_active
 
+    if body.password_reset_required is not None and body.password_reset_required != user.password_reset_required:
+        changes["password_reset_required"] = {"from": user.password_reset_required, "to": body.password_reset_required}
+        user.password_reset_required = body.password_reset_required
+
     if changes:
         log_action(
             db, action="update", entity_type="user", entity_id=user.id,

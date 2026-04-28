@@ -78,6 +78,7 @@ class UpdateUserRequest(BaseModel):
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    password_reset_required: Optional[bool] = None
 
 
 class AdminResetPasswordRequest(BaseModel):
