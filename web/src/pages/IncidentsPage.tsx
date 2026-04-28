@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, AlertCircle } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { incidentsApi, lotsApi, type Incident, type IncidentStatus } from "../lib/api";
 import { useToast } from "../lib/toast";
 

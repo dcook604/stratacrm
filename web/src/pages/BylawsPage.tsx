@@ -357,7 +357,6 @@ function BylawRow({ item, onEdit }: { item: BylawListItem; onEdit: () => void })
 // ---------------------------------------------------------------------------
 
 export default function BylawsPage() {
-  const { addToast } = useToast();
   const [categoryFilter, setCategoryFilter] = useState<BylawCategory | "">("");
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);

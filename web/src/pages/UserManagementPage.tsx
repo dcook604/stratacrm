@@ -310,7 +310,6 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
 
 function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
   const qc = useQueryClient();
-  const { addToast } = useToast();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
