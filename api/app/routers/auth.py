@@ -114,8 +114,11 @@ def login(
     request.session["user_email"] = user.email
     request.session["user_role"] = user.role.value
 
-    # Update last login
-    user.last_login_at = datetime.now(timezone.utc)
+    # Update last login and reset activity timestamp so the inactivity check
+    # doesn't immediately expire the brand-new session
+    now = datetime.now(timezone.utc)
+    user.last_login_at = now
+    user.last_activity_at = now
     log_action(db, action="login", entity_type="user", entity_id=user.id,
                actor_id=user.id, actor_email=user.email, request=request)
     db.commit()
