@@ -483,3 +483,55 @@ def admin_assign_temp_password(
     db.commit()
 
     return {"detail": f"Temporary password assigned to {user.email}. User must change on next login."}
+
+
+@router.post("/users/{user_id}/send-reset-email", dependencies=[Depends(require_csrf)])
+def admin_send_reset_email(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+    request: Request = None,
+):
+    """Send a password-reset email to a user (admin-initiated)."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot send reset email to an inactive account")
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    user.password_reset_token = token_hash
+    user.password_reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    log_action(
+        db, action="update", entity_type="user", entity_id=user.id,
+        actor_id=current_user.id, actor_email=current_user.email,
+        changes={"password_reset": "reset email sent by admin"},
+        request=request,
+    )
+    db.commit()
+
+    reset_link = f"{request.base_url}reset-password?token={raw_token}"
+    send_email(
+        to_address=user.email,
+        subject="Password Reset — Spectrum 4 Strata CRM",
+        body_text=(
+            f"Hello {user.full_name},\n\n"
+            f"A password reset has been initiated for your Spectrum 4 Strata CRM account by an administrator.\n\n"
+            f"Click the link below to set a new password. This link expires in 24 hours.\n\n"
+            f"{reset_link}\n\n"
+            f"If you did not expect this email, please contact your strata administrator.\n\n"
+            f"— Spectrum 4 Strata Council"
+        ),
+        body_html=(
+            f"<p>Hello {user.full_name},</p>"
+            f"<p>A password reset has been initiated for your Spectrum 4 Strata CRM account by an administrator.</p>"
+            f"<p><a href=\"{reset_link}\">Click here to set your new password</a></p>"
+            f"<p>This link expires in 24 hours.</p>"
+            f"<p>If you did not expect this email, please contact your strata administrator.</p>"
+            f"<p>— Spectrum 4 Strata Council</p>"
+        ),
+    )
+
+    return {"detail": f"Password reset email sent to {user.email}."}

@@ -270,6 +270,8 @@ export const authApi = {
     api.post<{ detail: string }>(`/auth/users/${id}/reset-password`, { new_password }),
   adminAssignTempPassword: (id: number, temporary_password: string) =>
     api.post<{ detail: string }>(`/auth/users/${id}/assign-temp-password`, { temporary_password }),
+  sendResetEmail: (id: number) =>
+    api.post<{ detail: string }>(`/auth/users/${id}/send-reset-email`, {}),
 };
 
 export const lotsApi = {

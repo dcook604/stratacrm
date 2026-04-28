@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi, type User } from "../lib/api";
 import { useMeUser } from "../hooks/useAuth";
-import { UserPlus, Key, AlertTriangle, X, Check, Eye, EyeOff, Users } from "lucide-react";
+import { UserPlus, Key, AlertTriangle, X, Check, Eye, EyeOff, Users, Mail } from "lucide-react";
 import { useToast } from "../lib/toast";
 
 // ---------------------------------------------------------------------------
@@ -520,9 +520,23 @@ function RoleBadge({ role }: { role: string }) {
 // ---------------------------------------------------------------------------
 
 export default function UserManagementPage() {
+  const { addToast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [resetPwdUser, setResetPwdUser] = useState<User | null>(null);
+  const [sendingResetFor, setSendingResetFor] = useState<number | null>(null);
+
+  const sendResetEmailMut = useMutation({
+    mutationFn: (userId: number) => authApi.sendResetEmail(userId),
+    onSuccess: (data) => {
+      addToast("success", data.detail);
+      setSendingResetFor(null);
+    },
+    onError: (err: Error) => {
+      addToast("error", err.message);
+      setSendingResetFor(null);
+    },
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["users"],
@@ -654,6 +668,33 @@ export default function UserManagementPage() {
                           <Key className="w-3 h-3" />
                           Password
                         </button>
+                        {sendingResetFor === u.id ? (
+                          <div className="flex items-center gap-1 text-xs text-slate-500">
+                            <span>Send?</span>
+                            <button
+                              onClick={() => sendResetEmailMut.mutate(u.id)}
+                              disabled={sendResetEmailMut.isPending}
+                              className="text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setSendingResetFor(null)}
+                              className="text-slate-400 hover:text-slate-600"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setSendingResetFor(u.id)}
+                            className="btn-secondary text-xs px-2.5 py-1.5 flex items-center gap-1"
+                            title="Send password reset email"
+                          >
+                            <Mail className="w-3 h-3" />
+                            <span className="hidden xl:inline">Send Reset</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
