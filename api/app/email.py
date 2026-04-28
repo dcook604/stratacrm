@@ -51,7 +51,13 @@ def send_email(
             msg.attach(pdf_part)
 
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
-            if settings.smtp_username and settings.smtp_password:
+            smtp.ehlo()
+            # Upgrade to TLS if the server supports it
+            if smtp.has_extn("STARTTLS"):
+                smtp.starttls()
+                smtp.ehlo()
+            # Only attempt login if the server advertises AUTH and credentials are set
+            if settings.smtp_username and settings.smtp_password and smtp.has_extn("AUTH"):
                 smtp.login(settings.smtp_username, settings.smtp_password)
             smtp.sendmail(settings.mail_from, [to_address], msg.as_string())
 
