@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil } from "lucide-react";
-import { incidentsApi, lotsApi, type Incident, type IncidentStatus } from "../lib/api";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag } from "lucide-react";
+import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document } from "../lib/api";
 import { useToast } from "../lib/toast";
 
 // ---------------------------------------------------------------------------
@@ -26,8 +26,12 @@ const COMMON_CATEGORIES = [
   "Water Damage", "Elevator", "Parkade", "Common Area Damage",
   "Security", "Fire Safety", "Garbage / Recycling", "Amenity Room",
   "Lobby / Entrance", "Roof / Exterior", "Suite Damage", "Noise",
-  "Other",
+  "Other (custom)…",
 ];
+
+function isCustomCategory(cat: string) {
+  return !!cat && !COMMON_CATEGORIES.slice(0, -1).includes(cat);
+}
 
 // ---------------------------------------------------------------------------
 // Create / Edit modal
@@ -42,16 +46,21 @@ interface IncidentFormProps {
 function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const qc = useQueryClient();
   const { addToast } = useToast();
+
+  const initialCategory = initial?.category ?? "";
+  const startCustom = isCustomCategory(initialCategory);
+
   const [form, setForm] = useState({
     incident_date: initial?.incident_date ?? new Date().toISOString().slice(0, 10),
     lot_id: initial?.lot?.id ? String(initial.lot.id) : "",
     common_area_description: initial?.common_area_description ?? "",
-    category: initial?.category ?? "",
+    category: initialCategory,
     description: initial?.description ?? "",
     reported_by: initial?.reported_by ?? "",
     status: (initial?.status ?? "open") as IncidentStatus,
     resolution: initial?.resolution ?? "",
   });
+  const [showCustom, setShowCustom] = useState(startCustom);
   const [lotSearch, setLotSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -112,18 +121,34 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
             </div>
             <div>
               <label className="label">Category *</label>
-              <input
-                list="incident-categories"
+              <select
                 className="input"
-                placeholder="Select or type…"
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-              />
-              <datalist id="incident-categories">
+                value={showCustom ? "Other (custom)…" : form.category}
+                onChange={(e) => {
+                  if (e.target.value === "Other (custom)…") {
+                    setShowCustom(true);
+                    setForm({ ...form, category: "" });
+                  } else {
+                    setShowCustom(false);
+                    setForm({ ...form, category: e.target.value });
+                  }
+                }}
+              >
+                <option value="">Select category…</option>
                 {COMMON_CATEGORIES.map((c) => (
-                  <option key={c} value={c} />
+                  <option key={c} value={c}>{c}</option>
                 ))}
-              </datalist>
+              </select>
+              {showCustom && (
+                <input
+                  type="text"
+                  className="input mt-1"
+                  placeholder="Describe category…"
+                  value={form.category}
+                  autoFocus
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                />
+              )}
             </div>
           </div>
 
@@ -222,6 +247,214 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Media attachment panel
+// ---------------------------------------------------------------------------
+
+function MediaPanel({ incidentId }: { incidentId: number }) {
+  const qc = useQueryClient();
+  const { addToast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [caption, setCaption] = useState("");
+  const [tags, setTags] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+
+  const { data: docs } = useQuery({
+    queryKey: ["documents", "incident", incidentId],
+    queryFn: () => documentsApi.list("incident", incidentId),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => documentsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["documents", "incident", incidentId] });
+      setConfirmDelete(null);
+      addToast("success", "Attachment removed.");
+    },
+    onError: (e: Error) => addToast("error", e.message),
+  });
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      await documentsApi.upload("incident", incidentId, file, caption || undefined, tags || undefined);
+      qc.invalidateQueries({ queryKey: ["documents", "incident", incidentId] });
+      setCaption("");
+      setTags("");
+      setShowForm(false);
+      if (fileRef.current) fileRef.current.value = "";
+      addToast("success", "Media uploaded.");
+    } catch (e) {
+      addToast("error", (e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function isImage(doc: Document) {
+    return doc.mime_type?.startsWith("image/") ?? false;
+  }
+  function isVideo(doc: Document) {
+    return doc.mime_type?.startsWith("video/") ?? false;
+  }
+
+  return (
+    <div className="mt-4 border-t border-slate-200 pt-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          Media Attachments {docs && docs.length > 0 && `(${docs.length})`}
+        </h4>
+        <button
+          className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1"
+          onClick={() => setShowForm((f) => !f)}
+        >
+          <Upload className="w-3.5 h-3.5" />
+          Add Photo / Video
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+          <div>
+            <label className="label text-xs">File (image or video, max 100 MB)</label>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,video/*"
+              className="block w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUpload(file);
+              }}
+            />
+          </div>
+          <div>
+            <label className="label text-xs">Caption <span className="text-slate-400 font-normal">(optional)</span></label>
+            <input
+              type="text"
+              className="input text-sm"
+              placeholder="Describe what's shown…"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label text-xs flex items-center gap-1">
+              <Tag className="w-3 h-3" /> Tags <span className="text-slate-400 font-normal">(comma-separated, optional)</span>
+            </label>
+            <input
+              type="text"
+              className="input text-sm"
+              placeholder="e.g. water, hallway, p2"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+            />
+          </div>
+          {uploading && (
+            <p className="text-xs text-blue-600 animate-pulse">Uploading…</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              className="btn btn-secondary text-xs py-1"
+              onClick={() => { setShowForm(false); setCaption(""); setTags(""); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {docs && docs.length === 0 && !showForm && (
+        <p className="text-xs text-slate-400 italic">No media attached yet.</p>
+      )}
+
+      {docs && docs.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {docs.map((doc) => (
+            <div key={doc.id} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white">
+              {isImage(doc) && (
+                <a href={doc.download_url} target="_blank" rel="noreferrer">
+                  <img
+                    src={doc.download_url}
+                    alt={doc.caption ?? doc.original_filename ?? ""}
+                    className="w-full h-32 object-cover"
+                    loading="lazy"
+                  />
+                </a>
+              )}
+              {isVideo(doc) && (
+                <video
+                  src={doc.download_url}
+                  controls
+                  className="w-full h-32 object-cover bg-black"
+                  preload="metadata"
+                />
+              )}
+              {!isImage(doc) && !isVideo(doc) && (
+                <a
+                  href={doc.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center h-32 bg-slate-50 text-slate-400"
+                >
+                  <FileText className="w-8 h-8" />
+                </a>
+              )}
+
+              {/* Caption + tags */}
+              <div className="px-2 py-1.5 space-y-0.5">
+                {doc.caption && (
+                  <p className="text-xs text-slate-700 leading-tight line-clamp-2">{doc.caption}</p>
+                )}
+                {doc.tags && (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {doc.tags.split(",").map((t) => t.trim()).filter(Boolean).map((t) => (
+                      <span key={t} className="inline-block text-[10px] bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Delete button */}
+              <div className="absolute top-1 right-1">
+                {confirmDelete === doc.id ? (
+                  <div className="flex gap-1 bg-white rounded shadow-md p-1">
+                    <button
+                      className="text-[10px] text-red-600 font-semibold hover:underline"
+                      onClick={() => deleteMut.mutate(doc.id)}
+                      disabled={deleteMut.isPending}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      className="text-[10px] text-slate-500 hover:underline"
+                      onClick={() => setConfirmDelete(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(doc.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded p-0.5 shadow text-slate-400 hover:text-red-600"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Expandable incident row
 // ---------------------------------------------------------------------------
 
@@ -268,7 +501,7 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
       {expanded && (
         <tr className="bg-slate-50 border-b border-slate-200">
           <td colSpan={6} className="px-6 py-4">
-            <div className="max-w-2xl space-y-3">
+            <div className="max-w-3xl space-y-3">
               <p className="text-sm text-slate-700 whitespace-pre-wrap">{incident.description}</p>
               {incident.reported_by && (
                 <p className="text-xs text-slate-500">Reported by: {incident.reported_by}</p>
@@ -280,7 +513,7 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
                 </div>
               )}
               {/* Quick status update */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-500">Move to:</span>
                 {(["open", "in_progress", "resolved", "closed"] as IncidentStatus[])
                   .filter((s) => s !== incident.status)
@@ -295,6 +528,8 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
                     </button>
                   ))}
               </div>
+
+              <MediaPanel incidentId={incident.id} />
             </div>
           </td>
         </tr>

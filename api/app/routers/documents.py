@@ -36,6 +36,14 @@ _ALLOWED_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    # Video types
+    "video/mp4",
+    "video/quicktime",
+    "video/webm",
+    "video/x-msvideo",
+    "video/avi",
+    "video/mpeg",
+    "video/ogg",
 }
 
 # Map MIME types to expected file extensions for validation
@@ -50,9 +58,16 @@ _MIME_TO_EXT: dict[str, set[str]] = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {".docx"},
     "application/vnd.ms-excel": {".xls"},
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {".xlsx"},
+    "video/mp4": {".mp4"},
+    "video/quicktime": {".mov"},
+    "video/webm": {".webm"},
+    "video/x-msvideo": {".avi"},
+    "video/avi": {".avi"},
+    "video/mpeg": {".mpeg", ".mpg"},
+    "video/ogg": {".ogv"},
 }
 
-_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
+_MAX_BYTES = 100 * 1024 * 1024  # 100 MB (videos)
 
 
 def _doc_out(doc: Document) -> DocumentOut:
@@ -65,6 +80,8 @@ def _doc_out(doc: Document) -> DocumentOut:
         linked_entity_id=doc.linked_entity_id,
         uploaded_at=doc.uploaded_at,
         download_url=f"/api/documents/{doc.id}/download",
+        caption=doc.caption,
+        tags=doc.tags,
     )
 
 
@@ -75,6 +92,8 @@ async def upload_document(
     file: UploadFile = File(...),
     entity_type: str = Form(...),
     entity_id: int = Form(...),
+    caption: str = Form(None),
+    tags: str = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write),
 ):
@@ -133,6 +152,8 @@ async def upload_document(
         uploaded_by_id=current_user.id,
         linked_entity_type=entity_type,
         linked_entity_id=entity_id,
+        caption=caption or None,
+        tags=tags or None,
     )
     db.add(doc)
     db.commit()
@@ -177,11 +198,15 @@ def download_document(
     with open(doc.storage_path, "rb") as f:
         data = f.read()
 
+    is_inline = doc.mime_type and (
+        doc.mime_type.startswith("image/") or doc.mime_type.startswith("video/")
+    )
+    disposition = "inline" if is_inline else "attachment"
     return Response(
         content=data,
         media_type=doc.mime_type or "application/octet-stream",
         headers={
-            "Content-Disposition": f'attachment; filename="{doc.original_filename or "download"}"'
+            "Content-Disposition": f'{disposition}; filename="{doc.original_filename or "download"}"'
         },
     )
 

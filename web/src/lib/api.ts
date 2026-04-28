@@ -629,16 +629,26 @@ export interface Document {
   linked_entity_id: number | null;
   uploaded_at: string;
   download_url: string;
+  caption: string | null;
+  tags: string | null;
 }
 
 export const documentsApi = {
   list: (entityType: string, entityId: number) =>
     api.get<Document[]>(`/documents?entity_type=${entityType}&entity_id=${entityId}`),
-  upload: async (entityType: string, entityId: number, file: File): Promise<Document> => {
+  upload: async (
+    entityType: string,
+    entityId: number,
+    file: File,
+    caption?: string,
+    tags?: string,
+  ): Promise<Document> => {
     const form = new FormData();
     form.append("file", file);
     form.append("entity_type", entityType);
     form.append("entity_id", String(entityId));
+    if (caption) form.append("caption", caption);
+    if (tags) form.append("tags", tags);
     const res = await fetch("/api/documents", {
       method: "POST",
       credentials: "same-origin",

@@ -251,6 +251,8 @@ class Document(Base):
     linked_entity_type = Column(String(100), nullable=True)   # 'lot' | 'infraction' | 'incident' | 'party'
     linked_entity_id = Column(Integer, nullable=True)
     uploaded_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    caption = Column(Text, nullable=True)
+    tags = Column(String(500), nullable=True)  # comma-separated
 
     uploaded_by = relationship("User", foreign_keys=[uploaded_by_id])
 

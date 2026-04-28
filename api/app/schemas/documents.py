@@ -16,3 +16,5 @@ class DocumentOut(BaseModel):
     linked_entity_id: Optional[int]
     uploaded_at: datetime
     download_url: str  # set by endpoint
+    caption: Optional[str] = None
+    tags: Optional[str] = None  # comma-separated
