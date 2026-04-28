@@ -31,4 +31,4 @@ RUN mkdir -p /app/uploads
 EXPOSE 8000
 
 # Alembic runs migrations on every start (idempotent). uvicorn is multi-worker.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips='*'"]

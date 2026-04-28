@@ -11,6 +11,8 @@ from app.models import User, UserRole
 
 # Idle session timeout — 30 minutes of inactivity forces re-login
 _IDLE_TIMEOUT = timedelta(minutes=30)
+# Absolute session lifetime — forces re-login regardless of activity
+_ABSOLUTE_TIMEOUT = timedelta(hours=8)
 
 # Cookie name for the CSRF token (non-HTTP-only so JS can read it)
 _CSRF_COOKIE = "s4_csrf"
@@ -24,14 +26,24 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    # Session idle timeout check
-    last_activity = user.last_activity_at
     now = datetime.now(timezone.utc)
+
+    # Idle timeout
+    last_activity = user.last_activity_at
     if last_activity and (now - last_activity) > _IDLE_TIMEOUT:
         request.session.clear()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired due to inactivity",
+        )
+
+    # Absolute session timeout — re-login required after 8 hours regardless of activity
+    login_time = user.last_login_at
+    if login_time and (now - login_time) > _ABSOLUTE_TIMEOUT:
+        request.session.clear()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please log in again.",
         )
 
     # Update last activity timestamp (throttled: only write every 60s to reduce DB churn)

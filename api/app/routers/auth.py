@@ -45,7 +45,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
 
 # Brute-force lockout constants
-_MAX_FAILED_ATTEMPTS = 10
+_MAX_FAILED_ATTEMPTS = 5
 _LOCKOUT_DURATION = timedelta(minutes=15)
 
 
@@ -175,6 +175,11 @@ def change_password(
         body.new_password.encode(), bcrypt.gensalt(rounds=12)
     ).decode()
     current_user.password_reset_required = False
+    # Rotate login timestamp so the absolute session timer resets for this session
+    # and any other active sessions (other devices) are forced to re-authenticate
+    now = datetime.now(timezone.utc)
+    current_user.last_login_at = now
+    current_user.last_activity_at = now
 
     log_action(db, action="update", entity_type="user", entity_id=current_user.id,
                changes={"password": "changed"},
