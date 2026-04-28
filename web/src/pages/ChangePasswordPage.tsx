@@ -12,20 +12,28 @@ export default function ChangePasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
   const [isPending, setIsPending] = useState(false);
+
+  function validate(): boolean {
+    const errs: typeof fieldErrors = {};
+    if (!currentPassword) errs.currentPassword = "Current password is required.";
+    if (!newPassword) errs.newPassword = "New password is required.";
+    else if (newPassword.length < 10) errs.newPassword = "Must be at least 10 characters.";
+    if (!confirmPassword) errs.confirmPassword = "Please confirm your new password.";
+    else if (newPassword !== confirmPassword) errs.confirmPassword = "Passwords do not match.";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
-    if (newPassword.length < 10) {
-      setError("New password must be at least 10 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
+    if (!validate()) return;
 
     setIsPending(true);
     try {
@@ -64,11 +72,14 @@ export default function ChangePasswordPage() {
                 autoComplete="current-password"
                 required
                 value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="input"
+                onChange={(e) => { setCurrentPassword(e.target.value); setFieldErrors((p) => ({ ...p, currentPassword: undefined })); }}
+                className={fieldErrors.currentPassword ? "input input-error" : "input"}
                 placeholder="Your temporary password"
                 autoFocus
               />
+              {fieldErrors.currentPassword && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.currentPassword}</p>
+              )}
             </div>
 
             <div>
@@ -79,10 +90,13 @@ export default function ChangePasswordPage() {
                 autoComplete="new-password"
                 required
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="input"
+                onChange={(e) => { setNewPassword(e.target.value); setFieldErrors((p) => ({ ...p, newPassword: undefined })); }}
+                className={fieldErrors.newPassword ? "input input-error" : "input"}
                 placeholder="At least 10 characters"
               />
+              {fieldErrors.newPassword && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.newPassword}</p>
+              )}
             </div>
 
             <div>
@@ -93,10 +107,13 @@ export default function ChangePasswordPage() {
                 autoComplete="new-password"
                 required
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="input"
+                onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((p) => ({ ...p, confirmPassword: undefined })); }}
+                className={fieldErrors.confirmPassword ? "input input-error" : "input"}
                 placeholder="Re-enter your new password"
               />
+              {fieldErrors.confirmPassword && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>
+              )}
             </div>
 
             {error && (

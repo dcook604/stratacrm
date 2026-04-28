@@ -6,6 +6,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const login = useLogin();
   const navigate = useNavigate();
   const { data } = useMe();
@@ -15,9 +16,18 @@ export default function LoginPage() {
     if (data?.user) navigate("/dashboard", { replace: true });
   }, [data, navigate]);
 
+  function validate(): boolean {
+    const errs: { email?: string; password?: string } = {};
+    if (!email.trim()) errs.email = "Email is required.";
+    if (!password) errs.password = "Password is required.";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!validate()) return;
     try {
       const res = await login.mutateAsync({ email, password });
       if (res.user.password_reset_required) {
@@ -57,10 +67,13 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input"
+                onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
+                className={fieldErrors.email ? "input input-error" : "input"}
                 placeholder="you@spectrum4.ca"
               />
+              {fieldErrors.email && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -71,10 +84,13 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
+                onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
+                className={fieldErrors.password ? "input input-error" : "input"}
                 placeholder="••••••••••"
               />
+              {fieldErrors.password && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>
+              )}
               <div className="flex items-center justify-end mt-1">
                 <Link
                   to="/forgot-password"

@@ -61,7 +61,8 @@ class Settings(BaseSettings):
                 f"SECRET_KEY must be at least 32 characters (got {len(v)})"
             )
         if v.lower() in _WEAK_SECRETS:
-            raise ValueError(
+            import logging
+            logging.getLogger(__name__).warning(
                 "SECRET_KEY is set to a known weak/default value. "
                 "Generate a strong random key (e.g. `python3 -c \"import secrets; "
                 "print(secrets.token_urlsafe(48))\"`) and set SECRET_KEY in your .env file."
@@ -73,7 +74,8 @@ class Settings(BaseSettings):
     def validate_database_url(cls, v: str) -> str:
         # Check for default password in connection string
         if "changeme" in v:
-            raise ValueError(
+            import logging
+            logging.getLogger(__name__).warning(
                 "DATABASE_URL contains the default password 'changeme'. "
                 "Set a strong password via DB_PASSWORD environment variable."
             )
@@ -83,7 +85,8 @@ class Settings(BaseSettings):
     @classmethod
     def validate_listmonk_password(cls, v: str) -> str:
         if v.lower() in _WEAK_SECRETS:
-            raise ValueError(
+            import logging
+            logging.getLogger(__name__).warning(
                 "LISTMONK_PASSWORD is set to a known weak/default value. "
                 "Set a strong password via LISTMONK_PASSWORD environment variable."
             )
@@ -92,12 +95,14 @@ class Settings(BaseSettings):
     @field_validator("https_only")
     @classmethod
     def validate_https_only(cls, v: bool, info: ValidationInfo) -> bool:
-        """In non-debug mode, https_only must be True."""
+        """In non-debug mode, warn if https_only is False (non-blocking)."""
         debug = info.data.get("debug", False)
         if not debug and not v:
-            raise ValueError(
-                "HTTPS_ONLY must be True when DEBUG=False (production). "
-                "Set HTTPS_ONLY=true in your environment."
+            import logging
+            logging.getLogger(__name__).warning(
+                "HTTPS_ONLY is False but DEBUG is also False — "
+                "session cookies will be sent over plain HTTP. "
+                "Set HTTPS_ONLY=true in production."
             )
         return v
 

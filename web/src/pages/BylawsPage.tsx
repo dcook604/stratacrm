@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, ChevronDown, ChevronUp, Pencil, X } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, Pencil, X, BookOpen } from "lucide-react";
 import { bylawsApi, type Bylaw, type BylawCategory, type BylawListItem } from "../lib/api";
+import { useToast } from "../lib/toast";
 
 const CATEGORIES: { value: BylawCategory; label: string }[] = [
   { value: "noise", label: "Noise" },
@@ -157,6 +158,7 @@ function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
 
 function FineSchedulePanel({ bylaw }: { bylaw: Bylaw }) {
   const qc = useQueryClient();
+  const { addToast } = useToast();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ occurrence_number: 1, fine_amount: "", continuing_contravention_amount: "", max_per_week: "" });
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +181,10 @@ function FineSchedulePanel({ bylaw }: { bylaw: Bylaw }) {
 
   const deleteMutation = useMutation({
     mutationFn: (scheduleId: number) => bylawsApi.deleteFineSchedule(bylaw.id, scheduleId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["bylaws", bylaw.id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bylaws", bylaw.id] });
+      addToast("success", "Fine schedule deleted.");
+    },
   });
 
   const sorted = [...bylaw.fine_schedules].sort((a, b) => a.occurrence_number - b.occurrence_number);
@@ -218,7 +223,13 @@ function FineSchedulePanel({ bylaw }: { bylaw: Bylaw }) {
                   {fs.max_per_week ? `$${Number(fs.max_per_week).toFixed(2)}/wk` : "—"}
                 </td>
                 <td className="py-1 text-right">
-                  <button onClick={() => deleteMutation.mutate(fs.id)} className="text-slate-400 hover:text-red-500">
+                  <button
+                    onClick={() => {
+                      if (confirm("Delete this fine schedule entry?")) deleteMutation.mutate(fs.id);
+                    }}
+                    disabled={deleteMutation.isPending}
+                    className="text-slate-400 hover:text-red-500 disabled:opacity-30"
+                  >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </td>
@@ -346,13 +357,14 @@ function BylawRow({ item, onEdit }: { item: BylawListItem; onEdit: () => void })
 // ---------------------------------------------------------------------------
 
 export default function BylawsPage() {
+  const { addToast } = useToast();
   const [categoryFilter, setCategoryFilter] = useState<BylawCategory | "">("");
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editBylaw, setEditBylaw] = useState<Bylaw | null>(null);
 
-  const { data: bylaws, isLoading } = useQuery({
+  const { data: bylaws, isLoading, error } = useQuery({
     queryKey: ["bylaws", { categoryFilter, search, showInactive }],
     queryFn: () =>
       bylawsApi.list({
@@ -417,17 +429,32 @@ export default function BylawsPage() {
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Bylaw #</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Title</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">Category</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Active From</th>
+              <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">Category</th>
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Active From</th>
               <th className="w-16" />
             </tr>
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">Loading…</td></tr>
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  {[0, 1, 2, 3, 4].map((j) => (
+                    <td key={j} className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-3/4" /></td>
+                  ))}
+                </tr>
+              ))
             )}
-            {!isLoading && (!bylaws || bylaws.length === 0) && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">No bylaws found.</td></tr>
+            {!isLoading && error && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-red-500">Failed to load bylaws.</td></tr>
+            )}
+            {!isLoading && !error && (!bylaws || bylaws.length === 0) && (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center">
+                  <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500 font-medium">No bylaws found.</p>
+                  <p className="text-xs text-slate-400 mt-1">Create your first bylaw using the button above.</p>
+                </td>
+              </tr>
             )}
             {bylaws?.map((b) => (
               <BylawRow key={b.id} item={b} onEdit={() => openEdit(b.id)} />

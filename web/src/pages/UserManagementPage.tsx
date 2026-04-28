@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi, type User } from "../lib/api";
 import { useMeUser } from "../hooks/useAuth";
-import { UserPlus, Key, AlertTriangle, X, Check, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Key, AlertTriangle, X, Check, Eye, EyeOff, Users } from "lucide-react";
+import { useToast } from "../lib/toast";
 
 // ---------------------------------------------------------------------------
 // Add User Modal
@@ -10,6 +11,7 @@ import { UserPlus, Key, AlertTriangle, X, Check, Eye, EyeOff } from "lucide-reac
 
 function AddUserModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+  const { addToast } = useToast();
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<string>("council_member");
@@ -22,6 +24,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
       authApi.createUser(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
+      addToast("success", "User created.");
       onClose();
     },
     onError: (err: Error) => setError(err.message),
@@ -169,6 +172,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
 
 function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
   const qc = useQueryClient();
+  const { addToast } = useToast();
   const currentUser = useMeUser();
   const [email, setEmail] = useState(user.email);
   const [fullName, setFullName] = useState(user.full_name);
@@ -181,6 +185,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
       authApi.updateUser(user.id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
+      addToast("success", "User updated.");
       onClose();
     },
     onError: (err: Error) => setError(err.message),
@@ -305,6 +310,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
 
 function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
   const qc = useQueryClient();
+  const { addToast } = useToast();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -528,7 +534,20 @@ export default function UserManagementPage() {
       {/* Users table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-slate-500 text-sm">Loading users…</div>
+          <div className="p-6 space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="animate-pulse flex items-center gap-4 px-4">
+                <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                  <div className="h-3 bg-slate-100 rounded w-1/4" />
+                </div>
+                <div className="h-4 bg-slate-200 rounded w-16" />
+                <div className="h-4 bg-slate-200 rounded w-12" />
+                <div className="h-4 bg-slate-200 rounded w-24" />
+              </div>
+            ))}
+          </div>
         ) : error ? (
           <div className="p-8 text-center">
             <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
@@ -536,17 +555,21 @@ export default function UserManagementPage() {
             </div>
           </div>
         ) : users.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">No users found.</div>
+          <div className="p-12 text-center">
+            <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-500 font-medium">No users found.</p>
+            <p className="text-xs text-slate-400 mt-1">Add a user using the button above.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last login</th>
+                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last login</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -569,7 +592,7 @@ export default function UserManagementPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{u.email}</td>
+                    <td className="hidden sm:table-cell px-4 py-3 text-sm text-slate-600">{u.email}</td>
                     <td className="px-4 py-3">
                       <RoleBadge role={u.role} />
                     </td>
@@ -586,7 +609,7 @@ export default function UserManagementPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-500">
+                    <td className="hidden lg:table-cell px-4 py-3 text-sm text-slate-500">
                       {u.last_login_at
                         ? new Date(u.last_login_at).toLocaleDateString(undefined, {
                             year: "numeric",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -69,6 +69,19 @@ export default function LotsPage() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounced search: auto-search 300ms after user stops typing
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (searchInput !== search) {
+        setSearch(searchInput);
+        setPage(0);
+      }
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["lots", page, search],
@@ -87,12 +100,6 @@ export default function LotsPage() {
 
   const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    setSearch(searchInput);
-    setPage(0);
-  }
-
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-2">
@@ -105,7 +112,7 @@ export default function LotsPage() {
       </div>
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 mb-4">
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <div className="relative flex-1 max-w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -116,7 +123,6 @@ export default function LotsPage() {
             className="input pl-9"
           />
         </div>
-        <button type="submit" className="btn-primary">Search</button>
         {search && (
           <button
             type="button"
@@ -126,7 +132,7 @@ export default function LotsPage() {
             Clear
           </button>
         )}
-      </form>
+      </div>
 
       {/* Table */}
       <div className="card overflow-hidden -mx-4 sm:mx-0">
@@ -173,7 +179,11 @@ export default function LotsPage() {
                 {!isLoading && !data?.items.length && (
                   <tr>
                     <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400">
-                      No lots found.
+                      <div className="flex flex-col items-center gap-2">
+                        <Search className="w-8 h-8 text-slate-300" />
+                        <p className="text-slate-500 font-medium">No lots found.</p>
+                        <p className="text-slate-400 text-xs">Try adjusting your search or clear the filter.</p>
+                      </div>
                     </td>
                   </tr>
                 )}

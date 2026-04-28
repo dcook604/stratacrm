@@ -11,6 +11,7 @@ import {
   type InfractionListItem,
   type BylawCategory,
 } from "../lib/api";
+import { useToast } from "../lib/toast";
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -60,6 +61,7 @@ interface CreateModalProps {
 
 function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
   const qc = useQueryClient();
+  const { addToast } = useToast();
   const [form, setForm] = useState({
     lot_id: "",
     primary_party_id: "",
@@ -99,6 +101,7 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
       }),
     onSuccess: (inf) => {
       qc.invalidateQueries({ queryKey: ["infractions"] });
+      addToast("success", "Infraction recorded.");
       onCreated(inf.id);
     },
     onError: (e: Error) => setError(e.message),

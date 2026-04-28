@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, AlertCircle } from "lucide-react";
 import { incidentsApi, lotsApi, type Incident, type IncidentStatus } from "../lib/api";
+import { useToast } from "../lib/toast";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,6 +41,7 @@ interface IncidentFormProps {
 
 function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const qc = useQueryClient();
+  const { addToast } = useToast();
   const [form, setForm] = useState({
     incident_date: initial?.incident_date ?? new Date().toISOString().slice(0, 10),
     lot_id: initial?.lot?.id ? String(initial.lot.id) : "",
@@ -75,6 +77,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["incidents"] });
+      addToast("success", initial ? "Incident updated." : "Incident logged.");
       onSaved();
     },
     onError: (e: Error) => setError(e.message),

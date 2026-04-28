@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { auditLogApi, type AuditLogResponse } from "../lib/api";
 import { formatDateTime } from "../lib/utils";
-import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter, ClipboardList } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Action labels
@@ -118,7 +118,18 @@ export default function AuditLogPage() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-slate-500 text-sm">Loading activity log…</div>
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="animate-pulse flex items-center gap-4 px-4">
+                <div className="h-5 bg-slate-200 rounded w-20" />
+                <div className="h-5 bg-slate-200 rounded w-16" />
+                <div className="h-5 bg-slate-200 rounded w-32" />
+                <div className="flex-1 h-5 bg-slate-200 rounded" />
+                <div className="h-5 bg-slate-200 rounded w-24" />
+                <div className="h-5 bg-slate-200 rounded w-28" />
+              </div>
+            ))}
+          </div>
         ) : error ? (
           <div className="p-8 text-center">
             <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
@@ -126,7 +137,11 @@ export default function AuditLogPage() {
             </div>
           </div>
         ) : entries.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">No activity found.</div>
+          <div className="p-12 text-center">
+            <ClipboardList className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-500 font-medium">No activity found.</p>
+            <p className="text-xs text-slate-400 mt-1">Activity will appear here as actions are performed.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -134,9 +149,9 @@ export default function AuditLogPage() {
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Entity</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actor</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Changes</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">IP Address</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actor</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Changes</th>
+                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">IP Address</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Timestamp</th>
                 </tr>
               </thead>
@@ -154,10 +169,10 @@ export default function AuditLogPage() {
                         <span className="text-slate-400 ml-1">#{entry.entity_id}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
+                    <td className="hidden sm:table-cell px-4 py-3 text-sm text-slate-600">
                       {entry.actor_email ?? <span className="text-slate-400 italic">system</span>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-500 max-w-xs">
+                    <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 max-w-xs">
                       {entry.changes ? (
                         <details className="group">
                           <summary className="cursor-pointer text-blue-600 hover:text-blue-700 text-xs font-medium">
@@ -171,7 +186,7 @@ export default function AuditLogPage() {
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-500 font-mono text-xs">
+                    <td className="hidden lg:table-cell px-4 py-3 text-sm text-slate-500 font-mono text-xs">
                       {entry.ip_address ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">

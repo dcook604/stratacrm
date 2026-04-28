@@ -5,6 +5,7 @@ import {
   issuesApi, lotsApi, incidentsApi,
   type Issue, type IssueStatus, type IssuePriority,
 } from "../lib/api";
+import { useToast } from "../lib/toast";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,6 +57,7 @@ interface IssueFormProps {
 
 function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
   const qc = useQueryClient();
+  const { addToast } = useToast();
   const [form, setForm] = useState({
     title: initial?.title ?? "",
     description: initial?.description ?? "",
@@ -95,6 +97,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["issues"] });
+      addToast("success", initial ? "Issue updated." : "Issue created.");
       onSaved();
     },
     onError: (e: Error) => setError(e.message),
