@@ -2,19 +2,21 @@
  * Typed API client for the Spectrum 4 CRM backend.
  * All calls go to /api/... — proxied to FastAPI in dev, Nginx-proxied in prod.
  *
- * CSRF tokens are returned by the login endpoint and stored in module-level
- * memory. The token survives navigation within the session but resets on hard
- * reload (which forces re-login anyway).
+ * CSRF protection uses the Double Submit Cookie pattern:
+ *   1. Server sets a non-HTTP-only cookie 's4_csrf' on login
+ *   2. Client reads the cookie and sends it as X-CSRF-Token header
+ *   3. Server compares cookie value vs header value
+ *
+ * This survives hard page reloads because the cookie persists.
  */
 
-let csrfToken: string | null = null;
-
-export function setCsrfToken(token: string) {
-  csrfToken = token;
+function getCsrfFromCookie(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)s4_csrf=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 export function clearCsrfToken() {
-  csrfToken = null;
+  // CSRF is in a cookie — clearing happens server-side on logout
 }
 
 class ApiError extends Error {
@@ -33,6 +35,7 @@ async function request<T>(
     "Content-Type": "application/json",
   };
 
+  const csrfToken = getCsrfFromCookie();
   if (csrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
     headers["X-CSRF-Token"] = csrfToken;
   }
@@ -637,7 +640,9 @@ export const documentsApi = {
     const res = await fetch("/api/documents", {
       method: "POST",
       credentials: "same-origin",
-      headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
+      headers: getCsrfFromCookie()
+        ? { "X-CSRF-Token": getCsrfFromCookie()! }
+        : {},
       body: form,
     });
     if (!res.ok) {

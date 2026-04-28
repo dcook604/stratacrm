@@ -178,6 +178,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Make settings accessible from app.state (used by dependencies)
+app.state.settings = settings
+
 # ---------------------------------------------------------------------------
 # Middleware (order matters: outer → inner on request, inner → outer on response)
 # ---------------------------------------------------------------------------

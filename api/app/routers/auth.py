@@ -5,7 +5,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select, func
@@ -14,7 +15,14 @@ from sqlalchemy.orm import Session
 from app.audit import log_action
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_user, require_csrf, require_admin
+from app.dependencies import (
+    get_current_user,
+    require_csrf,
+    require_admin,
+    set_csrf_cookie,
+    clear_csrf_cookie,
+    get_csrf_from_cookie,
+)
 from app.email import send_email
 from app.models import User
 from app.schemas.auth import (
@@ -35,6 +43,32 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
 
+# Brute-force lockout constants
+_MAX_FAILED_ATTEMPTS = 10
+_LOCKOUT_DURATION = timedelta(minutes=15)
+
+
+def _check_account_locked(user: User) -> None:
+    """Raise 401 if the account is temporarily locked due to too many failed attempts."""
+    if user.locked_until and user.locked_until > datetime.now(timezone.utc):
+        remaining = int((user.locked_until - datetime.now(timezone.utc)).total_seconds())
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Account temporarily locked. Try again in {remaining} seconds.",
+        )
+    # Lock expired — reset counter
+    if user.locked_until and user.locked_until <= datetime.now(timezone.utc):
+        user.failed_login_attempts = 0
+        user.locked_until = None
+
+
+def _record_failed_login(user: User, db: Session) -> None:
+    """Increment failed attempt counter and lock account if threshold exceeded."""
+    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+    if user.failed_login_attempts >= _MAX_FAILED_ATTEMPTS:
+        user.locked_until = datetime.now(timezone.utc) + _LOCKOUT_DURATION
+    db.commit()
+
 
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("10/15minute")
@@ -48,18 +82,36 @@ def login(
     ).scalar_one_or_none()
 
     if not user or not user.is_active:
+        # Log failed login attempt (no user found — log with email only)
+        log_action(db, action="failed_login", entity_type="user",
+                   changes={"email": body.email.lower(), "reason": "user_not_found_or_inactive"},
+                   request=request)
+        db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    # Check account lockout
+    _check_account_locked(user)
 
     if not bcrypt.checkpw(body.password.encode(), user.password_hash.encode()):
+        # Log failed login attempt
+        log_action(db, action="failed_login", entity_type="user", entity_id=user.id,
+                   actor_email=user.email,
+                   changes={"email": user.email, "reason": "wrong_password",
+                            "attempt": user.failed_login_attempts + 1},
+                   request=request)
+        _record_failed_login(user, db)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    # Rotate session and generate CSRF token
+    # Successful login — reset failed attempt counter
+    if user.failed_login_attempts or user.locked_until:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+
+    # Rotate session
     request.session.clear()
-    csrf_token = secrets.token_urlsafe(32)
     request.session["user_id"] = user.id
     request.session["user_email"] = user.email
     request.session["user_role"] = user.role.value
-    request.session["csrf_token"] = csrf_token
 
     # Update last login
     user.last_login_at = datetime.now(timezone.utc)
@@ -67,7 +119,15 @@ def login(
                actor_id=user.id, actor_email=user.email, request=request)
     db.commit()
 
-    return LoginResponse(user=UserOut.model_validate(user), csrf_token=csrf_token)
+    # Build response with CSRF cookie (Double Submit Cookie pattern)
+    csrf_token = set_csrf_cookie(request)
+    content = LoginResponse(
+        user=UserOut.model_validate(user),
+        csrf_token=csrf_token,
+    ).model_dump(mode="json")
+    response = JSONResponse(content=content)
+    set_csrf_cookie(request, response)
+    return response
 
 
 @router.post("/logout", dependencies=[Depends(require_csrf)])
@@ -80,16 +140,20 @@ def logout(
                actor_id=current_user.id, actor_email=current_user.email, request=request)
     db.commit()
     request.session.clear()
-    return {"detail": "Logged out"}
+    response = JSONResponse(content={"detail": "Logged out"})
+    clear_csrf_cookie(response)
+    return response
 
 
 @router.get("/me", response_model=MeResponse)
 def me(request: Request, current_user: User = Depends(get_current_user)):
-    csrf_token = request.session.get("csrf_token", "")
+    # Read CSRF token from cookie (Double Submit Cookie pattern)
+    csrf_token = get_csrf_from_cookie(request) or ""
     return MeResponse(user=UserOut.model_validate(current_user), csrf_token=csrf_token)
 
 
 @router.post("/change-password", dependencies=[Depends(require_csrf)])
+@limiter.limit("5/15minute")
 def change_password(
     request: Request,
     body: ChangePasswordRequest,
@@ -170,7 +234,9 @@ def forgot_password(
 
 
 @router.post("/reset-password")
+@limiter.limit("5/15minute")
 def reset_password(
+    request: Request,
     body: ResetPasswordRequest,
     db: Session = Depends(get_db),
 ):

@@ -1,6 +1,7 @@
 """Document storage router — upload, list, download generic file attachments."""
 
 import os
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form, status
 from fastapi.responses import Response
@@ -15,6 +16,15 @@ from app.schemas.documents import DocumentOut
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+_VALID_ENTITY_TYPES: set[str] = {
+    "lot",
+    "party",
+    "infraction",
+    "incident",
+    "issue",
+    "bylaw",
+}
+
 _ALLOWED_TYPES = {
     "application/pdf",
     "image/jpeg",
@@ -26,6 +36,20 @@ _ALLOWED_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+# Map MIME types to expected file extensions for validation
+_MIME_TO_EXT: dict[str, set[str]] = {
+    "application/pdf": {".pdf"},
+    "image/jpeg": {".jpg", ".jpeg"},
+    "image/png": {".png"},
+    "image/gif": {".gif"},
+    "image/webp": {".webp"},
+    "text/plain": {".txt"},
+    "application/msword": {".doc"},
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {".docx"},
+    "application/vnd.ms-excel": {".xls"},
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {".xlsx"},
 }
 
 _MAX_BYTES = 20 * 1024 * 1024  # 20 MB
@@ -54,11 +78,31 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write),
 ):
+    if entity_type not in _VALID_ENTITY_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid entity_type '{entity_type}'. Must be one of: {', '.join(sorted(_VALID_ENTITY_TYPES))}"
+        )
+
+    if entity_id < 1:
+        raise HTTPException(status_code=422, detail="entity_id must be a positive integer")
+
     if file.content_type and file.content_type not in _ALLOWED_TYPES:
         raise HTTPException(
             status_code=415,
             detail=f"File type '{file.content_type}' is not allowed."
         )
+
+    # Validate file extension matches declared MIME type
+    if file.filename and file.content_type:
+        ext = os.path.splitext(file.filename)[1].lower()
+        expected_exts = _MIME_TO_EXT.get(file.content_type, set())
+        if expected_exts and ext not in expected_exts:
+            raise HTTPException(
+                status_code=422,
+                detail=f"File extension '{ext}' does not match MIME type '{file.content_type}'. "
+                       f"Expected: {', '.join(expected_exts)}"
+            )
 
     data = await file.read()
     if len(data) > _MAX_BYTES:

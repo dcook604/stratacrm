@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { authApi, setCsrfToken, clearCsrfToken, type MeResponse, type User } from "../lib/api";
+import { authApi, clearCsrfToken, type MeResponse, type User } from "../lib/api";
 
 export function useMe() {
   return useQuery<MeResponse>({
@@ -8,11 +8,6 @@ export function useMe() {
     retry: false,
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
-    select: (data) => {
-      // Restore CSRF token on page reload (session cookie valid but token lost from memory)
-      if (data.csrf_token) setCsrfToken(data.csrf_token);
-      return data;
-    },
   });
 }
 
@@ -28,7 +23,6 @@ export function useLogin() {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       authApi.login(email, password),
     onSuccess: (data) => {
-      setCsrfToken(data.csrf_token);
       qc.setQueryData(["me"], data);
     },
   });

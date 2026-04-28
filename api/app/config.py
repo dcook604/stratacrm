@@ -1,5 +1,17 @@
 from functools import lru_cache
+
+from pydantic import field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Known weak/default values that must never be used in production
+_WEAK_SECRETS: set[str] = {
+    "changeme",
+    "dev-secret-key-change-in-production-min-32-chars",
+    "password",
+    "secret",
+    "admin",
+}
 
 
 class Settings(BaseSettings):
@@ -28,6 +40,75 @@ class Settings(BaseSettings):
 
     # File storage
     uploads_dir: str = "/app/uploads"
+
+    # ------------------------------------------------------------------
+    # Validators
+    # ------------------------------------------------------------------
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def coerce_debug(cls, v):
+        """Coerce string env vars like 'false' / 'true' to actual booleans."""
+        if isinstance(v, str):
+            return v.lower() in ("true", "1", "yes")
+        return bool(v)
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError(
+                f"SECRET_KEY must be at least 32 characters (got {len(v)})"
+            )
+        if v.lower() in _WEAK_SECRETS:
+            raise ValueError(
+                "SECRET_KEY is set to a known weak/default value. "
+                "Generate a strong random key (e.g. `python3 -c \"import secrets; "
+                "print(secrets.token_urlsafe(48))\"`) and set SECRET_KEY in your .env file."
+            )
+        return v
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        # Check for default password in connection string
+        if "changeme" in v:
+            raise ValueError(
+                "DATABASE_URL contains the default password 'changeme'. "
+                "Set a strong password via DB_PASSWORD environment variable."
+            )
+        return v
+
+    @field_validator("listmonk_password")
+    @classmethod
+    def validate_listmonk_password(cls, v: str) -> str:
+        if v.lower() in _WEAK_SECRETS:
+            raise ValueError(
+                "LISTMONK_PASSWORD is set to a known weak/default value. "
+                "Set a strong password via LISTMONK_PASSWORD environment variable."
+            )
+        return v
+
+    @field_validator("https_only")
+    @classmethod
+    def validate_https_only(cls, v: bool, info: ValidationInfo) -> bool:
+        """In non-debug mode, https_only must be True."""
+        debug = info.data.get("debug", False)
+        if not debug and not v:
+            raise ValueError(
+                "HTTPS_ONLY must be True when DEBUG=False (production). "
+                "Set HTTPS_ONLY=true in your environment."
+            )
+        return v
+
+    @field_validator("same_site")
+    @classmethod
+    def validate_same_site(cls, v: str) -> str:
+        if v.lower() not in ("lax", "strict", "none"):
+            raise ValueError(
+                f"SAME_SITE must be 'lax', 'strict', or 'none' (got '{v}')"
+            )
+        return v.lower()
 
 
 @lru_cache

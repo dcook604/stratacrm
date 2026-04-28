@@ -1,7 +1,15 @@
+import re
 from datetime import datetime, date
 from typing import Optional, List
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from app.models import PartyType, ContactMethodType, LotAssignmentRole
+
+
+# Regex to strip common XSS vectors from free-text fields
+_TAG_RE = re.compile(r"<[^>]*>")
+def _strip_tags(v: str) -> str:
+    """Remove HTML tags to prevent stored XSS in party data."""
+    return _TAG_RE.sub("", v).strip()
 
 
 class ContactMethodOut(BaseModel):
@@ -59,6 +67,15 @@ class PartyCreate(BaseModel):
     notes: Optional[str] = None
     contact_methods: List[ContactMethodCreate] = []
 
+    @field_validator("full_name", "mailing_address_line1", "mailing_address_line2",
+                     "mailing_city", "mailing_province", "mailing_postal_code",
+                     "mailing_country", "notes", mode="before")
+    @classmethod
+    def sanitize_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _strip_tags(v)
+
 
 class PartyUpdate(BaseModel):
     full_name: Optional[str] = None
@@ -72,6 +89,15 @@ class PartyUpdate(BaseModel):
     mailing_postal_code: Optional[str] = None
     mailing_country: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("full_name", "mailing_address_line1", "mailing_address_line2",
+                     "mailing_city", "mailing_province", "mailing_postal_code",
+                     "mailing_country", "notes", mode="before")
+    @classmethod
+    def sanitize_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _strip_tags(v)
 
 
 class PartyOut(BaseModel):
@@ -118,6 +144,13 @@ class BulkPartyRow(BaseModel):
     party_type: PartyType = PartyType.individual
     is_property_manager: bool = False
     mailing_address_line1: Optional[str] = None
+
+    @field_validator("full_name", "mailing_address_line1", mode="before")
+    @classmethod
+    def sanitize_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _strip_tags(v)
     mailing_city: Optional[str] = None
     mailing_province: Optional[str] = None
     mailing_postal_code: Optional[str] = None

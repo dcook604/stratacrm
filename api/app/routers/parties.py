@@ -167,6 +167,13 @@ def bulk_create_parties(
 ):
     """Create multiple parties from a pre-parsed CSV payload. Each row may
     optionally include a lot_unit and role to create a LotAssignment."""
+    MAX_ROWS = 1000
+    if len(rows) > MAX_ROWS:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Bulk import limited to {MAX_ROWS} rows per request (received {len(rows)}).",
+        )
+
     created = 0
     errors: list[dict] = []
 
