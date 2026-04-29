@@ -417,6 +417,7 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     id = Column(Integer, primary_key=True)
+    reference = Column(String(12), unique=True, nullable=False, index=True)
     incident_date = Column(Date, nullable=False)
     lot_id = Column(Integer, ForeignKey("lots.id", ondelete="SET NULL"), nullable=True)
     common_area_description = Column(String(300), nullable=True)

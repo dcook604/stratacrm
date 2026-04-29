@@ -11,6 +11,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.models import Incident, IncidentStatus, Lot, User
 from app.schemas.incidents import IncidentCreate, IncidentOut, IncidentUpdate
+from app.utils.reference import generate_reference
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -65,7 +66,7 @@ def create_incident(
     if body.lot_id and not db.get(Lot, body.lot_id):
         raise HTTPException(status_code=404, detail="Lot not found")
 
-    inc = Incident(**body.model_dump())
+    inc = Incident(reference=generate_reference("TKT"), **body.model_dump())
     db.add(inc)
     log_action(db, action="create", entity_type="incident", entity_id=None,
                changes=body.model_dump(mode="json"),

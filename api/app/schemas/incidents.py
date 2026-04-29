@@ -38,6 +38,7 @@ class IncidentUpdate(BaseModel):
 class IncidentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    reference: str
     incident_date: date
     lot: Optional[LotMini] = None
     common_area_description: Optional[str]

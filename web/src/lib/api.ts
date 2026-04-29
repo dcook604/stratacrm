@@ -515,6 +515,7 @@ export interface IncidentLot {
 
 export interface Incident {
   id: number;
+  reference: string;
   incident_date: string;
   lot: IncidentLot | null;
   common_area_description: string | null;

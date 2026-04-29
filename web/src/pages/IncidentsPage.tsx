@@ -33,9 +33,6 @@ function isCustomCategory(cat: string) {
   return !!cat && !COMMON_CATEGORIES.slice(0, -1).includes(cat);
 }
 
-function incidentRef(id: number) {
-  return `INC-${String(id).padStart(4, "0")}`;
-}
 
 // ---------------------------------------------------------------------------
 // Create / Edit modal
@@ -78,7 +75,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
     mutationFn: () => incidentsApi.delete(initial!.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["incidents"] });
-      addToast("success", `${incidentRef(initial!.id)} deleted.`);
+      addToast("success", `${initial!.reference} deleted.`);
       onSaved();
     },
     onError: (e: Error) => setError(e.message),
@@ -526,7 +523,7 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
         className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
         onClick={() => setExpanded((x) => !x)}
       >
-        <td className="px-4 py-3 font-mono text-sm text-slate-500">{incidentRef(incident.id)}</td>
+        <td className="px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
         <td className="px-4 py-3 text-sm text-slate-600">{incident.incident_date}</td>
         <td className="px-4 py-3 text-sm font-medium">{incident.category}</td>
         <td className="px-4 py-3 text-sm text-slate-500">{locationLabel}</td>
