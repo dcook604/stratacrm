@@ -457,6 +457,28 @@ export interface InfractionDetail {
 }
 
 // ---------------------------------------------------------------------------
+
+export interface BylawBulkItem {
+  bylaw_number: string;
+  section?: string | null;
+  title: string;
+  full_text: string;
+  category: BylawCategory;
+  active_from: string;
+  supersede_bylaw_number?: string | null;
+}
+
+export interface BylawBulkRequest {
+  bylaws: BylawBulkItem[];
+  supersede_all_existing?: boolean;
+}
+
+export interface BylawBulkResult {
+  created: number;
+  superseded: number;
+  errors: { index: number; bylaw_number: string; error: string }[];
+}
+
 export const bylawsApi = {
   list: (params?: { category?: BylawCategory; active_only?: boolean; search?: string }) => {
     const qs = new URLSearchParams();
@@ -472,6 +494,7 @@ export const bylawsApi = {
     api.post<FineSchedule>(`/bylaws/${bylawId}/fine-schedules`, body),
   deleteFineSchedule: (bylawId: number, scheduleId: number) =>
     api.delete(`/bylaws/${bylawId}/fine-schedules/${scheduleId}`),
+  bulk: (body: BylawBulkRequest) => api.post<BylawBulkResult>("/bylaws/bulk", body),
 };
 
 export const infractionsApi = {

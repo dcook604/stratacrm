@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.models import BylawCategory
 
@@ -62,3 +62,30 @@ class BylawOut(BaseModel):
     active_from: date
     superseded_by: Optional[int]
     fine_schedules: List[FineScheduleOut] = []
+
+
+class BylawBulkItem(BaseModel):
+    bylaw_number: str
+    section: Optional[str] = None
+    title: str
+    full_text: str
+    category: BylawCategory
+    active_from: date
+    supersede_bylaw_number: Optional[str] = None
+
+
+class BylawBulkRequest(BaseModel):
+    bylaws: List[BylawBulkItem]
+    supersede_all_existing: bool = False
+
+    @model_validator(mode="after")
+    def check_not_empty(self) -> "BylawBulkRequest":
+        if not self.bylaws:
+            raise ValueError("bylaws list must not be empty")
+        return self
+
+
+class BylawBulkResult(BaseModel):
+    created: int
+    superseded: int
+    errors: List[dict]

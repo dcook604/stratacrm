@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, ChevronDown, ChevronUp, Pencil, X, BookOpen } from "lucide-react";
-import { bylawsApi, type Bylaw, type BylawCategory, type BylawListItem } from "../lib/api";
+import { Plus, ChevronDown, ChevronUp, Pencil, X, BookOpen, Upload, CheckCircle, AlertTriangle } from "lucide-react";
+import { bylawsApi, type Bylaw, type BylawCategory, type BylawListItem, type BylawBulkItem, type BylawBulkResult } from "../lib/api";
 import { useToast } from "../lib/toast";
 
 const CATEGORIES: { value: BylawCategory; label: string }[] = [
@@ -296,6 +296,172 @@ function FineSchedulePanel({ bylaw }: { bylaw: Bylaw }) {
 }
 
 // ---------------------------------------------------------------------------
+// Bulk import modal
+// ---------------------------------------------------------------------------
+
+const BULK_SAMPLE: BylawBulkItem[] = [
+  {
+    bylaw_number: "1",
+    section: "1",
+    title: "Definitions",
+    full_text: "In these Bylaws…",
+    category: "other",
+    active_from: "2026-03-31",
+  },
+  {
+    bylaw_number: "13",
+    section: "13",
+    title: "Pets",
+    full_text: "An owner or tenant may keep…",
+    category: "pets",
+    active_from: "2026-03-31",
+    supersede_bylaw_number: "13",
+  },
+];
+
+interface BulkImportModalProps {
+  onClose: () => void;
+}
+
+function BulkImportModal({ onClose }: BulkImportModalProps) {
+  const qc = useQueryClient();
+  const { addToast } = useToast();
+  const [json, setJson] = useState("");
+  const [supersedeAll, setSupersedeAll] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [result, setResult] = useState<BylawBulkResult | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: (bylaws: BylawBulkItem[]) =>
+      bylawsApi.bulk({ bylaws, supersede_all_existing: supersedeAll }),
+    onSuccess: (res) => {
+      setResult(res);
+      qc.invalidateQueries({ queryKey: ["bylaws"] });
+      if (res.errors.length === 0) {
+        addToast("success", `Imported ${res.created} bylaw${res.created !== 1 ? "s" : ""}${res.superseded ? `, superseded ${res.superseded}` : ""}.`);
+      }
+    },
+    onError: (e: Error) => setParseError(e.message),
+  });
+
+  function handleImport() {
+    setParseError(null);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      setParseError("Invalid JSON — please check your input.");
+      return;
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      setParseError("Expected a non-empty JSON array of bylaw objects.");
+      return;
+    }
+    mutation.mutate(parsed as BylawBulkItem[]);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-3xl sm:mx-4 max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
+          <h2 className="text-lg font-semibold">Bulk Import Bylaws</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
+          {result ? (
+            <div className="space-y-4">
+              <div className={`flex items-start gap-3 rounded-lg p-4 ${result.errors.length === 0 ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
+                {result.errors.length === 0
+                  ? <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                  : <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                }
+                <div>
+                  <p className="font-medium text-sm">
+                    {result.created} bylaw{result.created !== 1 ? "s" : ""} created
+                    {result.superseded > 0 && `, ${result.superseded} superseded`}
+                    {result.errors.length > 0 && `, ${result.errors.length} error${result.errors.length !== 1 ? "s" : ""}`}
+                  </p>
+                </div>
+              </div>
+              {result.errors.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-slate-700 mb-2">Errors:</p>
+                  <ul className="space-y-1">
+                    {result.errors.map((e, i) => (
+                      <li key={i} className="text-sm text-red-700 bg-red-50 rounded px-3 py-1.5">
+                        <span className="font-mono mr-2">[{e.bylaw_number}]</span>{e.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                <p className="font-medium mb-1">Format</p>
+                <p>Paste a JSON array of bylaw objects. Each object must include <code className="bg-blue-100 rounded px-1">bylaw_number</code>, <code className="bg-blue-100 rounded px-1">title</code>, <code className="bg-blue-100 rounded px-1">full_text</code>, <code className="bg-blue-100 rounded px-1">category</code>, and <code className="bg-blue-100 rounded px-1">active_from</code>. Optionally include <code className="bg-blue-100 rounded px-1">supersede_bylaw_number</code> to mark a specific existing bylaw as superseded by the new one.</p>
+                <button
+                  className="mt-2 text-blue-700 underline text-xs"
+                  onClick={() => setJson(JSON.stringify(BULK_SAMPLE, null, 2))}
+                >
+                  Load sample
+                </button>
+              </div>
+
+              <div>
+                <label className="label">JSON Array</label>
+                <textarea
+                  className="input font-mono text-xs min-h-[240px] resize-y"
+                  placeholder={`[\n  {\n    "bylaw_number": "1",\n    "title": "Definitions",\n    "full_text": "…",\n    "category": "other",\n    "active_from": "2026-03-31"\n  }\n]`}
+                  value={json}
+                  onChange={(e) => { setJson(e.target.value); setParseError(null); }}
+                  spellCheck={false}
+                />
+              </div>
+
+              {parseError && (
+                <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{parseError}</div>
+              )}
+
+              <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-slate-200 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300 mt-0.5 shrink-0"
+                  checked={supersedeAll}
+                  onChange={(e) => setSupersedeAll(e.target.checked)}
+                />
+                <div>
+                  <p className="text-sm font-medium text-slate-800">Mark all existing active bylaws as superseded</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Use this when replacing the entire bylaw set with a new version. All currently active bylaws will be archived.</p>
+                </div>
+              </label>
+            </>
+          )}
+        </div>
+
+        <div className="px-4 sm:px-6 py-4 border-t flex justify-end gap-2 sm:gap-3">
+          <button onClick={onClose} className="btn btn-secondary">
+            {result ? "Close" : "Cancel"}
+          </button>
+          {!result && (
+            <button
+              className="btn btn-primary"
+              disabled={mutation.isPending || !json.trim()}
+              onClick={handleImport}
+            >
+              <Upload className="w-4 h-4" />
+              {mutation.isPending ? "Importing…" : "Import Bylaws"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Expandable bylaw row
 // ---------------------------------------------------------------------------
 
@@ -361,6 +527,7 @@ export default function BylawsPage() {
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [editBylaw, setEditBylaw] = useState<Bylaw | null>(null);
 
   const { data: bylaws, isLoading, error } = useQuery({
@@ -385,9 +552,14 @@ export default function BylawsPage() {
           <h1 className="text-lg md:text-xl font-semibold text-slate-900">Bylaw Library</h1>
           <p className="text-sm text-slate-500 mt-0.5">Versioned bylaw reference with fine schedules</p>
         </div>
-        <button className="btn btn-primary self-start sm:self-auto" onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">New Bylaw</span><span className="sm:hidden ml-1">New</span>
-        </button>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <button className="btn btn-secondary" onClick={() => setShowBulk(true)}>
+            <Upload className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">Bulk Import</span><span className="sm:hidden ml-1">Import</span>
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">New Bylaw</span><span className="sm:hidden ml-1">New</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -463,6 +635,7 @@ export default function BylawsPage() {
         </div>
       </div>
 
+      {showBulk && <BulkImportModal onClose={() => setShowBulk(false)} />}
       {showForm && (
         <BylawFormModal
           initial={null}
