@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle } from "lucide-react";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document } from "../lib/api";
 import { useToast } from "../lib/toast";
 
@@ -33,6 +33,10 @@ function isCustomCategory(cat: string) {
   return !!cat && !COMMON_CATEGORIES.slice(0, -1).includes(cat);
 }
 
+function incidentRef(id: number) {
+  return `INC-${String(id).padStart(4, "0")}`;
+}
+
 // ---------------------------------------------------------------------------
 // Create / Edit modal
 // ---------------------------------------------------------------------------
@@ -63,10 +67,21 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const [showCustom, setShowCustom] = useState(startCustom);
   const [lotSearch, setLotSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: lotsData } = useQuery({
     queryKey: ["lots", { search: lotSearch }],
     queryFn: () => lotsApi.list({ limit: 20, search: lotSearch || undefined }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => incidentsApi.delete(initial!.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["incidents"] });
+      addToast("success", `${incidentRef(initial!.id)} deleted.`);
+      onSaved();
+    },
+    onError: (e: Error) => setError(e.message),
   });
 
   const mutation = useMutation({
@@ -231,15 +246,49 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
           )}
         </div>
 
-        <div className="px-4 sm:px-6 py-4 border-t flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3">
-          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-          <button
-            className="btn btn-primary"
-            disabled={mutation.isPending || !isValid}
-            onClick={() => mutation.mutate()}
-          >
-            {mutation.isPending ? "Saving…" : initial ? "Save Changes" : "Log Incident"}
-          </button>
+        <div className="px-4 sm:px-6 py-4 border-t flex flex-col-reverse sm:flex-row justify-between gap-2 sm:gap-3">
+          {/* Delete — only in edit mode */}
+          <div className="flex items-center gap-2">
+            {initial && !confirmDelete && (
+              <button
+                className="btn text-red-600 border border-red-200 hover:bg-red-50 text-sm flex items-center gap-1.5"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            )}
+            {initial && confirmDelete && (
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <span className="text-sm text-red-700">Delete this incident?</span>
+                <button
+                  className="btn text-white bg-red-600 hover:bg-red-700 text-sm"
+                  disabled={deleteMut.isPending}
+                  onClick={() => deleteMut.mutate()}
+                >
+                  {deleteMut.isPending ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button
+                  className="btn btn-secondary text-sm"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+            <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+            <button
+              className="btn btn-primary"
+              disabled={mutation.isPending || !isValid}
+              onClick={() => mutation.mutate()}
+            >
+              {mutation.isPending ? "Saving…" : initial ? "Save Changes" : "Log Incident"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -477,7 +526,7 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
         className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
         onClick={() => setExpanded((x) => !x)}
       >
-        <td className="px-4 py-3 font-mono text-sm text-slate-500">INC-{incident.id}</td>
+        <td className="px-4 py-3 font-mono text-sm text-slate-500">{incidentRef(incident.id)}</td>
         <td className="px-4 py-3 text-sm text-slate-600">{incident.incident_date}</td>
         <td className="px-4 py-3 text-sm font-medium">{incident.category}</td>
         <td className="px-4 py-3 text-sm text-slate-500">{locationLabel}</td>
