@@ -26,7 +26,7 @@ function StatCard({
   color: string;
 }) {
   const content = (
-    <div className="card p-4 md:p-5 flex items-center gap-3 md:gap-4">
+    <div className="card p-4 md:p-5 flex items-start gap-3 md:gap-4">
       <div className={`w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
         <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
       </div>
