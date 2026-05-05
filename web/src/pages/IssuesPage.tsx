@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle } from "lucide-react";
+import { fmtDatetime } from "../lib/dates";
 import {
   issuesApi, lotsApi, incidentsApi,
   type Issue, type IssueStatus, type IssuePriority,
@@ -42,7 +43,11 @@ const PRIORITY_COLOURS: Record<IssuePriority, string> = {
 function isOverdue(issue: Issue): boolean {
   if (!issue.due_date) return false;
   if (issue.status === "resolved" || issue.status === "closed") return false;
-  return new Date(issue.due_date) < new Date();
+  // Strip time so due_date "2026-05-05T14:00" is still "overdue" on May 6
+  const due = new Date(issue.due_date);
+  const now = new Date();
+  return new Date(due.getFullYear(), due.getMonth(), due.getDate()) <
+         new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 // ---------------------------------------------------------------------------
@@ -58,10 +63,17 @@ interface IssueFormProps {
 function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
   const qc = useQueryClient();
   const { addToast } = useToast();
+  const initialDueRaw = initial?.due_date ?? "";
+  const hasDueTime = initialDueRaw.includes("T");
+  const extractedDueDate = hasDueTime ? initialDueRaw.slice(0, 10) : initialDueRaw;
+  const extractedDueTime = hasDueTime ? initialDueRaw.slice(11, 16) : "";
+  const initialDueTimeVal = extractedDueTime && extractedDueTime !== "00:00" ? extractedDueTime : "";
+
   const [form, setForm] = useState({
     title: initial?.title ?? "",
     description: initial?.description ?? "",
-    due_date: initial?.due_date ?? "",
+    due_date: extractedDueDate,
+    due_time: initialDueTimeVal,
     priority: (initial?.priority ?? "medium") as IssuePriority,
     status: (initial?.status ?? "open") as IssueStatus,
     related_lot_id: initial?.related_lot?.id ? String(initial.related_lot.id) : "",
@@ -69,6 +81,14 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
   });
   const [lotSearch, setLotSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-select lot when search yields exactly one match
+  useEffect(() => {
+    if (lotsData?.items.length === 1 && !form.related_lot_id) {
+      const lot = lotsData.items[0];
+      setForm((f) => ({ ...f, related_lot_id: String(lot.id) }));
+    }
+  }, [lotsData, form.related_lot_id]);
 
   const { data: lotsData } = useQuery({
     queryKey: ["lots", { search: lotSearch }],
@@ -82,10 +102,15 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
 
   const mutation = useMutation({
     mutationFn: () => {
+      const due_datetime = form.due_date
+        ? form.due_time
+          ? `${form.due_date}T${form.due_time}:00`
+          : form.due_date
+        : null;
       const payload = {
         title: form.title,
         description: form.description || null,
-        due_date: form.due_date || null,
+        due_date: due_datetime,
         priority: form.priority,
         related_lot_id: form.related_lot_id ? Number(form.related_lot_id) : null,
         related_incident_id: form.related_incident_id ? Number(form.related_incident_id) : null,
@@ -137,7 +162,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="label">Priority</label>
               <select
@@ -157,6 +182,15 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
                 className="input"
                 value={form.due_date}
                 onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">Time <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input
+                type="time"
+                className="input"
+                value={form.due_time}
+                onChange={(e) => setForm({ ...form, due_time: e.target.value })}
               />
             </div>
           </div>
@@ -211,7 +245,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
               <option value="">— none —</option>
               {incidents?.map((inc) => (
                 <option key={inc.id} value={inc.id}>
-                  INC-{inc.id} — {inc.category} ({inc.incident_date})
+                  INC-{inc.id} — {inc.category} ({fmtDatetime(inc.incident_date)})
                 </option>
               ))}
             </select>
@@ -280,7 +314,7 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
         </td>
         <td className="px-4 py-3 text-sm text-slate-500">
           {issue.due_date ? (
-            <span className={overdue ? "text-red-600 font-medium" : ""}>{issue.due_date}</span>
+            <span className={overdue ? "text-red-600 font-medium" : ""}>{fmtDatetime(issue.due_date)}</span>
           ) : "—"}
         </td>
         <td className="px-4 py-3 text-sm text-slate-500">
@@ -307,7 +341,7 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
               )}
               {issue.related_incident && (
                 <p className="text-xs text-slate-500">
-                  Linked incident: INC-{issue.related_incident.id} — {issue.related_incident.category} ({issue.related_incident.incident_date})
+                  Linked incident: INC-{issue.related_incident.id} — {issue.related_incident.category} ({fmtDatetime(issue.related_incident.incident_date)})
                 </p>
               )}
               <div className="flex items-center gap-2">

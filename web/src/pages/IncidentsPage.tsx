@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle } from "lucide-react";
+import { fmtDatetime } from "../lib/dates";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document } from "../lib/api";
 import { useToast } from "../lib/toast";
 
@@ -51,8 +52,15 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const initialCategory = initial?.category ?? "";
   const startCustom = isCustomCategory(initialCategory);
 
+  const initialDateRaw = initial?.incident_date ?? "";
+  const hasTime = initialDateRaw.includes("T");
+  const extractedDate = hasTime ? initialDateRaw.slice(0, 10) : initialDateRaw;
+  const extractedTime = hasTime ? initialDateRaw.slice(11, 16) : "";
+  const initialTimeVal = extractedTime && extractedTime !== "00:00" ? extractedTime : "";
+
   const [form, setForm] = useState({
-    incident_date: initial?.incident_date ?? new Date().toISOString().slice(0, 10),
+    incident_date: extractedDate || new Date().toISOString().slice(0, 10),
+    incident_time: initialTimeVal,
     lot_id: initial?.lot?.id ? String(initial.lot.id) : "",
     common_area_description: initial?.common_area_description ?? "",
     category: initialCategory,
@@ -65,6 +73,14 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const [lotSearch, setLotSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Auto-select lot when search yields exactly one match
+  useEffect(() => {
+    if (lotsData?.items.length === 1 && !form.lot_id) {
+      const lot = lotsData.items[0];
+      setForm((f) => ({ ...f, lot_id: String(lot.id) }));
+    }
+  }, [lotsData, form.lot_id]);
 
   const { data: lotsData } = useQuery({
     queryKey: ["lots", { search: lotSearch }],
@@ -83,8 +99,11 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
 
   const mutation = useMutation({
     mutationFn: () => {
+      const incident_datetime = form.incident_time
+        ? `${form.incident_date}T${form.incident_time}:00`
+        : form.incident_date;
       const payload = {
-        incident_date: form.incident_date,
+        incident_date: incident_datetime,
         lot_id: form.lot_id ? Number(form.lot_id) : null,
         common_area_description: form.common_area_description || null,
         category: form.category,
@@ -132,6 +151,15 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
               />
             </div>
             <div>
+              <label className="label">Time <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input
+                type="time"
+                className="input"
+                value={form.incident_time}
+                onChange={(e) => setForm({ ...form, incident_time: e.target.value })}
+              />
+            </div>
+            <div className="sm:col-span-2">
               <label className="label">Category *</label>
               <select
                 className="input"
@@ -524,7 +552,7 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
         onClick={() => setExpanded((x) => !x)}
       >
         <td className="px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
-        <td className="px-4 py-3 text-sm text-slate-600">{incident.incident_date}</td>
+        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDatetime(incident.incident_date)}</td>
         <td className="px-4 py-3 text-sm font-medium">{incident.category}</td>
         <td className="px-4 py-3 text-sm text-slate-500">{locationLabel}</td>
         <td className="px-4 py-3">

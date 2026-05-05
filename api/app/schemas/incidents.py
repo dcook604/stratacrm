@@ -16,7 +16,7 @@ class LotMini(BaseModel):
 
 
 class IncidentCreate(BaseModel):
-    incident_date: date
+    incident_date: datetime
     lot_id: Optional[int] = None
     common_area_description: Optional[str] = None
     category: str
@@ -25,7 +25,7 @@ class IncidentCreate(BaseModel):
 
 
 class IncidentUpdate(BaseModel):
-    incident_date: Optional[date] = None
+    incident_date: Optional[datetime] = None
     lot_id: Optional[int] = None
     common_area_description: Optional[str] = None
     category: Optional[str] = None
@@ -39,7 +39,7 @@ class IncidentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     reference: str
-    incident_date: date
+    incident_date: datetime
     lot: Optional[LotMini] = None
     common_area_description: Optional[str]
     category: str

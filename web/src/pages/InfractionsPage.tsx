@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, AlertTriangle } from "lucide-react";
+import { Plus, X, AlertTriangle, Clock } from "lucide-react";
+import { fmtDatetime } from "../lib/dates";
 import {
   infractionsApi,
   bylawsApi,
@@ -10,6 +11,7 @@ import {
   type InfractionStatus,
   type InfractionListItem,
   type BylawCategory,
+  type LotAssignmentDetail,
 } from "../lib/api";
 import { useToast } from "../lib/toast";
 
@@ -67,11 +69,13 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
     primary_party_id: "",
     bylaw_id: "",
     complaint_received_date: new Date().toISOString().slice(0, 10),
+    complaint_time: "",
     complaint_source: "",
     description: "",
   });
   const [lotSearch, setLotSearch] = useState("");
   const [partySearch, setPartySearch] = useState("");
+  const [lotAssignments, setLotAssignments] = useState<LotAssignmentDetail[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const { data: lotsData } = useQuery({
@@ -82,7 +86,32 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
   const { data: partiesData } = useQuery({
     queryKey: ["parties", { search: partySearch }],
     queryFn: () => partiesApi.list({ limit: 20, search: partySearch || undefined }),
+    enabled: !form.lot_id,  // only search all parties when no lot selected
   });
+
+  // Auto-select lot when search yields exactly one match
+  useEffect(() => {
+    if (lotsData?.items.length === 1 && !form.lot_id) {
+      const lot = lotsData.items[0];
+      setForm((f) => ({ ...f, lot_id: String(lot.id) }));
+    }
+  }, [lotsData, form.lot_id]);
+
+  // Fetch lot assignments when a lot is selected
+  useEffect(() => {
+    if (!form.lot_id) {
+      setLotAssignments([]);
+      return;
+    }
+    lotsApi.get(Number(form.lot_id)).then((lot) => {
+      const current = lot.current_assignments.filter((a) => a.is_current);
+      setLotAssignments(current);
+      // Auto-select party if only one assignment
+      if (current.length === 1) {
+        setForm((f) => ({ ...f, primary_party_id: String(current[0].party.id) }));
+      }
+    });
+  }, [form.lot_id]);
 
   const { data: bylaws } = useQuery({
     queryKey: ["bylaws", { active_only: true }],
@@ -90,15 +119,19 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
   });
 
   const mutation = useMutation({
-    mutationFn: () =>
-      infractionsApi.create({
+    mutationFn: () => {
+      const complaint_datetime = form.complaint_time
+        ? `${form.complaint_received_date}T${form.complaint_time}:00`
+        : form.complaint_received_date;
+      return infractionsApi.create({
         lot_id: Number(form.lot_id),
         primary_party_id: Number(form.primary_party_id),
         bylaw_id: Number(form.bylaw_id),
-        complaint_received_date: form.complaint_received_date,
+        complaint_received_date: complaint_datetime,
         complaint_source: form.complaint_source || undefined,
         description: form.description,
-      }),
+      });
+    },
     onSuccess: (inf) => {
       qc.invalidateQueries({ queryKey: ["infractions"] });
       addToast("success", "Infraction recorded.");
@@ -151,26 +184,45 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
             </select>
           </div>
 
-          {/* Party */}
+          {/* Party — filtered by lot assignment when a lot is selected */}
           <div>
             <label className="label">Respondent (Party) *</label>
-            <input
-              type="search"
-              placeholder="Search parties…"
-              className="input mb-1"
-              value={partySearch}
-              onChange={(e) => setPartySearch(e.target.value)}
-            />
-            <select
-              className="input"
-              value={form.primary_party_id}
-              onChange={(e) => setForm({ ...form, primary_party_id: e.target.value })}
-            >
-              <option value="">— select party —</option>
-              {partiesData?.items.map((p) => (
-                <option key={p.id} value={p.id}>{p.full_name}</option>
-              ))}
-            </select>
+            {form.lot_id && lotAssignments.length > 0 ? (
+              <select
+                className="input"
+                value={form.primary_party_id}
+                onChange={(e) => setForm({ ...form, primary_party_id: e.target.value })}
+              >
+                <option value="">— select party for this lot —</option>
+                {lotAssignments.map((a) => (
+                  <option key={a.party.id} value={a.party.id}>
+                    {a.party.full_name} ({a.role.replace(/_/g, " ")})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <input
+                  type="search"
+                  placeholder={form.lot_id ? "No parties assigned to this lot…" : "Search parties…"}
+                  className="input mb-1"
+                  value={partySearch}
+                  disabled={!!form.lot_id && lotAssignments.length === 0}
+                  onChange={(e) => setPartySearch(e.target.value)}
+                />
+                <select
+                  className="input"
+                  value={form.primary_party_id}
+                  onChange={(e) => setForm({ ...form, primary_party_id: e.target.value })}
+                  disabled={!!form.lot_id && lotAssignments.length === 0}
+                >
+                  <option value="">— select party —</option>
+                  {partiesData?.items.map((p) => (
+                    <option key={p.id} value={p.id}>{p.full_name}</option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
           {/* Bylaw */}
@@ -200,6 +252,16 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
                 className="input"
                 value={form.complaint_received_date}
                 onChange={(e) => setForm({ ...form, complaint_received_date: e.target.value })}
+              />
+            </div>
+            {/* Complaint time (optional) */}
+            <div>
+              <label className="label">Time <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input
+                type="time"
+                className="input"
+                value={form.complaint_time}
+                onChange={(e) => setForm({ ...form, complaint_time: e.target.value })}
               />
             </div>
             {/* Source (confidential) */}
@@ -261,7 +323,7 @@ function InfractionRow({ inf }: { inf: InfractionListItem }) {
         <p className="font-medium">{inf.bylaw.bylaw_number}</p>
         <p className="text-xs text-slate-400 truncate max-w-[200px]">{inf.bylaw.title}</p>
       </td>
-      <td className="px-4 py-3 text-sm text-slate-500">{inf.complaint_received_date}</td>
+      <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{fmtDatetime(inf.complaint_received_date)}</td>
       <td className="px-4 py-3">
         <span className={`badge ${STATUS_COLOURS[inf.status]}`}>
           {STATUS_LABELS[inf.status]}

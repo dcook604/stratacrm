@@ -5,6 +5,7 @@ import {
   AlertTriangle, ChevronLeft, FileText, Send, CheckCircle,
   XCircle, Clock, Mail, MessageSquare, Gavel, DollarSign, Plus,
 } from "lucide-react";
+import { fmtDatetime } from "../lib/dates";
 import {
   infractionsApi,
   type InfractionDetail,
@@ -444,7 +445,7 @@ export default function InfractionDetailPage() {
             <dl className="space-y-2 text-sm">
               <div>
                 <dt className="text-xs text-slate-400">Received</dt>
-                <dd>{inf.complaint_received_date}</dd>
+                <dd>{fmtDatetime(inf.complaint_received_date)}</dd>
               </div>
               <div>
                 <dt className="text-xs text-slate-400">Description</dt>

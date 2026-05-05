@@ -351,7 +351,7 @@ class Infraction(Base):
     lot_id = Column(Integer, ForeignKey("lots.id"), nullable=False)
     primary_party_id = Column(Integer, ForeignKey("parties.id"), nullable=False)
     bylaw_id = Column(Integer, ForeignKey("bylaws.id"), nullable=False)
-    complaint_received_date = Column(Date, nullable=False)
+    complaint_received_date = Column(DateTime(timezone=True), nullable=False)
     complaint_source = Column(Text, nullable=True)     # confidential — restricted view
     description = Column(Text, nullable=False)
     status = Column(
@@ -418,7 +418,7 @@ class Incident(Base):
 
     id = Column(Integer, primary_key=True)
     reference = Column(String(12), unique=True, nullable=False, index=True)
-    incident_date = Column(Date, nullable=False)
+    incident_date = Column(DateTime(timezone=True), nullable=False)
     lot_id = Column(Integer, ForeignKey("lots.id", ondelete="SET NULL"), nullable=True)
     common_area_description = Column(String(300), nullable=True)
     category = Column(String(100), nullable=False)
@@ -441,7 +441,7 @@ class Issue(Base):
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    due_date = Column(Date, nullable=True)
+    due_date = Column(DateTime(timezone=True), nullable=True)
     priority = Column(SAEnum(IssuePriority, name="issuepriority"), nullable=False, default=IssuePriority.medium)
     status = Column(SAEnum(IssueStatus, name="issuestatus"), nullable=False, default=IssueStatus.open)
     related_lot_id = Column(Integer, ForeignKey("lots.id", ondelete="SET NULL"), nullable=True)

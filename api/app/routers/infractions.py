@@ -278,7 +278,7 @@ def create_infraction(
         occurred_at=datetime.now(timezone.utc),
         actor_id=current_user.id,
         actor_email=current_user.email,
-        notes=f"Complaint received for {body.complaint_received_date}.",
+        notes=f"Complaint received for {body.complaint_received_date.strftime('%B %d, %Y')}.",
     )
     db.add(event)
 

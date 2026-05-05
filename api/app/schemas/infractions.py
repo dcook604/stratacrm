@@ -57,7 +57,7 @@ class InfractionCreate(BaseModel):
     lot_id: int
     primary_party_id: int
     bylaw_id: int
-    complaint_received_date: date
+    complaint_received_date: datetime
     complaint_source: Optional[str] = None   # confidential — not returned to non-admin
     description: str
 
@@ -75,7 +75,7 @@ class InfractionListItem(BaseModel):
     primary_party: PartyMini
     bylaw: BylawMini
     status: InfractionStatus
-    complaint_received_date: date
+    complaint_received_date: datetime
     assessed_fine_amount: Optional[Decimal]
     occurrence_number: int
     created_at: datetime
@@ -134,7 +134,7 @@ class InfractionDetail(BaseModel):
     bylaw: BylawMini
     applicable_fine: Optional[FineScheduleMini] = None
     status: InfractionStatus
-    complaint_received_date: date
+    complaint_received_date: datetime
     description: str
     assessed_fine_amount: Optional[Decimal]
     occurrence_number: int

@@ -4,7 +4,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload
 
 from app.audit import log_action
@@ -61,7 +61,7 @@ def list_issues(
     if open_only:
         stmt = stmt.where(Issue.status.in_([IssueStatus.open, IssueStatus.in_progress]))
     if overdue_only:
-        stmt = stmt.where(Issue.due_date < date.today()).where(
+        stmt = stmt.where(func.date(Issue.due_date) < date.today()).where(
             Issue.status.in_([IssueStatus.open, IssueStatus.in_progress])
         )
     if priority:

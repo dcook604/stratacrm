@@ -6,6 +6,7 @@ import {
 import { Link } from "react-router-dom";
 import { dashboardApi, type DashboardStats } from "../lib/api";
 import { formatDateTime } from "../lib/utils";
+import { fmtDatetime } from "../lib/dates";
 
 // ---------------------------------------------------------------------------
 // Stat card
@@ -31,7 +32,7 @@ function StatCard({
       </div>
       <div className="min-w-0">
         <p className="text-xl md:text-2xl font-bold text-slate-900">{value ?? "—"}</p>
-        <p className="text-xs md:text-sm text-slate-500 leading-tight truncate">{label}</p>
+        <p className="text-xs md:text-sm text-slate-500 leading-tight">{label}</p>
       </div>
     </div>
   );
@@ -96,7 +97,7 @@ function AttentionSection({ data }: { data: DashboardStats }) {
                   <span className="text-slate-700">
                     <span className="font-medium">{issue.title}</span>
                     <span className="text-slate-400 ml-2 capitalize">
-                      [{issue.priority}] due {issue.due_date}
+                      [{issue.priority}] due {fmtDatetime(issue.due_date)}
                       {issue.assignee_email ? ` · ${issue.assignee_email}` : ""}
                     </span>
                   </span>

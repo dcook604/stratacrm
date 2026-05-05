@@ -26,14 +26,14 @@ class IncidentMini(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     category: str
-    incident_date: date
+    incident_date: datetime
 
 
 class IssueCreate(BaseModel):
     title: str
     description: Optional[str] = None
     assignee_id: Optional[int] = None
-    due_date: Optional[date] = None
+    due_date: Optional[datetime] = None
     priority: IssuePriority = IssuePriority.medium
     related_lot_id: Optional[int] = None
     related_incident_id: Optional[int] = None
@@ -43,7 +43,7 @@ class IssueUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     assignee_id: Optional[int] = None
-    due_date: Optional[date] = None
+    due_date: Optional[datetime] = None
     priority: Optional[IssuePriority] = None
     status: Optional[IssueStatus] = None
     related_lot_id: Optional[int] = None
@@ -56,7 +56,7 @@ class IssueOut(BaseModel):
     title: str
     description: Optional[str]
     assignee: Optional[UserMini]
-    due_date: Optional[date]
+    due_date: Optional[datetime]
     priority: IssuePriority
     status: IssueStatus
     related_lot: Optional[LotMini] = None
