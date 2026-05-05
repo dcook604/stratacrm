@@ -74,6 +74,11 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const { data: lotsData } = useQuery({
+    queryKey: ["lots", { search: lotSearch }],
+    queryFn: () => lotsApi.list({ limit: 20, search: lotSearch || undefined }),
+  });
+
   // Auto-select lot when search yields exactly one match
   useEffect(() => {
     if (lotsData?.items.length === 1 && !form.lot_id) {
@@ -81,11 +86,6 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
       setForm((f) => ({ ...f, lot_id: String(lot.id) }));
     }
   }, [lotsData, form.lot_id]);
-
-  const { data: lotsData } = useQuery({
-    queryKey: ["lots", { search: lotSearch }],
-    queryFn: () => lotsApi.list({ limit: 20, search: lotSearch || undefined }),
-  });
 
   const deleteMut = useMutation({
     mutationFn: () => incidentsApi.delete(initial!.id),

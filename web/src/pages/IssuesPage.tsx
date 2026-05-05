@@ -82,6 +82,11 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
   const [lotSearch, setLotSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const { data: lotsData } = useQuery({
+    queryKey: ["lots", { search: lotSearch }],
+    queryFn: () => lotsApi.list({ limit: 20, search: lotSearch || undefined }),
+  });
+
   // Auto-select lot when search yields exactly one match
   useEffect(() => {
     if (lotsData?.items.length === 1 && !form.related_lot_id) {
@@ -89,11 +94,6 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
       setForm((f) => ({ ...f, related_lot_id: String(lot.id) }));
     }
   }, [lotsData, form.related_lot_id]);
-
-  const { data: lotsData } = useQuery({
-    queryKey: ["lots", { search: lotSearch }],
-    queryFn: () => lotsApi.list({ limit: 20, search: lotSearch || undefined }),
-  });
 
   const { data: incidents } = useQuery({
     queryKey: ["incidents", { open_only: true }],

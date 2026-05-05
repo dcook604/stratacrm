@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, AlertTriangle, Clock } from "lucide-react";
+import { Plus, X, AlertTriangle } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import {
   infractionsApi,
