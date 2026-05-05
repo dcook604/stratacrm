@@ -37,11 +37,11 @@ function StatCard({
     </div>
   );
   return to ? (
-    <Link to={to} className="hover:shadow-md transition-shadow rounded-lg">
+    <Link to={to} className="block hover:shadow-md transition-shadow rounded-lg">
       {content}
     </Link>
   ) : (
-    <div>{content}</div>
+    <div className="block">{content}</div>
   );
 }
 
