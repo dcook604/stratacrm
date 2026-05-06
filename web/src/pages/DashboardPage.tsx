@@ -26,14 +26,14 @@ function StatCard({
   color: string;
 }) {
   const content = (
-    <div className="card p-4 md:p-5 flex items-start gap-3 md:gap-4">
-      <div className={`w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-        <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide leading-none">{label}</p>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+          <Icon className="w-4 h-4 text-white" />
+        </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-xl md:text-2xl font-bold text-slate-900">{value ?? "—"}</p>
-        <p className="text-xs md:text-sm text-slate-500 leading-tight">{label}</p>
-      </div>
+      <p className="text-3xl font-bold text-slate-900 leading-none">{value ?? "—"}</p>
     </div>
   );
   return to ? (
@@ -152,14 +152,12 @@ export default function DashboardPage() {
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="card p-5 animate-pulse">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-slate-200 shrink-0" />
-                <div className="space-y-2">
-                  <div className="h-7 w-10 bg-slate-200 rounded" />
-                  <div className="h-3 w-16 bg-slate-100 rounded" />
-                </div>
+            <div key={i} className="card p-5 animate-pulse flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="h-3 w-20 bg-slate-200 rounded" />
+                <div className="w-8 h-8 rounded-lg bg-slate-200 shrink-0" />
               </div>
+              <div className="h-8 w-12 bg-slate-200 rounded" />
             </div>
           ))}
         </div>
