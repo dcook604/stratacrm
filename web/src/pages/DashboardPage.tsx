@@ -121,13 +121,14 @@ function AttentionSection({ data }: { data: DashboardStats }) {
 // Action labels for audit log
 // ---------------------------------------------------------------------------
 
-const ACTION_LABELS: Record<string, string> = {
-  create: "Created",
-  update: "Updated",
-  delete: "Deleted",
-  import: "Imported",
-  login: "Logged in",
-  logout: "Logged out",
+const ACTION_META: Record<string, { label: string; className: string }> = {
+  login:          { label: "Logged in",      className: "bg-blue-100 text-blue-700" },
+  logout:         { label: "Logged out",     className: "bg-slate-100 text-slate-600" },
+  create:         { label: "Created",        className: "bg-green-100 text-green-700" },
+  update:         { label: "Updated",        className: "bg-amber-100 text-amber-700" },
+  delete:         { label: "Deleted",        className: "bg-red-100 text-red-700" },
+  import:         { label: "Imported",       className: "bg-purple-100 text-purple-700" },
+  password_reset: { label: "Password reset", className: "bg-indigo-100 text-indigo-700" },
 };
 
 // ---------------------------------------------------------------------------
@@ -226,23 +227,28 @@ export default function DashboardPage() {
           <div className="px-4 md:px-6 py-8 text-center text-slate-400 text-sm">No activity yet.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {data.recent_audit.map((entry) => (
-              <li key={entry.id} className="px-4 md:px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm">
-                <span className="inline-block w-16 text-xs font-medium text-slate-500 shrink-0">
-                  {ACTION_LABELS[entry.action] ?? entry.action}
-                </span>
-                <span className="text-slate-700 flex-1 min-w-0">
-                  <span className="font-medium capitalize">{entry.entity_type.replace(/_/g, " ")}</span>
-                  {entry.entity_id ? ` #${entry.entity_id}` : ""}
-                </span>
-                <span className="text-slate-400 text-xs shrink-0 flex flex-wrap gap-x-2">
-                  {entry.actor_email && (
-                    <span className="truncate max-w-[120px] sm:max-w-none">{entry.actor_email}</span>
-                  )}
-                  <span className="whitespace-nowrap">{formatDateTime(entry.occurred_at)}</span>
-                </span>
-              </li>
-            ))}
+            {data.recent_audit.map((entry) => {
+              const meta = ACTION_META[entry.action];
+              const label = meta?.label ?? entry.action.replace(/_/g, " ");
+              const badgeCls = meta?.className ?? "bg-slate-100 text-slate-600";
+              const entity = entry.entity_type.replace(/_/g, " ");
+              return (
+                <li key={entry.id} className="px-4 md:px-6 py-3 flex items-center gap-3 text-sm min-w-0">
+                  <span className={`inline-flex items-center shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${badgeCls}`}>
+                    {label}
+                  </span>
+                  <span className="text-slate-700 flex-1 min-w-0 truncate capitalize">
+                    {entity}{entry.entity_id ? ` #${entry.entity_id}` : ""}
+                  </span>
+                  <span className="text-slate-400 text-xs shrink-0 hidden sm:flex items-center gap-2">
+                    {entry.actor_email && (
+                      <span className="truncate max-w-[160px]">{entry.actor_email}</span>
+                    )}
+                    <span className="whitespace-nowrap">{formatDateTime(entry.occurred_at)}</span>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
