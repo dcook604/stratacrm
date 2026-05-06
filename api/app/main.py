@@ -295,6 +295,13 @@ def dashboard_stats(
         .limit(5)
     ).scalars().all()
 
+    # Resolve user names for entries referencing user entities
+    user_ids = {e.entity_id for e in recent_audit if e.entity_type == "user" and e.entity_id}
+    user_names = {}
+    if user_ids:
+        users = db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()
+        user_names = {u.id: u.full_name for u in users}
+
     return {
         "lot_count": lot_count,
         "party_count": party_count,
@@ -327,6 +334,7 @@ def dashboard_stats(
                 "action": e.action,
                 "entity_type": e.entity_type,
                 "entity_id": e.entity_id,
+                "entity_name": user_names.get(e.entity_id) if e.entity_type == "user" else None,
                 "occurred_at": e.occurred_at.isoformat() if e.occurred_at else None,
             }
             for e in recent_audit
@@ -366,6 +374,13 @@ def get_audit_log(
         .limit(limit)
     ).scalars().all()
 
+    # Resolve user names for entries referencing user entities
+    user_ids = {e.entity_id for e in entries if e.entity_type == "user" and e.entity_id}
+    user_names = {}
+    if user_ids:
+        users = db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()
+        user_names = {u.id: u.full_name for u in users}
+
     from app.schemas.audit import AuditLogResponse, AuditLogEntry
 
     return AuditLogResponse(
@@ -376,6 +391,7 @@ def get_audit_log(
                 action=e.action,
                 entity_type=e.entity_type,
                 entity_id=e.entity_id,
+                entity_name=user_names.get(e.entity_id) if e.entity_type == "user" else None,
                 changes=e.changes,
                 occurred_at=e.occurred_at.isoformat() if e.occurred_at else None,
                 ip_address=e.ip_address,

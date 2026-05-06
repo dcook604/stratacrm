@@ -240,6 +240,7 @@ export interface DashboardStats {
     action: string;
     entity_type: string;
     entity_id: number | null;
+    entity_name: string | null;
     occurred_at: string;
   }[];
 }
@@ -716,6 +717,7 @@ export interface AuditLogEntry {
   action: string;
   entity_type: string;
   entity_id: number | null;
+  entity_name: string | null;
   changes: Record<string, unknown> | null;
   occurred_at: string | null;
   ip_address: string | null;

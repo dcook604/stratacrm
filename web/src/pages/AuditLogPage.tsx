@@ -164,8 +164,8 @@ export default function AuditLogPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-700">
-                      <span className="font-medium capitalize">{entry.entity_type.replace(/_/g, " ")}</span>
-                      {entry.entity_id != null && (
+                      <span className="font-medium capitalize">{entry.entity_name ?? entry.entity_type.replace(/_/g, " ")}</span>
+                      {entry.entity_id != null && !entry.entity_name && (
                         <span className="text-slate-400 ml-1">#{entry.entity_id}</span>
                       )}
                     </td>

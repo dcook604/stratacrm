@@ -238,7 +238,7 @@ export default function DashboardPage() {
                     {label}
                   </span>
                   <span className="text-slate-700 flex-1 min-w-0 truncate capitalize">
-                    {entity}{entry.entity_id ? ` #${entry.entity_id}` : ""}
+                    {entry.entity_name ?? entity}{entry.entity_id != null && !entry.entity_name ? ` #${entry.entity_id}` : ""}
                   </span>
                   <span className="text-slate-400 text-xs shrink-0 hidden sm:flex items-center gap-2">
                     {entry.actor_email && (

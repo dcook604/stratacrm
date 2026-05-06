@@ -10,6 +10,7 @@ class AuditLogEntry(BaseModel):
     action: str
     entity_type: str
     entity_id: Optional[int] = None
+    entity_name: Optional[str] = None
     changes: Optional[dict] = None
     occurred_at: Optional[str] = None
     ip_address: Optional[str] = None
