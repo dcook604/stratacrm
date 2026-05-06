@@ -16,7 +16,7 @@ function getCsrfFromCookie(): string | null {
 }
 
 export function clearCsrfToken() {
-  // CSRF is in a cookie — clearing happens server-side on logout
+  document.cookie = "s4_csrf=; Path=/; Max-Age=0; SameSite=Lax";
 }
 
 class ApiError extends Error {
@@ -55,9 +55,12 @@ async function request<T>(
     } catch {}
     if (res.status === 401) {
       clearCsrfToken();
-      // Only show "Session expired" for mid-session expiry, not login failures
       if (detail === `HTTP ${res.status}` || detail === "Not authenticated") {
         detail = "Session expired";
+      }
+      // Redirect to login when the session expires mid-session
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login?expired=1";
       }
     }
     throw new ApiError(res.status, detail);

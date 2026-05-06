@@ -164,7 +164,7 @@ export default function DashboardPage() {
         </div>
       ) : error ? (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          Failed to load dashboard stats.
+          {error instanceof Error ? error.message : "Failed to load dashboard stats."}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">

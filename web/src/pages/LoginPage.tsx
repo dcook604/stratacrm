@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useLogin, useMe } from "../hooks/useAuth";
 
 export default function LoginPage() {
@@ -7,14 +7,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [searchParams] = useSearchParams();
   const login = useLogin();
   const navigate = useNavigate();
   const { data } = useMe();
+
+  // Show session expired message if redirected after expiry
+  const sessionExpired = searchParams.get("expired") === "1";
 
   // Redirect if already logged in
   useEffect(() => {
     if (data?.user) navigate("/dashboard", { replace: true });
   }, [data, navigate]);
+
+  const [dismissed, setDismissed] = useState(false);
 
   function validate(): boolean {
     const errs: { email?: string; password?: string } = {};
@@ -58,6 +64,21 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-xl shadow-xl p-8">
+          {sessionExpired && !dismissed && (
+            <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 mb-5 flex items-start gap-2">
+              <p className="text-sm text-amber-800 flex-1">
+                Your session has expired. Please sign in again.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDismissed(true)}
+                className="text-amber-500 hover:text-amber-700 text-lg leading-none shrink-0"
+                aria-label="Dismiss"
+              >
+                &times;
+              </button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="label">Email address</label>
