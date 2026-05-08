@@ -3,6 +3,7 @@
 import io
 import os
 import subprocess
+import threading
 from pathlib import Path
 
 from PIL import Image, ImageOps
@@ -94,6 +95,10 @@ _VIDEO_CRF = 23       # H.264 quality: lower = better (18–28 typical range)
 _VIDEO_PRESET = "fast"
 _VIDEO_MAX_W = 1920
 _VIDEO_MAX_H = 1080
+# Limit concurrent transcodes so a burst of uploads can't saturate all CPU cores
+_TRANSCODE_SEMAPHORE = threading.Semaphore(2)
+# Max CPU threads ffmpeg may use per job — leaves headroom for the web server
+_VIDEO_THREADS = max(1, (os.cpu_count() or 2) // 2)
 
 
 def transcode_video(source_path: str | Path) -> tuple[str, int]:
@@ -101,6 +106,7 @@ def transcode_video(source_path: str | Path) -> tuple[str, int]:
 
     Returns (output_path, size_bytes).  Raises RuntimeError if ffmpeg fails.
     The source file is NOT deleted — callers decide whether to remove it.
+    At most _TRANSCODE_SEMAPHORE concurrent jobs run; extras wait in queue.
     """
     src = Path(source_path)
     dest = src.with_suffix(".mp4")
@@ -108,10 +114,12 @@ def transcode_video(source_path: str | Path) -> tuple[str, int]:
         dest = src.with_name(f"{src.stem}_tc.mp4")
 
     cmd = [
+        "nice", "-n", "10",          # lower CPU scheduling priority
         "ffmpeg", "-i", str(src),
         "-c:v", "libx264",
         "-crf", str(_VIDEO_CRF),
         "-preset", _VIDEO_PRESET,
+        "-threads", str(_VIDEO_THREADS),  # cap CPU cores used per job
         # Scale down to max 1920×1080, keep aspect ratio, force even dimensions
         "-vf", (
             f"scale='min({_VIDEO_MAX_W},iw)':'min({_VIDEO_MAX_H},ih)'"
@@ -124,7 +132,8 @@ def transcode_video(source_path: str | Path) -> tuple[str, int]:
         "-y",                        # overwrite output
         str(dest),
     ]
-    result = subprocess.run(cmd, capture_output=True, timeout=900)
+    with _TRANSCODE_SEMAPHORE:
+        result = subprocess.run(cmd, capture_output=True, timeout=900)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.decode(errors="replace")[-2000:])
 
