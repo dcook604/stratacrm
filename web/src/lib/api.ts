@@ -665,32 +665,45 @@ export interface Document {
 export const documentsApi = {
   list: (entityType: string, entityId: number) =>
     api.get<Document[]>(`/documents?entity_type=${entityType}&entity_id=${entityId}`),
-  upload: async (
+  upload: (
     entityType: string,
     entityId: number,
     file: File,
     caption?: string,
     tags?: string,
+    onProgress?: (pct: number) => void,
   ): Promise<Document> => {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("entity_type", entityType);
-    form.append("entity_id", String(entityId));
-    if (caption) form.append("caption", caption);
-    if (tags) form.append("tags", tags);
-    const res = await fetch("/api/documents", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: getCsrfFromCookie()
-        ? { "X-CSRF-Token": getCsrfFromCookie()! }
-        : {},
-      body: form,
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("entity_type", entityType);
+      form.append("entity_id", String(entityId));
+      if (caption) form.append("caption", caption);
+      if (tags) form.append("tags", tags);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/documents");
+      xhr.withCredentials = true;
+      const csrf = getCsrfFromCookie();
+      if (csrf) xhr.setRequestHeader("X-CSRF-Token", csrf);
+
+      if (onProgress) {
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        });
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          const detail = JSON.parse(xhr.responseText || "{}").detail;
+          reject(new Error(detail ?? `Upload failed: HTTP ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Upload failed: network error"));
+      xhr.send(form);
     });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      throw new Error(json.detail ?? `Upload failed: HTTP ${res.status}`);
-    }
-    return res.json();
   },
   delete: (id: number) => api.delete(`/documents/${id}`),
 };

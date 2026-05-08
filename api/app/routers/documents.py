@@ -40,6 +40,7 @@ _ALLOWED_TYPES = {
     # Video types
     "video/mp4",
     "video/quicktime",
+    "video/mov",
     "video/webm",
     "video/x-msvideo",
     "video/avi",
@@ -61,6 +62,7 @@ _MIME_TO_EXT: dict[str, set[str]] = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {".xlsx"},
     "video/mp4": {".mp4"},
     "video/quicktime": {".mov"},
+    "video/mov": {".mov"},
     "video/webm": {".webm"},
     "video/x-msvideo": {".avi"},
     "video/avi": {".avi"},

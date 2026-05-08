@@ -335,6 +335,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   // Image editor state
@@ -361,14 +362,16 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
 
   async function uploadFile(file: File, cap?: string, t?: string) {
     setUploading(true);
+    setUploadPct(0);
     try {
-      await documentsApi.upload("incident", incidentId, file, cap || undefined, t || undefined);
+      await documentsApi.upload("incident", incidentId, file, cap || undefined, t || undefined, setUploadPct);
       qc.invalidateQueries({ queryKey: ["documents", "incident", incidentId] });
       addToast("success", "Media uploaded.");
     } catch (e) {
       addToast("error", (e as Error).message);
     } finally {
       setUploading(false);
+      setUploadPct(0);
     }
   }
 
@@ -505,7 +508,18 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
             />
           </div>
           {uploading && (
-            <p className="text-xs text-blue-600 animate-pulse">Uploading…</p>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-blue-600">
+                <span>Uploading…</span>
+                <span>{uploadPct}%</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-150"
+                  style={{ width: `${uploadPct}%` }}
+                />
+              </div>
+            </div>
           )}
           <div className="flex justify-end gap-2">
             <button
