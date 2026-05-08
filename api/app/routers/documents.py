@@ -4,7 +4,7 @@ import os
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form, status
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,10 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.models import Document, User
 from app.schemas.documents import DocumentOut
-from app.utils.media import compress_image, generate_thumbnail, thumbnail_path_for
+from app.utils.media import (
+    compress_image, generate_thumbnail, generate_video_thumbnail,
+    transcode_video, thumbnail_path_for,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -70,7 +73,8 @@ _MIME_TO_EXT: dict[str, set[str]] = {
     "video/ogg": {".ogv"},
 }
 
-_MAX_BYTES = 100 * 1024 * 1024  # 100 MB (videos)
+_MAX_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB raw ingest limit (videos transcoded after)
+_CHUNK = 4 * 1024 * 1024             # 4 MB streaming chunks
 
 
 def _doc_out(doc: Document) -> DocumentOut:
@@ -127,17 +131,11 @@ async def upload_document(
                        f"Expected: {', '.join(expected_exts)}"
             )
 
-    data = await file.read()
-    if len(data) > _MAX_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds 20 MB limit.")
-
     os.makedirs(settings.uploads_dir, exist_ok=True)
     safe_name = os.path.basename(file.filename or "upload")
-    # Avoid collisions: prefix with entity type/id
     storage_filename = f"{entity_type}_{entity_id}_{doc_safe(safe_name)}"
     storage_path = os.path.join(settings.uploads_dir, storage_filename)
 
-    # If path already exists, append a counter
     if os.path.exists(storage_path):
         base, ext = os.path.splitext(storage_filename)
         counter = 1
@@ -145,13 +143,29 @@ async def upload_document(
             storage_path = os.path.join(settings.uploads_dir, f"{base}_{counter}{ext}")
             counter += 1
 
-    with open(storage_path, "wb") as f:
-        f.write(data)
+    # Stream to disk in chunks — avoids loading large videos into memory
+    total_bytes = 0
+    try:
+        with open(storage_path, "wb") as fout:
+            while True:
+                chunk = await file.read(_CHUNK)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > _MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="File exceeds 2 GB limit.")
+                fout.write(chunk)
+    except HTTPException:
+        if os.path.exists(storage_path):
+            os.unlink(storage_path)
+        raise
 
-    # Compress images and generate thumbnails on upload
-    is_image = file.content_type and file.content_type.startswith("image/")
     effective_mime = file.content_type
-    final_size = len(data)
+    final_size = total_bytes
+
+    is_image = file.content_type and file.content_type.startswith("image/")
+    is_video = file.content_type and file.content_type.startswith("video/")
+
     if is_image:
         try:
             compressed_path, compressed_size = compress_image(storage_path)
@@ -159,16 +173,33 @@ async def upload_document(
                 os.replace(compressed_path, storage_path)
             final_size = compressed_size
         except Exception:
-            pass  # compression failure is non-fatal — keep the original
-        # After compression the file is JPEG regardless of input format
+            pass
         effective_mime = "image/jpeg"
 
-    # Generate thumbnail (best-effort) — only for images that were compressed or already JPEG/PNG
+    if is_video:
+        try:
+            transcoded_path, transcoded_size = transcode_video(storage_path)
+            # Replace raw file with the transcoded MP4
+            if transcoded_path != storage_path:
+                os.unlink(storage_path)
+                storage_path = transcoded_path
+            final_size = transcoded_size
+        except Exception:
+            pass  # transcode failure is non-fatal — keep the raw file
+        else:
+            effective_mime = "video/mp4"
+
+    # Generate thumbnail — JPEG image for both image and video documents
     if effective_mime == "image/jpeg":
         try:
             generate_thumbnail(storage_path)
         except Exception:
-            pass  # thumbnail failure is non-fatal
+            pass
+    elif effective_mime == "video/mp4":
+        try:
+            generate_video_thumbnail(storage_path)
+        except Exception:
+            pass
 
     doc = Document(
         storage_path=storage_path,
@@ -221,19 +252,16 @@ def download_document(
     if not os.path.exists(doc.storage_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    with open(doc.storage_path, "rb") as f:
-        data = f.read()
-
     is_inline = doc.mime_type and (
         doc.mime_type.startswith("image/") or doc.mime_type.startswith("video/")
     )
     disposition = "inline" if is_inline else "attachment"
-    return Response(
-        content=data,
+    # FileResponse streams the file and supports HTTP Range requests (video seeking)
+    return FileResponse(
+        path=doc.storage_path,
         media_type=doc.mime_type or "application/octet-stream",
-        headers={
-            "Content-Disposition": f'{disposition}; filename="{doc.original_filename or "download"}"'
-        },
+        filename=doc.original_filename or "download",
+        headers={"Content-Disposition": f'{disposition}; filename="{doc.original_filename or "download"}"'},
     )
 
 
@@ -261,7 +289,7 @@ def thumbnail_document(
 
     return Response(
         content=data,
-        media_type=doc.mime_type or "image/jpeg",
+        media_type="image/jpeg",
         headers={
             "Content-Disposition": f'inline; filename="thumb_{doc.original_filename or "image"}"'
         },

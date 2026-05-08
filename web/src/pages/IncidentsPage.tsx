@@ -510,12 +510,18 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
           {uploading && (
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-blue-600">
-                <span>Uploading…</span>
-                <span>{uploadPct}%</span>
+                {uploadPct < 100 ? (
+                  <>
+                    <span>Uploading…</span>
+                    <span>{uploadPct}%</span>
+                  </>
+                ) : (
+                  <span className="animate-pulse">Processing video… this may take a minute</span>
+                )}
               </div>
               <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-150"
+                  className={`h-1.5 rounded-full transition-all duration-150 ${uploadPct < 100 ? "bg-blue-500" : "bg-amber-500 animate-pulse"}`}
                   style={{ width: `${uploadPct}%` }}
                 />
               </div>

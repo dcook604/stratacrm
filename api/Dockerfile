@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     fonts-liberation \
     shared-mime-info \
+    ffmpeg \
     && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
