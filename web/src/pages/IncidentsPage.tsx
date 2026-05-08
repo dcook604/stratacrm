@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3 } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document } from "../lib/api";
 import { useToast } from "../lib/toast";
 import ImageEditor from "../components/ImageEditor";
 import Lightbox from "../components/Lightbox";
+import SendIncidentEmailModal from "../components/SendIncidentEmailModal";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -703,6 +704,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
 
 function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
   const qc = useQueryClient();
 
   const quickStatus = useMutation({
@@ -772,10 +774,24 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
                   ))}
               </div>
 
+              {/* Email button */}
+              <div className="pt-1">
+                <button
+                  className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1.5"
+                  onClick={() => setEmailOpen(true)}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Email Report
+                </button>
+              </div>
+
               <MediaPanel incidentId={incident.id} />
             </div>
           </td>
         </tr>
+      )}
+      {emailOpen && (
+        <SendIncidentEmailModal incident={incident} onClose={() => setEmailOpen(false)} />
       )}
     </>
   );

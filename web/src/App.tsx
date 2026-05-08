@@ -18,6 +18,7 @@ import IncidentsPage from "./pages/IncidentsPage";
 import IssuesPage from "./pages/IssuesPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import AuditLogPage from "./pages/AuditLogPage";
+import ShareIncidentPage from "./pages/ShareIncidentPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useMe();
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/share/incident/:token" element={<ShareIncidentPage />} />
         <Route
           path="/"
           element={

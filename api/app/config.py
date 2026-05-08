@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     listmonk_username: str = "listmonk"
     listmonk_password: str = "changeme"
 
+    # Public base URL for generating share links in emails
+    app_base_url: str = "https://crm.spectrum4.ca"
+
     # File storage
     uploads_dir: str = "/app/uploads"
 

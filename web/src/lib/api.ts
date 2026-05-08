@@ -577,6 +577,50 @@ export const incidentsApi = {
   create: (body: object) => api.post<Incident>("/incidents", body),
   update: (id: number, body: object) => api.patch<Incident>(`/incidents/${id}`, body),
   delete: (id: number) => api.delete(`/incidents/${id}`),
+  sendEmail: (id: number, body: { to: string; message?: string }) =>
+    api.post<void>(`/incidents/${id}/send-email`, body),
+};
+
+// ---------------------------------------------------------------------------
+// Public share types
+// ---------------------------------------------------------------------------
+
+export interface SharedDoc {
+  id: number;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  caption: string | null;
+  tags: string | null;
+  is_processing: boolean;
+  media_url: string;
+  thumbnail_url: string;
+}
+
+export interface SharedIncident {
+  id: number;
+  reference: string;
+  incident_date: string;
+  category: string;
+  description: string;
+  reported_by: string | null;
+  status: string;
+  resolution: string | null;
+  lot: { strata_lot_number: number; unit_number: string | null } | null;
+  common_area_description: string | null;
+  media: SharedDoc[];
+  share_expires_days: number;
+}
+
+export const shareApi = {
+  getIncident: (token: string) =>
+    fetch(`/api/share/incident/${token}`).then(async (r) => {
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.detail ?? "Link is invalid or has expired.");
+      }
+      return r.json() as Promise<SharedIncident>;
+    }),
 };
 
 // ---------------------------------------------------------------------------

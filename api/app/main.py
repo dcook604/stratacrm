@@ -34,6 +34,7 @@ from app.routers import incidents as incidents_router
 from app.routers import issues as issues_router
 from app.routers import documents as documents_router
 from app.routers import sync as sync_router
+from app.routers import share as share_router
 from app.routers.auth import limiter
 
 structlog.configure(
@@ -224,6 +225,7 @@ app.include_router(incidents_router.router, prefix=API_PREFIX)
 app.include_router(issues_router.router, prefix=API_PREFIX)
 app.include_router(documents_router.router, prefix=API_PREFIX)
 app.include_router(sync_router.router, prefix=API_PREFIX)
+app.include_router(share_router.router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------
