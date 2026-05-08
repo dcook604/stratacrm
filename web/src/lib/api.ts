@@ -657,6 +657,7 @@ export interface Document {
   linked_entity_id: number | null;
   uploaded_at: string;
   download_url: string;
+  thumbnail_url: string | null;
   caption: string | null;
   tags: string | null;
 }

@@ -13,6 +13,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.models import Document, User
 from app.schemas.documents import DocumentOut
+from app.utils.media import compress_image, generate_thumbnail, thumbnail_path_for
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -80,6 +81,7 @@ def _doc_out(doc: Document) -> DocumentOut:
         linked_entity_id=doc.linked_entity_id,
         uploaded_at=doc.uploaded_at,
         download_url=f"/api/documents/{doc.id}/download",
+        thumbnail_url=f"/api/documents/{doc.id}/thumbnail",
         caption=doc.caption,
         tags=doc.tags,
     )
@@ -144,11 +146,33 @@ async def upload_document(
     with open(storage_path, "wb") as f:
         f.write(data)
 
+    # Compress images and generate thumbnails on upload
+    is_image = file.content_type and file.content_type.startswith("image/")
+    effective_mime = file.content_type
+    final_size = len(data)
+    if is_image:
+        try:
+            compressed_path, compressed_size = compress_image(storage_path)
+            if compressed_path != storage_path:
+                os.replace(compressed_path, storage_path)
+            final_size = compressed_size
+        except Exception:
+            pass  # compression failure is non-fatal — keep the original
+        # After compression the file is JPEG regardless of input format
+        effective_mime = "image/jpeg"
+
+    # Generate thumbnail (best-effort) — only for images that were compressed or already JPEG/PNG
+    if effective_mime == "image/jpeg":
+        try:
+            generate_thumbnail(storage_path)
+        except Exception:
+            pass  # thumbnail failure is non-fatal
+
     doc = Document(
         storage_path=storage_path,
         original_filename=safe_name,
-        mime_type=file.content_type,
-        file_size_bytes=len(data),
+        mime_type=effective_mime,
+        file_size_bytes=final_size,
         uploaded_by_id=current_user.id,
         linked_entity_type=entity_type,
         linked_entity_id=entity_id,
@@ -211,6 +235,37 @@ def download_document(
     )
 
 
+@router.get("/{document_id}/thumbnail")
+def thumbnail_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Serve a smaller thumbnail for image documents (faster loading in grids)."""
+    doc = db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    thumb_path = thumbnail_path_for(doc.storage_path)
+    if not os.path.exists(thumb_path):
+        # Fall back to the original if no thumbnail exists
+        thumb_path = doc.storage_path
+
+    if not os.path.exists(thumb_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    with open(thumb_path, "rb") as f:
+        data = f.read()
+
+    return Response(
+        content=data,
+        media_type=doc.mime_type or "image/jpeg",
+        headers={
+            "Content-Disposition": f'inline; filename="thumb_{doc.original_filename or "image"}"'
+        },
+    )
+
+
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT,
                dependencies=[Depends(require_csrf)])
 def delete_document(
@@ -223,10 +278,16 @@ def delete_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Remove file from disk (best-effort)
+    # Remove files from disk (best-effort)
     if doc.storage_path and os.path.exists(doc.storage_path):
         try:
             os.remove(doc.storage_path)
+        except OSError:
+            pass
+    thumb_path = thumbnail_path_for(doc.storage_path) if doc.storage_path else None
+    if thumb_path and os.path.exists(thumb_path):
+        try:
+            os.remove(thumb_path)
         except OSError:
             pass
 

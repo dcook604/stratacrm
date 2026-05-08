@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3 } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document } from "../lib/api";
 import { useToast } from "../lib/toast";
+import ImageEditor from "../components/ImageEditor";
+import Lightbox from "../components/Lightbox";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -335,6 +337,13 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
+  // Image editor state
+  const [editingFile, setEditingFile] = useState<File | null>(null);
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
+
+  // Lightbox state
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+
   const { data: docs } = useQuery({
     queryKey: ["documents", "incident", incidentId],
     queryFn: () => documentsApi.list("incident", incidentId),
@@ -350,15 +359,11 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
     onError: (e: Error) => addToast("error", e.message),
   });
 
-  async function handleUpload(file: File) {
+  async function uploadFile(file: File, cap?: string, t?: string) {
     setUploading(true);
     try {
-      await documentsApi.upload("incident", incidentId, file, caption || undefined, tags || undefined);
+      await documentsApi.upload("incident", incidentId, file, cap || undefined, t || undefined);
       qc.invalidateQueries({ queryKey: ["documents", "incident", incidentId] });
-      setCaption("");
-      setTags("");
-      setShowForm(false);
-      if (fileRef.current) fileRef.current.value = "";
       addToast("success", "Media uploaded.");
     } catch (e) {
       addToast("error", (e as Error).message);
@@ -367,11 +372,84 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
     }
   }
 
+  // Handle raw file selection — open editor for images, upload directly for video/other
+  function handleFileSelected(file: File) {
+    if (file.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      setEditingFile(file);
+      setEditingUrl(url);
+    } else {
+      uploadFile(file, caption || undefined, tags || undefined);
+      setCaption("");
+      setTags("");
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  // Called when the image editor confirms an edited blob
+  const handleEditorConfirm = useCallback(
+    async (blob: Blob) => {
+      const name = editingFile?.name ?? "edited.jpg";
+      const file = new File([blob], name, { type: "image/jpeg" });
+      await uploadFile(file, caption || undefined, tags || undefined);
+      // Clean up
+      if (editingUrl) URL.revokeObjectURL(editingUrl);
+      setEditingFile(null);
+      setEditingUrl(null);
+      setCaption("");
+      setTags("");
+      setShowForm(false);
+      if (fileRef.current) fileRef.current.value = "";
+    },
+    [editingFile, editingUrl, caption, tags, uploadFile],
+  );
+
+  function handleEditorCancel() {
+    if (editingUrl) URL.revokeObjectURL(editingUrl);
+    setEditingFile(null);
+    setEditingUrl(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   function isImage(doc: Document) {
     return doc.mime_type?.startsWith("image/") ?? false;
   }
   function isVideo(doc: Document) {
     return doc.mime_type?.startsWith("video/") ?? false;
+  }
+
+  const images = docs?.filter(isImage) ?? [];
+  const lightboxDoc = lightboxIdx !== null ? images[lightboxIdx] : null;
+
+  // Re-upload a re-edited existing image
+  const [reEditDoc, setReEditDoc] = useState<Document | null>(null);
+  const [reEditUrl, setReEditUrl] = useState<string | null>(null);
+
+  async function startReEdit(doc: Document) {
+    // Fetch the full-resolution image for editing
+    try {
+      const res = await fetch(doc.download_url, { credentials: "same-origin" });
+      const blob = await res.blob();
+      setReEditDoc(doc);
+      setReEditUrl(URL.createObjectURL(blob));
+    } catch {
+      addToast("error", "Could not load image for editing.");
+    }
+  }
+
+  async function handleReEditConfirm(blob: Blob) {
+    if (!reEditDoc) return;
+    const file = new File([blob], reEditDoc.original_filename ?? "edited.jpg", { type: "image/jpeg" });
+    await uploadFile(file, reEditDoc.caption ?? undefined, reEditDoc.tags ?? undefined);
+    if (reEditUrl) URL.revokeObjectURL(reEditUrl);
+    setReEditDoc(null);
+    setReEditUrl(null);
+  }
+
+  function handleReEditCancel() {
+    if (reEditUrl) URL.revokeObjectURL(reEditUrl);
+    setReEditDoc(null);
+    setReEditUrl(null);
   }
 
   return (
@@ -389,7 +467,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
         </button>
       </div>
 
-      {showForm && (
+      {showForm && !editingFile && !reEditDoc && (
         <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
           <div>
             <label className="label text-xs">File (image or video, max 100 MB)</label>
@@ -400,7 +478,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
               className="block w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleUpload(file);
+                if (file) handleFileSelected(file);
               }}
             />
           </div>
@@ -440,23 +518,63 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
         </div>
       )}
 
+      {/* Image editor modal for new uploads */}
+      {editingUrl && editingFile && (
+        <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            Edit Image
+          </h5>
+          <ImageEditor
+            src={editingUrl}
+            onConfirm={handleEditorConfirm}
+            onCancel={handleEditorCancel}
+          />
+        </div>
+      )}
+
+      {/* Image editor for re-editing existing images */}
+      {reEditUrl && reEditDoc && (
+        <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+          <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            Re-edit Image
+          </h5>
+          <ImageEditor
+            src={reEditUrl}
+            onConfirm={handleReEditConfirm}
+            onCancel={handleReEditCancel}
+          />
+        </div>
+      )}
+
       {docs && docs.length === 0 && !showForm && (
         <p className="text-xs text-slate-400 italic">No media attached yet.</p>
       )}
 
       {docs && docs.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {docs.map((doc) => (
+          {docs.map((doc, idx) => (
             <div key={doc.id} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white">
               {isImage(doc) && (
-                <a href={doc.download_url} target="_blank" rel="noreferrer">
+                <>
                   <img
-                    src={doc.download_url}
+                    src={doc.thumbnail_url ?? doc.download_url}
                     alt={doc.caption ?? doc.original_filename ?? ""}
-                    className="w-full h-32 object-cover"
+                    className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     loading="lazy"
+                    onClick={() => {
+                      const imgIdx = images.findIndex((d) => d.id === doc.id);
+                      if (imgIdx !== -1) setLightboxIdx(imgIdx);
+                    }}
                   />
-                </a>
+                  {/* Re-edit button (top-left) */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startReEdit(doc); }}
+                    className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded p-0.5 shadow text-slate-400 hover:text-blue-600"
+                    title="Re-edit image"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                </>
               )}
               {isVideo(doc) && (
                 <video
@@ -523,6 +641,28 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxDoc && lightboxIdx !== null && (
+        <Lightbox
+          src={lightboxDoc.download_url}
+          caption={lightboxDoc.caption}
+          onClose={() => setLightboxIdx(null)}
+          onPrev={
+            lightboxIdx > 0
+              ? () => setLightboxIdx((i) => (i !== null ? i - 1 : null))
+              : undefined
+          }
+          onNext={
+            lightboxIdx < images.length - 1
+              ? () => setLightboxIdx((i) => (i !== null ? i + 1 : null))
+              : undefined
+          }
+          onDelete={() => deleteMut.mutate(lightboxDoc.id)}
+          hasPrev={lightboxIdx > 0}
+          hasNext={lightboxIdx < images.length - 1}
+        />
       )}
     </div>
   );
