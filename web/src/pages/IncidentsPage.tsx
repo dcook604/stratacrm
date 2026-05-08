@@ -552,7 +552,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
 
       {docs && docs.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {docs.map((doc, idx) => (
+          {docs.map((doc) => (
             <div key={doc.id} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white">
               {isImage(doc) && (
                 <>
