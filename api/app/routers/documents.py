@@ -1,12 +1,17 @@
 """Document storage router — upload, list, download generic file attachments."""
 
+import logging
 import os
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Form, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, UploadFile, File, Form, status
 from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from app.database import SessionLocal
+
+log = logging.getLogger(__name__)
 
 from app.config import settings
 from app.database import get_db
@@ -96,6 +101,7 @@ def _doc_out(doc: Document) -> DocumentOut:
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED,
              dependencies=[Depends(require_csrf)])
 async def upload_document(
+    background_tasks: BackgroundTasks,
     request: Request,
     file: UploadFile = File(...),
     entity_type: str = Form(...),
@@ -160,12 +166,13 @@ async def upload_document(
             os.unlink(storage_path)
         raise
 
-    effective_mime = file.content_type
+    content_type = file.content_type or ""
+    is_image = content_type.startswith("image/")
+    is_video = content_type.startswith("video/")
+
+    # Images: compress synchronously (fast, a few seconds at most)
+    effective_mime = content_type
     final_size = total_bytes
-
-    is_image = file.content_type and file.content_type.startswith("image/")
-    is_video = file.content_type and file.content_type.startswith("video/")
-
     if is_image:
         try:
             compressed_path, compressed_size = compress_image(storage_path)
@@ -175,32 +182,12 @@ async def upload_document(
         except Exception:
             pass
         effective_mime = "image/jpeg"
-
-    if is_video:
-        try:
-            transcoded_path, transcoded_size = transcode_video(storage_path)
-            # Replace raw file with the transcoded MP4
-            if transcoded_path != storage_path:
-                os.unlink(storage_path)
-                storage_path = transcoded_path
-            final_size = transcoded_size
-        except Exception:
-            pass  # transcode failure is non-fatal — keep the raw file
-        else:
-            effective_mime = "video/mp4"
-
-    # Generate thumbnail — JPEG image for both image and video documents
-    if effective_mime == "image/jpeg":
         try:
             generate_thumbnail(storage_path)
         except Exception:
             pass
-    elif effective_mime == "video/mp4":
-        try:
-            generate_video_thumbnail(storage_path)
-        except Exception:
-            pass
 
+    # Videos: commit record immediately as is_processing=True, transcode in background
     doc = Document(
         storage_path=storage_path,
         original_filename=safe_name,
@@ -211,11 +198,45 @@ async def upload_document(
         linked_entity_id=entity_id,
         caption=caption or None,
         tags=tags or None,
+        is_processing=is_video,
     )
     db.add(doc)
     db.commit()
     db.refresh(doc)
+
+    if is_video:
+        background_tasks.add_task(_transcode_background, doc.id, storage_path)
+
     return _doc_out(doc)
+
+
+def _transcode_background(doc_id: int, raw_path: str) -> None:
+    """Background task: transcode raw video to H.264/MP4, update the DB record."""
+    db = SessionLocal()
+    try:
+        doc = db.get(Document, doc_id)
+        if not doc:
+            return
+
+        try:
+            transcoded_path, transcoded_size = transcode_video(raw_path)
+            if transcoded_path != raw_path:
+                os.unlink(raw_path)
+            try:
+                generate_video_thumbnail(transcoded_path)
+            except Exception:
+                pass
+            doc.storage_path = transcoded_path
+            doc.mime_type = "video/mp4"
+            doc.file_size_bytes = transcoded_size
+        except Exception as exc:
+            log.error("Video transcode failed for doc %d: %s", doc_id, exc)
+            # Keep the raw file playable; just clear the processing flag
+
+        doc.is_processing = False
+        db.commit()
+    finally:
+        db.close()
 
 
 def doc_safe(name: str) -> str:

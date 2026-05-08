@@ -348,6 +348,9 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
   const { data: docs } = useQuery({
     queryKey: ["documents", "incident", incidentId],
     queryFn: () => documentsApi.list("incident", incidentId),
+    // Poll while any video is still being transcoded
+    refetchInterval: (query) =>
+      query.state.data?.some((d) => d.is_processing) ? 3000 : false,
   });
 
   const deleteMut = useMutation({
@@ -473,7 +476,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
       {showForm && !editingFile && !reEditDoc && (
         <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
           <div>
-            <label className="label text-xs">File (image or video, max 100 MB)</label>
+            <label className="label text-xs">File (image or video — images max 100 MB, videos up to 2 GB)</label>
             <input
               ref={fileRef}
               type="file"
@@ -596,13 +599,19 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
                   </button>
                 </>
               )}
-              {isVideo(doc) && (
+              {isVideo(doc) && !doc.is_processing && (
                 <video
                   src={doc.download_url}
                   controls
                   className="w-full h-32 object-cover bg-black"
                   preload="metadata"
                 />
+              )}
+              {doc.is_processing && (
+                <div className="w-full h-32 bg-slate-100 flex flex-col items-center justify-center gap-1.5 text-slate-500">
+                  <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+                  <span className="text-[11px] font-medium">Processing…</span>
+                </div>
               )}
               {!isImage(doc) && !isVideo(doc) && (
                 <a

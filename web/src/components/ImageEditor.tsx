@@ -46,9 +46,9 @@ export default function ImageEditor({ src, onConfirm, onCancel }: ImageEditorPro
   const displayWidth = rotation % 180 === 0 ? imgWidth : imgHeight;
   const displayHeight = rotation % 180 === 0 ? imgHeight : imgWidth;
 
-  // Scale to fit container (max 500px)
-  const maxDisplay = 500;
-  const scale = Math.min(1, maxDisplay / Math.max(displayWidth, displayHeight));
+  // Scale to fit container (max 380px so it fits comfortably inside a side panel)
+  const maxDisplay = 380;
+  const scale = Math.min(1, maxDisplay / Math.max(1, displayWidth, displayHeight));
   const viewW = Math.round(displayWidth * scale);
   const viewH = Math.round(displayHeight * scale);
 
@@ -195,12 +195,12 @@ export default function ImageEditor({ src, onConfirm, onCancel }: ImageEditorPro
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-w-full">
       {/* Canvas preview */}
       <div
         ref={displayRef}
-        className="relative bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center"
-        style={{ width: viewW, height: viewH }}
+        className="relative bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center mx-auto"
+        style={{ width: viewW, height: viewH, maxWidth: "100%" }}
       >
         <canvas
           ref={canvasRef}

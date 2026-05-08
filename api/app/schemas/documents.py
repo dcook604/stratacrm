@@ -19,3 +19,4 @@ class DocumentOut(BaseModel):
     thumbnail_url: Optional[str] = None  # set by endpoint
     caption: Optional[str] = None
     tags: Optional[str] = None  # comma-separated
+    is_processing: bool = False

@@ -660,6 +660,7 @@ export interface Document {
   thumbnail_url: string | null;
   caption: string | null;
   tags: string | null;
+  is_processing: boolean;
 }
 
 export const documentsApi = {

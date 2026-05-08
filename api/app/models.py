@@ -253,6 +253,7 @@ class Document(Base):
     uploaded_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     caption = Column(Text, nullable=True)
     tags = Column(String(500), nullable=True)  # comma-separated
+    is_processing = Column(Boolean, nullable=False, server_default="false", default=False)
 
     uploaded_by = relationship("User", foreign_keys=[uploaded_by_id])
 
