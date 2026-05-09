@@ -294,12 +294,21 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
             {overdue && (
               <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" aria-label="Overdue" />
             )}
+            {issue.source === "email" && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded bg-purple-100 text-purple-700"
+                title={issue.reporter_email ?? "Via email"}>
+                Email
+              </span>
+            )}
           </div>
           {issue.related_lot && (
             <p className="text-xs text-slate-400 mt-0.5">
               SL{issue.related_lot.strata_lot_number}
               {issue.related_lot.unit_number ? ` Unit ${issue.related_lot.unit_number}` : ""}
             </p>
+          )}
+          {issue.source === "email" && issue.reporter_email && (
+            <p className="text-xs text-slate-400 mt-0.5">From: {issue.reporter_name || issue.reporter_email}</p>
           )}
         </td>
         <td className="px-4 py-3">

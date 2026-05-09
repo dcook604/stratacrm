@@ -658,6 +658,9 @@ export interface Issue {
   status: IssueStatus;
   related_lot: IssueLot | null;
   related_incident: IssueIncident | null;
+  source: string;
+  reporter_email: string | null;
+  reporter_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -801,6 +804,43 @@ export const auditLogApi = {
     if (params?.entity_type) qs.set("entity_type", params.entity_type);
     return api.get<AuditLogResponse>(`/audit-log?${qs}`);
   },
+};
+
+// ---------------------------------------------------------------------------
+// Email ingest types
+// ---------------------------------------------------------------------------
+
+export interface EmailIngestConfig {
+  enabled: boolean;
+  ai_provider: "anthropic" | "deepseek";
+  has_anthropic_key: boolean;
+  has_deepseek_key: boolean;
+  gmail_poll_label: string;
+  gmail_poll_interval_minutes: number;
+  gmail_connected_email: string | null;
+  last_polled_at: string | null;
+  last_poll_stats: { created: number; skipped: number; errors: number } | null;
+  has_gmail_credentials: boolean;
+  has_gmail_token: boolean;
+}
+
+export interface EmailIngestConfigUpdate {
+  enabled?: boolean;
+  ai_provider?: "anthropic" | "deepseek";
+  anthropic_api_key?: string;
+  deepseek_api_key?: string;
+  gmail_poll_label?: string;
+  gmail_poll_interval_minutes?: number;
+  gmail_credentials_json?: string;
+}
+
+export const emailIngestApi = {
+  getConfig: () => api.get<EmailIngestConfig>("/email-ingest/config"),
+  updateConfig: (body: EmailIngestConfigUpdate) =>
+    api.patch<EmailIngestConfig>("/email-ingest/config", body),
+  disconnectGmail: () => api.delete("/email-ingest/config/gmail"),
+  startOAuth: () => api.get<{ auth_url: string }>("/email-ingest/oauth/start"),
+  triggerPoll: () => api.post<{ status: string }>("/email-ingest/poll"),
 };
 
 

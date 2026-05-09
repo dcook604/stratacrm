@@ -35,6 +35,7 @@ from app.routers import issues as issues_router
 from app.routers import documents as documents_router
 from app.routers import sync as sync_router
 from app.routers import share as share_router
+from app.routers import email_ingest as email_ingest_router
 from app.routers.auth import limiter
 
 structlog.configure(
@@ -167,7 +168,27 @@ def _seed_database() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_database()
+
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from app.services.email_ingest import scheduler_tick
+
+    def _tick():
+        db = SessionLocal()
+        try:
+            scheduler_tick(db)
+        except Exception:
+            log.exception("email_ingest_scheduler_tick_failed")
+        finally:
+            db.close()
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(_tick, "interval", minutes=1, id="email_ingest_tick")
+    scheduler.start()
+    log.info("email_ingest_scheduler_started")
+
     yield
+
+    scheduler.shutdown(wait=False)
 
 
 app = FastAPI(
@@ -226,6 +247,7 @@ app.include_router(issues_router.router, prefix=API_PREFIX)
 app.include_router(documents_router.router, prefix=API_PREFIX)
 app.include_router(sync_router.router, prefix=API_PREFIX)
 app.include_router(share_router.router, prefix=API_PREFIX)
+app.include_router(email_ingest_router.router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------

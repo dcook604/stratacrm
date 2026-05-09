@@ -447,12 +447,37 @@ class Issue(Base):
     status = Column(SAEnum(IssueStatus, name="issuestatus"), nullable=False, default=IssueStatus.open)
     related_lot_id = Column(Integer, ForeignKey("lots.id", ondelete="SET NULL"), nullable=True)
     related_incident_id = Column(Integer, ForeignKey("incidents.id", ondelete="SET NULL"), nullable=True)
+    # Email ingest fields
+    source = Column(String(50), nullable=False, default="manual")
+    reporter_email = Column(String(300), nullable=True)
+    reporter_name = Column(String(200), nullable=True)
+    gmail_message_id = Column(String(200), nullable=True, unique=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     assignee = relationship("User", foreign_keys=[assignee_id])
     related_lot = relationship("Lot", foreign_keys=[related_lot_id])
     related_incident = relationship("Incident", back_populates="issues", foreign_keys=[related_incident_id])
+
+
+class EmailIngestConfig(Base):
+    """Singleton config row (id=1) for the Gmail → Issue email ingest feature."""
+    __tablename__ = "email_ingest_config"
+
+    id = Column(Integer, primary_key=True)
+    enabled = Column(Boolean, nullable=False, default=False)
+    ai_provider = Column(String(50), nullable=False, default="anthropic")
+    anthropic_api_key = Column(String(500), nullable=True)
+    deepseek_api_key = Column(String(500), nullable=True)
+    gmail_poll_label = Column(String(200), nullable=False, default="CRM-Inbound")
+    gmail_poll_interval_minutes = Column(Integer, nullable=False, default=10)
+    gmail_credentials_json = Column(Text, nullable=True)
+    gmail_token_json = Column(Text, nullable=True)
+    gmail_connected_email = Column(String(300), nullable=True)
+    last_polled_at = Column(DateTime(timezone=True), nullable=True)
+    last_poll_stats = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class CommunicationsLog(Base):
