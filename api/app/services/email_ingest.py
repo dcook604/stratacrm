@@ -312,8 +312,9 @@ def poll_gmail(db: Session) -> dict:
     processed_label_id = _get_or_create_label(service, "CRM-Processed")
 
     try:
-        query = f"label:{config.gmail_poll_label} is:unread"
-        result = service.users().messages().list(userId="me", q=query, maxResults=50).execute()
+        result = service.users().messages().list(
+            userId="me", q="is:unread in:inbox", maxResults=50
+        ).execute()
         messages = result.get("messages", [])
     except Exception as exc:
         log.error("gmail_list_failed", error=str(exc))

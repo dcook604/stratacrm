@@ -112,7 +112,6 @@ export default function EmailIngestSettingsPage() {
   const [aiProvider, setAiProvider] = useState<"anthropic" | "deepseek">("anthropic");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [deepseekKey, setDeepseekKey] = useState("");
-  const [gmailLabel, setGmailLabel] = useState("CRM-Inbound");
   const [pollInterval, setPollInterval] = useState(10);
   const [enabled, setEnabled] = useState(false);
   const [credentialsJson, setCredentialsJson] = useState("");
@@ -121,7 +120,6 @@ export default function EmailIngestSettingsPage() {
   useEffect(() => {
     if (config) {
       setAiProvider(config.ai_provider);
-      setGmailLabel(config.gmail_poll_label);
       setPollInterval(config.gmail_poll_interval_minutes);
       setEnabled(config.enabled);
     }
@@ -169,7 +167,6 @@ export default function EmailIngestSettingsPage() {
   function savePollingSettings() {
     updateMutation.mutate({
       enabled,
-      gmail_poll_label: gmailLabel,
       gmail_poll_interval_minutes: pollInterval,
     });
   }
@@ -401,19 +398,6 @@ export default function EmailIngestSettingsPage() {
       {/* Polling Settings */}
       <Section title="Polling Settings">
         <FieldRow
-          label="Gmail label"
-          hint='Apply this label in Gmail to emails you want captured as issues.'
-        >
-          <input
-            type="text"
-            value={gmailLabel}
-            onChange={(e) => setGmailLabel(e.target.value)}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm
-              focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </FieldRow>
-
-        <FieldRow
           label="Poll interval"
           hint="How often (in minutes) to check for new emails."
         >
@@ -481,8 +465,7 @@ export default function EmailIngestSettingsPage() {
           <li>Download the JSON and paste it in the <span className="font-medium">Client secrets JSON</span> field above.</li>
           <li>Choose an AI provider and enter its API key.</li>
           <li>Click <span className="font-medium">Authorize Gmail</span> and complete the consent screen.</li>
-          <li>In Gmail, create a label <span className="font-medium">{config.gmail_poll_label}</span> and apply it to emails you want captured as issues.</li>
-          <li>Enable polling and save — issues will be created automatically.</li>
+          <li>Enable polling and save — <span className="font-medium">all unread emails</span> arriving in that inbox will automatically become issues.</li>
         </ol>
       </div>
     </div>
