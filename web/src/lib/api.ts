@@ -831,6 +831,7 @@ export interface EmailIngestConfig {
     skipped: number;
     errors: number;
     pending: number;
+    appended: number;
     error_details?: { subject: string | null; from: string | null; error: string }[];
   } | null;
 }

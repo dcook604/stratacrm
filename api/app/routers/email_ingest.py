@@ -62,6 +62,7 @@ class PollResult(BaseModel):
     skipped: int
     errors: int
     pending: int
+    appended: int = 0
 
 
 class TestResult(BaseModel):

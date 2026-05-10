@@ -288,6 +288,37 @@ def test_imap_connection(config) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Email thread detection
+# ---------------------------------------------------------------------------
+
+def _find_thread_incident(msg: email.message.Message, db: Session):
+    """Return an existing incident this email is a reply to, or None.
+
+    Checks In-Reply-To first (direct parent), then the full References chain.
+    """
+    from app.models import Incident
+
+    ref_ids: list[str] = []
+
+    in_reply_to = (msg.get("In-Reply-To") or "").strip()
+    if in_reply_to:
+        ref_ids.append(in_reply_to[:200])
+
+    references = (msg.get("References") or "").strip()
+    if references:
+        ref_ids.extend(r.strip()[:200] for r in references.split() if r.strip())
+
+    for ref_id in ref_ids:
+        inc = db.execute(
+            select(Incident).where(Incident.email_message_id == ref_id)
+        ).scalar_one_or_none()
+        if inc:
+            return inc
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Attachment extraction
 # ---------------------------------------------------------------------------
 
@@ -403,13 +434,13 @@ def poll_imap(db: Session) -> dict:
 
     config = db.get(EmailIngestConfig, 1)
     if not config or not config.enabled:
-        return {"created": 0, "skipped": 0, "errors": 0, "pending": 0,
+        return {"created": 0, "skipped": 0, "errors": 0, "pending": 0, "appended": 0,
                 "skipped_reason": "not configured or disabled"}
     if not config.imap_host or not config.imap_username or not config.imap_password:
-        return {"created": 0, "skipped": 0, "errors": 0, "pending": 0,
+        return {"created": 0, "skipped": 0, "errors": 0, "pending": 0, "appended": 0,
                 "skipped_reason": "IMAP credentials incomplete"}
 
-    stats: dict = {"created": 0, "skipped": 0, "errors": 0, "pending": 0, "error_details": []}
+    stats: dict = {"created": 0, "skipped": 0, "errors": 0, "pending": 0, "appended": 0, "error_details": []}
 
     try:
         conn = _get_imap_connection(config)
@@ -460,6 +491,29 @@ def poll_imap(db: Session) -> dict:
                     continue
 
                 body = _extract_plain_text(msg)
+
+                # Check if this is a reply in an existing incident's thread
+                thread_incident = _find_thread_incident(msg, db)
+                if thread_incident:
+                    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                    thread_incident.description += (
+                        f"\n\n---\n\n"
+                        f"**Follow-up from:** {from_hint}\n"
+                        f"**Subject:** {subject_hint}\n"
+                        f"**Received:** {timestamp}\n\n"
+                        f"{body[:3000]}"
+                    )
+                    thread_incident.updated_at = datetime.now(timezone.utc)
+                    # Re-open if it was resolved or closed
+                    if thread_incident.status in (IncidentStatus.resolved, IncidentStatus.closed):
+                        thread_incident.status = IncidentStatus.in_progress
+                    db.commit()
+                    db.refresh(thread_incident)
+                    _save_email_attachments(msg, thread_incident.id, db)
+                    conn.store(uid, "+FLAGS", "\\Seen")
+                    stats["appended"] += 1
+                    log.info("email_incident_appended", incident_id=thread_incident.id, subject=subject_hint)
+                    continue
 
                 _, reporter_email = _parse_sender(from_hint)
                 parsed = parse_email_with_ai(subject_hint, body, from_hint, config)

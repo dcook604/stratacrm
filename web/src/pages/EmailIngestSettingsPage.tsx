@@ -234,6 +234,7 @@ export default function EmailIngestSettingsPage() {
               <div className="space-y-1">
                 <p className="text-xs text-slate-500">
                   {stats.created} created
+                  {stats.appended > 0 && ` · ${stats.appended} appended to existing`}
                   {stats.pending > 0 && ` · ${stats.pending} pending assignment`}
                   {" · "}{stats.skipped} skipped
                   {stats.errors > 0 && (
