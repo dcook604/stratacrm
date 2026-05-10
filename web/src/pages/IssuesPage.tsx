@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle, MapPin } from "lucide-react";
+import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle, MapPin, Trash2 } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import {
   issuesApi, lotsApi, incidentsApi,
@@ -347,6 +347,18 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["issues"] }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => issuesApi.delete(issue.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["issues"] }),
+  });
+
+  function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (confirm(`Delete "${issue.title}"? This cannot be undone.`)) {
+      deleteMutation.mutate();
+    }
+  }
+
   const overdue = isOverdue(issue);
   const isPending = issue.status === "pending_assignment";
 
@@ -413,6 +425,14 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
             className="text-slate-400 hover:text-blue-600"
           >
             <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            className="text-slate-400 hover:text-red-600 disabled:opacity-40"
+            title="Delete issue"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
           {expanded
             ? <ChevronUp className="w-4 h-4 text-slate-400" />
