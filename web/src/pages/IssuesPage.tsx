@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle } from "lucide-react";
+import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle, MapPin } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import {
   issuesApi, lotsApi, incidentsApi,
@@ -17,6 +17,7 @@ const STATUS_LABELS: Record<IssueStatus, string> = {
   in_progress: "In Progress",
   resolved: "Resolved",
   closed: "Closed",
+  pending_assignment: "Pending Assignment",
 };
 
 const STATUS_COLOURS: Record<IssueStatus, string> = {
@@ -24,6 +25,7 @@ const STATUS_COLOURS: Record<IssueStatus, string> = {
   in_progress: "badge-blue",
   resolved: "badge-green",
   closed: "badge-slate",
+  pending_assignment: "badge-red",
 };
 
 const PRIORITY_LABELS: Record<IssuePriority, string> = {
@@ -42,7 +44,7 @@ const PRIORITY_COLOURS: Record<IssuePriority, string> = {
 
 function isOverdue(issue: Issue): boolean {
   if (!issue.due_date) return false;
-  if (issue.status === "resolved" || issue.status === "closed") return false;
+  if (issue.status === "resolved" || issue.status === "closed" || issue.status === "pending_assignment") return false;
   // Strip time so due_date "2026-05-05T14:00" is still "overdue" on May 6
   const due = new Date(issue.due_date);
   const now = new Date();
@@ -271,6 +273,71 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
 // Issue row
 // ---------------------------------------------------------------------------
 
+function QuickAssignLot({ issue }: { issue: Issue }) {
+  const qc = useQueryClient();
+  const [lotSearch, setLotSearch] = useState(issue.raw_unit_hint ?? "");
+  const [selectedLotId, setSelectedLotId] = useState("");
+
+  const { data: lotsData } = useQuery({
+    queryKey: ["lots", { search: lotSearch }],
+    queryFn: () => lotsApi.list({ limit: 20, search: lotSearch || undefined }),
+    enabled: lotSearch.length > 0,
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: () =>
+      issuesApi.update(issue.id, {
+        related_lot_id: Number(selectedLotId),
+        status: "open",
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["issues"] }),
+  });
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+      <p className="text-xs font-semibold text-amber-800 flex items-center gap-1">
+        <MapPin className="w-3.5 h-3.5" />
+        Unit not matched — assign manually
+        {issue.raw_unit_hint && (
+          <span className="ml-1 font-normal text-amber-700">
+            (email mentioned: <span className="font-mono">{issue.raw_unit_hint}</span>)
+          </span>
+        )}
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="search"
+          placeholder="Search lot…"
+          className="input text-xs py-1 w-32"
+          value={lotSearch}
+          onChange={(e) => { setLotSearch(e.target.value); setSelectedLotId(""); }}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <select
+          className="input text-xs py-1 flex-1 min-w-[160px]"
+          value={selectedLotId}
+          onChange={(e) => setSelectedLotId(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <option value="">— select lot —</option>
+          {lotsData?.items.map((l) => (
+            <option key={l.id} value={l.id}>
+              SL{l.strata_lot_number}{l.unit_number ? ` — Unit ${l.unit_number}` : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={(e) => { e.stopPropagation(); assignMutation.mutate(); }}
+          disabled={!selectedLotId || assignMutation.isPending}
+          className="btn btn-primary text-xs py-1 px-3 disabled:opacity-40"
+        >
+          {assignMutation.isPending ? "Assigning…" : "Assign & Open"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const qc = useQueryClient();
@@ -281,11 +348,14 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
   });
 
   const overdue = isOverdue(issue);
+  const isPending = issue.status === "pending_assignment";
 
   return (
     <>
       <tr
-        className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${overdue ? "bg-red-50/30" : ""}`}
+        className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer
+          ${overdue ? "bg-red-50/30" : ""}
+          ${isPending ? "bg-amber-50/40" : ""}`}
         onClick={() => setExpanded((x) => !x)}
       >
         <td className="px-4 py-3">
@@ -293,6 +363,9 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
             <p className="text-sm font-medium text-slate-800">{issue.title}</p>
             {overdue && (
               <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" aria-label="Overdue" />
+            )}
+            {isPending && (
+              <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" aria-label="Needs unit assignment" />
             )}
             {issue.source === "email" && (
               <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded bg-purple-100 text-purple-700"
@@ -305,6 +378,11 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
             <p className="text-xs text-slate-400 mt-0.5">
               SL{issue.related_lot.strata_lot_number}
               {issue.related_lot.unit_number ? ` Unit ${issue.related_lot.unit_number}` : ""}
+            </p>
+          )}
+          {isPending && issue.raw_unit_hint && (
+            <p className="text-xs text-amber-600 mt-0.5">
+              Mentioned: <span className="font-mono">{issue.raw_unit_hint}</span>
             </p>
           )}
           {issue.source === "email" && issue.reporter_email && (
@@ -345,6 +423,7 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
         <tr className="bg-slate-50 border-b border-slate-200">
           <td colSpan={6} className="px-6 py-4">
             <div className="max-w-2xl space-y-3">
+              {isPending && <QuickAssignLot issue={issue} />}
               {issue.description && (
                 <p className="text-sm text-slate-700 whitespace-pre-wrap">{issue.description}</p>
               )}
@@ -353,14 +432,14 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
                   Linked incident: INC-{issue.related_incident.id} — {issue.related_incident.category} ({fmtDatetime(issue.related_incident.incident_date)})
                 </p>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-500">Move to:</span>
                 {(["open", "in_progress", "resolved", "closed"] as IssueStatus[])
                   .filter((s) => s !== issue.status)
                   .map((s) => (
                     <button
                       key={s}
-                      onClick={() => quickStatus.mutate(s)}
+                      onClick={(e) => { e.stopPropagation(); quickStatus.mutate(s); }}
                       disabled={quickStatus.isPending}
                       className="text-xs btn btn-secondary py-0.5 px-2"
                     >
@@ -390,6 +469,7 @@ const PRIORITY_FILTERS: { value: IssuePriority | ""; label: string }[] = [
 
 const STATUS_FILTERS: { value: IssueStatus | ""; label: string }[] = [
   { value: "", label: "All statuses" },
+  { value: "pending_assignment", label: "Pending Assignment" },
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
   { value: "resolved", label: "Resolved" },
@@ -420,6 +500,7 @@ export default function IssuesPage() {
     i.status === "open" || i.status === "in_progress"
   ).length ?? 0;
 
+  const pendingCount = issues?.filter((i) => i.status === "pending_assignment").length ?? 0;
   const overdueCount = issues?.filter(isOverdue).length ?? 0;
 
   return (
@@ -440,11 +521,20 @@ export default function IssuesPage() {
       </div>
 
       {issues && (
-        <div className="flex gap-2 md:gap-4">
+        <div className="flex gap-2 md:gap-4 flex-wrap">
           <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
             <p className="text-2xl font-bold text-amber-600">{activeCount}</p>
             <p className="text-xs text-slate-500 mt-0.5">Active</p>
           </div>
+          {pendingCount > 0 && (
+            <button
+              className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] border-amber-300 hover:border-amber-400 transition-colors"
+              onClick={() => { setStatusFilter("pending_assignment"); setOpenOnly(false); }}
+            >
+              <p className="text-2xl font-bold text-amber-500">{pendingCount}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Needs Unit</p>
+            </button>
+          )}
           {overdueCount > 0 && (
             <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] border-red-200">
               <p className="text-2xl font-bold text-red-600">{overdueCount}</p>

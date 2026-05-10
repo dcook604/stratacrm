@@ -1,20 +1,25 @@
-"""Gmail polling + AI parsing → Issue creation.
+"""IMAP polling + AI parsing + regex unit extraction → Issue creation.
 
 All configuration is loaded from the EmailIngestConfig DB row (id=1).
 Supported AI providers: Anthropic Claude, DeepSeek (OpenAI-compatible API).
 
-Gmail OAuth2 setup:
-  1. Create a Google Cloud project, enable Gmail API, create OAuth2 credentials.
-  2. In the CRM web UI go to Settings → Email Ingest.
-  3. Paste the client_secrets.json content, click "Authorize Gmail".
-  4. Complete the Google consent screen — the token is saved automatically.
+IMAP setup:
+  1. Create a dedicated mailbox (e.g. issues@yourdomain.ca).
+  2. If using Gmail, enable IMAP and generate an App Password under
+     Google Account → Security → 2-Step Verification → App Passwords.
+  3. In the CRM web UI go to Settings → Email Ingest.
+  4. Enter IMAP host, port, username, and password, then save.
 """
 
-import base64
+import email
+import hashlib
+import imaplib
 import json
 import re
+import socket
 import structlog
 from datetime import datetime, timedelta, timezone
+from email.header import decode_header as _decode_header
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -24,108 +29,99 @@ log = structlog.get_logger()
 
 
 # ---------------------------------------------------------------------------
-# Gmail helpers
+# IMAP helpers
 # ---------------------------------------------------------------------------
 
-def _build_credentials(config):
-    """Build Google OAuth2 Credentials from the stored token JSON."""
-    from google.oauth2.credentials import Credentials
-    token_data = json.loads(config.gmail_token_json)
-    return Credentials(
-        token=token_data.get("token"),
-        refresh_token=token_data.get("refresh_token"),
-        token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
-        client_id=token_data.get("client_id"),
-        client_secret=token_data.get("client_secret"),
-        scopes=token_data.get("scopes", ["https://www.googleapis.com/auth/gmail.modify"]),
-    )
+def _get_imap_connection(config):
+    host = config.imap_host or ""
+    port = config.imap_port or (993 if config.imap_use_ssl else 143)
+    if config.imap_use_ssl:
+        conn = imaplib.IMAP4_SSL(host, port)
+    else:
+        conn = imaplib.IMAP4(host, port)
+    conn.login(config.imap_username or "", config.imap_password or "")
+    return conn
 
 
-def _get_gmail_service(config, db: Session):
-    """Return an authenticated Gmail service, refreshing the token if needed."""
-    from google.auth.transport.requests import Request
-    from googleapiclient.discovery import build
-    from app.models import EmailIngestConfig
-
-    creds = _build_credentials(config)
-
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        updated_token = json.dumps({
-            "token": creds.token,
-            "refresh_token": creds.refresh_token,
-            "token_uri": creds.token_uri,
-            "client_id": creds.client_id,
-            "client_secret": creds.client_secret,
-            "scopes": list(creds.scopes),
-        })
-        db.execute(
-            select(EmailIngestConfig).where(EmailIngestConfig.id == 1)
-        )
-        cfg = db.get(EmailIngestConfig, 1)
-        if cfg:
-            cfg.gmail_token_json = updated_token
-            db.commit()
-
-    return build("gmail", "v1", credentials=creds)
+def _decode_mime_header(value: str) -> str:
+    parts = _decode_header(value or "")
+    out = []
+    for part, charset in parts:
+        if isinstance(part, bytes):
+            out.append(part.decode(charset or "utf-8", errors="replace"))
+        else:
+            out.append(part)
+    return "".join(out)
 
 
-def _get_or_create_label(service, label_name: str) -> Optional[str]:
-    try:
-        labels = service.users().labels().list(userId="me").execute()
-        for label in labels.get("labels", []):
-            if label["name"] == label_name:
-                return label["id"]
-        result = service.users().labels().create(
-            userId="me",
-            body={
-                "name": label_name,
-                "labelListVisibility": "labelShow",
-                "messageListVisibility": "show",
-            },
-        ).execute()
-        return result["id"]
-    except Exception as exc:
-        log.warning("gmail_label_create_failed", label=label_name, error=str(exc))
-        return None
+def _extract_plain_text(msg: email.message.Message) -> str:
+    """Return the best plain-text representation of a MIME message."""
+    plain = []
+    html_fallback = []
+
+    for part in msg.walk():
+        ct = part.get_content_type()
+        if ct == "text/plain":
+            charset = part.get_content_charset() or "utf-8"
+            payload = part.get_payload(decode=True)
+            if payload:
+                plain.append(payload.decode(charset, errors="replace"))
+        elif ct == "text/html":
+            charset = part.get_content_charset() or "utf-8"
+            payload = part.get_payload(decode=True)
+            if payload:
+                html_fallback.append(
+                    re.sub(r"<[^>]+>", " ", payload.decode(charset, errors="replace"))
+                )
+
+    if plain:
+        return "\n".join(plain)
+    return "\n".join(html_fallback)
 
 
-def _extract_plain_text(payload: dict) -> str:
-    """Recursively extract plain text from a Gmail message payload."""
-    mime = payload.get("mimeType", "")
-
-    if mime == "text/plain":
-        data = payload.get("body", {}).get("data", "")
-        if data:
-            return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
-
-    for part in payload.get("parts", []):
-        text = _extract_plain_text(part)
-        if text:
-            return text
-
-    if mime == "text/html":
-        data = payload.get("body", {}).get("data", "")
-        if data:
-            html = base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
-            return re.sub(r"<[^>]+>", " ", html)
-
-    return ""
-
-
-def _get_header(headers: list, name: str) -> str:
-    for h in headers:
-        if h["name"].lower() == name.lower():
-            return h["value"]
-    return ""
+def _message_dedup_key(msg: email.message.Message, imap_uid: bytes) -> str:
+    """Return a stable dedup key for this message."""
+    mid = (msg.get("Message-ID") or "").strip()
+    if mid:
+        return mid[:200]
+    # Fallback: hash sender + subject + date so we still deduplicate reliably
+    raw = f"{msg.get('From','')}{msg.get('Subject','')}{msg.get('Date','')}"
+    return "hash:" + hashlib.sha1(raw.encode()).hexdigest()
 
 
 def _parse_sender(from_header: str) -> tuple[str, str]:
     match = re.match(r'^"?([^"<]+?)"?\s*<([^>]+)>', from_header.strip())
     if match:
         return match.group(1).strip(), match.group(2).strip()
-    email = from_header.strip().strip("<>")
-    return "", email
+    addr = from_header.strip().strip("<>")
+    return "", addr
+
+
+# ---------------------------------------------------------------------------
+# Regex-based unit extraction
+# ---------------------------------------------------------------------------
+
+_UNIT_REGEXES = [
+    re.compile(r'\bunit\s*#?\s*([A-Za-z]?\d+[A-Za-z]?)\b', re.IGNORECASE),
+    re.compile(r'\bsuite\s*#?\s*([A-Za-z]?\d+[A-Za-z]?)\b', re.IGNORECASE),
+    re.compile(r'\bapt\.?\s*#?\s*([A-Za-z]?\d+[A-Za-z]?)\b', re.IGNORECASE),
+    re.compile(r'\bapartment\s*#?\s*([A-Za-z]?\d+[A-Za-z]?)\b', re.IGNORECASE),
+    re.compile(r'\bsl\s*(\d+)\b', re.IGNORECASE),
+    re.compile(r'\bstrata\s+lot\s*#?\s*(\d+)\b', re.IGNORECASE),
+    re.compile(r'\blot\s*#?\s*(\d+)\b', re.IGNORECASE),
+    # bare 3-4 digit room numbers only when preceded by common anchors
+    re.compile(r'(?:from|in|for|re:?|re\s+unit|residence)\s+#?(\d{3,4}[A-Za-z]?)\b', re.IGNORECASE),
+]
+
+
+def _extract_unit_hint(subject: str, body: str) -> Optional[str]:
+    """Return the first unit-like token found across subject then body."""
+    for text in (subject, body[:2000]):
+        for pat in _UNIT_REGEXES:
+            m = pat.search(text)
+            if m:
+                return m.group(1).upper()
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +139,7 @@ Extract a structured issue from this email and return a JSON object with these f
 - title: string (max 200 chars, clear action-oriented summary)
 - description: string (preserve all relevant details and context)
 - priority: one of "low" | "medium" | "high" | "urgent"
-- unit_number: string or null (strata unit/lot number if mentioned, e.g. "304", "1A")
+- unit_number: string or null (strata unit/lot number if mentioned, e.g. "304", "1A", "SL42")
 
 Priority guide:
   urgent — safety hazard, flooding, fire, gas leak, security breach
@@ -225,19 +221,41 @@ def parse_email_with_ai(subject: str, body: str, sender: str, config) -> dict:
 # Lot lookup
 # ---------------------------------------------------------------------------
 
-def _find_lot_id(db: Session, unit_number: Optional[str]) -> Optional[int]:
-    if not unit_number:
+def _find_lot_id(db: Session, unit_hint: Optional[str]) -> Optional[int]:
+    if not unit_hint:
         return None
     from app.models import Lot
 
+    hint = unit_hint.strip()
+
+    # Exact unit_number match
     lot = db.execute(
-        select(Lot).where(Lot.unit_number == unit_number.strip())
+        select(Lot).where(Lot.unit_number == hint)
     ).scalar_one_or_none()
     if lot:
         return lot.id
 
+    # Case-insensitive unit_number match
+    lot = db.execute(
+        select(Lot).where(Lot.unit_number.ilike(hint))
+    ).scalar_one_or_none()
+    if lot:
+        return lot.id
+
+    # Numeric strata_lot_number match
     try:
-        lot_num = int(unit_number.strip())
+        lot_num = int(hint)
+        lot = db.execute(
+            select(Lot).where(Lot.strata_lot_number == lot_num)
+        ).scalar_one_or_none()
+        if lot:
+            return lot.id
+    except ValueError:
+        pass
+
+    # Trailing-digit match: "0802" → "802" and vice-versa
+    try:
+        lot_num = int(hint.lstrip("0") or "0")
         lot = db.execute(
             select(Lot).where(Lot.strata_lot_number == lot_num)
         ).scalar_one_or_none()
@@ -250,134 +268,140 @@ def _find_lot_id(db: Session, unit_number: Optional[str]) -> Optional[int]:
 
 
 # ---------------------------------------------------------------------------
-# OAuth2 helpers (used by the router)
+# Connection test (used by the settings endpoint)
 # ---------------------------------------------------------------------------
 
-def build_oauth_flow(credentials_json: str, redirect_uri: str):
-    """Build a google_auth_oauthlib Flow from client_secrets JSON string."""
-    from google_auth_oauthlib.flow import Flow
-    client_config = json.loads(credentials_json)
-    # Support both "web" and "installed" credential types
-    app_type = "web" if "web" in client_config else "installed"
-    return Flow.from_client_config(
-        client_config,
-        scopes=["https://www.googleapis.com/auth/gmail.modify"],
-        redirect_uri=redirect_uri,
-    )
-
-
-def fetch_gmail_address(token_json: str) -> Optional[str]:
-    """Return the Gmail address for the stored token."""
+def test_imap_connection(config) -> dict:
+    """Try to connect and login; return {"ok": bool, "error": str|None}."""
+    if not config.imap_host or not config.imap_username or not config.imap_password:
+        return {"ok": False, "error": "IMAP host, username, and password are required"}
     try:
-        from google.oauth2.credentials import Credentials
-        from googleapiclient.discovery import build
-        token_data = json.loads(token_json)
-        creds = Credentials(
-            token=token_data.get("token"),
-            refresh_token=token_data.get("refresh_token"),
-            token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
-            client_id=token_data.get("client_id"),
-            client_secret=token_data.get("client_secret"),
-            scopes=token_data.get("scopes"),
-        )
-        service = build("gmail", "v1", credentials=creds)
-        profile = service.users().getProfile(userId="me").execute()
-        return profile.get("emailAddress")
+        conn = _get_imap_connection(config)
+        conn.logout()
+        return {"ok": True, "error": None}
+    except imaplib.IMAP4.error as exc:
+        return {"ok": False, "error": f"IMAP error: {exc}"}
+    except socket.gaierror as exc:
+        return {"ok": False, "error": f"Cannot reach host: {exc}"}
     except Exception as exc:
-        log.warning("fetch_gmail_address_failed", error=str(exc))
-        return None
+        return {"ok": False, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
 # Main poll function
 # ---------------------------------------------------------------------------
 
-def poll_gmail(db: Session) -> dict:
-    """Load config from DB, poll Gmail, create issues. Returns stats dict."""
+def poll_imap(db: Session) -> dict:
+    """Load config from DB, poll IMAP mailbox, create issues. Returns stats dict."""
     from app.models import EmailIngestConfig, Issue, IssuePriority, IssueStatus
 
     config = db.get(EmailIngestConfig, 1)
-    if not config or not config.enabled or not config.gmail_token_json:
-        return {"created": 0, "skipped": 0, "errors": 0, "skipped_reason": "not configured or disabled"}
+    if not config or not config.enabled:
+        return {"created": 0, "skipped": 0, "errors": 0, "pending": 0,
+                "skipped_reason": "not configured or disabled"}
+    if not config.imap_host or not config.imap_username or not config.imap_password:
+        return {"created": 0, "skipped": 0, "errors": 0, "pending": 0,
+                "skipped_reason": "IMAP credentials incomplete"}
 
-    stats = {"created": 0, "skipped": 0, "errors": 0}
+    stats = {"created": 0, "skipped": 0, "errors": 0, "pending": 0}
 
     try:
-        service = _get_gmail_service(config, db)
+        conn = _get_imap_connection(config)
     except Exception as exc:
-        log.error("gmail_init_failed", error=str(exc))
+        log.error("imap_connect_failed", error=str(exc))
         _save_poll_stats(db, stats)
         return stats
 
-    processed_label_id = _get_or_create_label(service, "CRM-Processed")
-
     try:
-        result = service.users().messages().list(
-            userId="me", q="is:unread in:inbox", maxResults=50
-        ).execute()
-        messages = result.get("messages", [])
-    except Exception as exc:
-        log.error("gmail_list_failed", error=str(exc))
-        _save_poll_stats(db, stats)
-        return stats
+        mailbox = config.imap_mailbox or "INBOX"
+        conn.select(mailbox)
+        status, data = conn.search(None, "UNSEEN")
+        if status != "OK":
+            log.error("imap_search_failed", status=status)
+            _save_poll_stats(db, stats)
+            return stats
 
-    for msg_ref in messages:
-        msg_id = msg_ref["id"]
+        uid_list = data[0].split()
+        log.info("imap_unseen_messages", count=len(uid_list))
 
-        existing = db.execute(
-            select(Issue).where(Issue.gmail_message_id == msg_id)
-        ).scalar_one_or_none()
-        if existing:
-            stats["skipped"] += 1
-            _mark_processed(service, msg_id, processed_label_id)
-            continue
+        for uid in uid_list:
+            try:
+                status, msg_data = conn.fetch(uid, "(RFC822)")
+                if status != "OK" or not msg_data or not msg_data[0]:
+                    stats["errors"] += 1
+                    continue
 
+                raw = msg_data[0][1]
+                msg = email.message_from_bytes(raw)
+
+                dedup_key = _message_dedup_key(msg, uid)
+                existing = db.execute(
+                    select(Issue).where(Issue.email_message_id == dedup_key)
+                ).scalar_one_or_none()
+                if existing:
+                    stats["skipped"] += 1
+                    conn.store(uid, "+FLAGS", "\\Seen")
+                    continue
+
+                subject = _decode_mime_header(msg.get("Subject", "(No subject)"))
+                from_raw = _decode_mime_header(msg.get("From", ""))
+                body = _extract_plain_text(msg)
+
+                reporter_name, reporter_email = _parse_sender(from_raw)
+                parsed = parse_email_with_ai(subject, body, from_raw, config)
+
+                # Unit resolution: prefer AI extraction, fall back to regex
+                ai_unit = parsed.get("unit_number")
+                regex_unit = _extract_unit_hint(subject, body)
+                unit_hint = ai_unit or regex_unit
+
+                lot_id = _find_lot_id(db, unit_hint)
+
+                if unit_hint and not lot_id:
+                    issue_status = IssueStatus.pending_assignment
+                    raw_unit_hint = unit_hint
+                else:
+                    issue_status = IssueStatus.open
+                    raw_unit_hint = None
+
+                issue = Issue(
+                    title=parsed["title"],
+                    description=f"**From:** {from_raw}\n**Subject:** {subject}\n\n{parsed['description']}",
+                    priority=IssuePriority(parsed["priority"]),
+                    status=issue_status,
+                    source="email",
+                    reporter_email=reporter_email or None,
+                    reporter_name=reporter_name or None,
+                    email_message_id=dedup_key,
+                    related_lot_id=lot_id,
+                    raw_unit_hint=raw_unit_hint,
+                )
+                db.add(issue)
+                db.commit()
+
+                conn.store(uid, "+FLAGS", "\\Seen")
+
+                if issue_status == IssueStatus.pending_assignment:
+                    stats["pending"] += 1
+                    log.info("email_issue_pending", dedup=dedup_key, hint=unit_hint)
+                else:
+                    stats["created"] += 1
+                    log.info("email_issue_created", dedup=dedup_key, title=parsed["title"])
+
+            except Exception as exc:
+                log.error("imap_message_failed", uid=uid, error=str(exc))
+                db.rollback()
+                stats["errors"] += 1
+
+    finally:
         try:
-            msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
-            headers = msg["payload"].get("headers", [])
-            subject = _get_header(headers, "Subject") or "(No subject)"
-            sender = _get_header(headers, "From") or ""
-            body = _extract_plain_text(msg["payload"])
-
-            reporter_name, reporter_email = _parse_sender(sender)
-            parsed = parse_email_with_ai(subject, body, sender, config)
-            lot_id = _find_lot_id(db, parsed.get("unit_number"))
-
-            issue = Issue(
-                title=parsed["title"],
-                description=f"**From:** {sender}\n**Subject:** {subject}\n\n{parsed['description']}",
-                priority=IssuePriority(parsed["priority"]),
-                status=IssueStatus.open,
-                source="email",
-                reporter_email=reporter_email or None,
-                reporter_name=reporter_name or None,
-                gmail_message_id=msg_id,
-                related_lot_id=lot_id,
-            )
-            db.add(issue)
-            db.commit()
-            stats["created"] += 1
-            _mark_processed(service, msg_id, processed_label_id)
-            log.info("email_issue_created", gmail_id=msg_id, title=parsed["title"])
-
-        except Exception as exc:
-            log.error("email_ingest_message_failed", gmail_id=msg_id, error=str(exc))
-            db.rollback()
-            stats["errors"] += 1
+            conn.logout()
+        except Exception:
+            pass
 
     _save_poll_stats(db, stats)
-    log.info("gmail_poll_complete", **stats)
+    log.info("imap_poll_complete", **stats)
     return stats
-
-
-def _mark_processed(service, msg_id: str, processed_label_id: Optional[str]) -> None:
-    try:
-        body: dict = {"removeLabelIds": ["UNREAD"]}
-        if processed_label_id:
-            body["addLabelIds"] = [processed_label_id]
-        service.users().messages().modify(userId="me", id=msg_id, body=body).execute()
-    except Exception as exc:
-        log.warning("gmail_mark_processed_failed", gmail_id=msg_id, error=str(exc))
 
 
 def _save_poll_stats(db: Session, stats: dict) -> None:
@@ -397,18 +421,17 @@ def _save_poll_stats(db: Session, stats: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def scheduler_tick(db: Session) -> None:
-    """Check if it's time to poll and do so if needed."""
     from app.models import EmailIngestConfig
 
     config = db.get(EmailIngestConfig, 1)
-    if not config or not config.enabled or not config.gmail_token_json:
+    if not config or not config.enabled:
         return
 
     now = datetime.now(timezone.utc)
     if config.last_polled_at:
         elapsed = now - config.last_polled_at.replace(tzinfo=timezone.utc)
-        interval = timedelta(minutes=max(1, config.gmail_poll_interval_minutes))
+        interval = timedelta(minutes=max(1, config.poll_interval_minutes))
         if elapsed < interval:
             return
 
-    poll_gmail(db)
+    poll_imap(db)

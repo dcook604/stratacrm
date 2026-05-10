@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Mail, CheckCircle, XCircle, RefreshCw, Loader2,
-  Eye, EyeOff, ChevronDown, ChevronUp, AlertCircle,
+  Eye, EyeOff, AlertCircle, Wifi, WifiOff,
 } from "lucide-react";
 import { emailIngestApi, type EmailIngestConfigUpdate } from "../lib/api";
 import { useToast as useToastCtx } from "../lib/toast";
@@ -42,7 +42,7 @@ function FieldRow({ label, hint, children }: { label: string; hint?: string; chi
   );
 }
 
-function ApiKeyInput({
+function PasswordInput({
   configured,
   value,
   onChange,
@@ -57,14 +57,14 @@ function ApiKeyInput({
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
-        <Badge ok={configured} label={configured ? "Configured" : "Not set"} />
+        <Badge ok={configured} label={configured ? "Saved" : "Not set"} />
       </div>
       <div className="relative">
         <input
           type={show ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={configured ? "Enter new key to replace…" : (placeholder ?? "sk-…")}
+          placeholder={configured ? "Enter new password to replace…" : (placeholder ?? "")}
           className="w-full border border-slate-300 rounded-lg px-3 py-2 pr-9 text-sm
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
@@ -87,41 +87,38 @@ export default function EmailIngestSettingsPage() {
   const { addToast } = useToastCtx();
   const showToast = (msg: string, type: "success" | "error") => addToast(type, msg);
 
-  // URL params from OAuth callback
-  const searchParams = new URLSearchParams(window.location.search);
-  const oauthConnected = searchParams.get("connected") === "1";
-  const oauthError = searchParams.get("error");
-
-  useEffect(() => {
-    if (oauthConnected) {
-      showToast("Gmail connected successfully!", "success");
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-    if (oauthError) {
-      showToast(`Gmail connection failed: ${oauthError}`, "error");
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
-
   const { data: config, isLoading } = useQuery({
     queryKey: ["email-ingest-config"],
     queryFn: emailIngestApi.getConfig,
   });
 
-  // Local form state
+  // AI form state
   const [aiProvider, setAiProvider] = useState<"anthropic" | "deepseek">("anthropic");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [deepseekKey, setDeepseekKey] = useState("");
+
+  // IMAP form state
+  const [imapHost, setImapHost] = useState("");
+  const [imapPort, setImapPort] = useState("");
+  const [imapUsername, setImapUsername] = useState("");
+  const [imapPassword, setImapPassword] = useState("");
+  const [imapUseSsl, setImapUseSsl] = useState(true);
+  const [imapMailbox, setImapMailbox] = useState("INBOX");
+
+  // Polling form state
   const [pollInterval, setPollInterval] = useState(10);
   const [enabled, setEnabled] = useState(false);
-  const [credentialsJson, setCredentialsJson] = useState("");
-  const [showCredentials, setShowCredentials] = useState(false);
 
   useEffect(() => {
     if (config) {
       setAiProvider(config.ai_provider);
-      setPollInterval(config.gmail_poll_interval_minutes);
+      setPollInterval(config.poll_interval_minutes);
       setEnabled(config.enabled);
+      setImapHost(config.imap_host ?? "");
+      setImapPort(config.imap_port ? String(config.imap_port) : "");
+      setImapUsername(config.imap_username ?? "");
+      setImapUseSsl(config.imap_use_ssl);
+      setImapMailbox(config.imap_mailbox || "INBOX");
     }
   }, [config]);
 
@@ -135,10 +132,22 @@ export default function EmailIngestSettingsPage() {
   });
 
   const disconnectMutation = useMutation({
-    mutationFn: emailIngestApi.disconnectGmail,
+    mutationFn: emailIngestApi.disconnectImap,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["email-ingest-config"] });
-      showToast("Gmail disconnected", "success");
+      showToast("IMAP disconnected", "success");
+    },
+    onError: (err: Error) => showToast(err.message, "error"),
+  });
+
+  const testMutation = useMutation({
+    mutationFn: emailIngestApi.testConnection,
+    onSuccess: (result) => {
+      if (result.ok) {
+        showToast("Connection successful!", "success");
+      } else {
+        showToast(`Connection failed: ${result.error}`, "error");
+      }
     },
     onError: (err: Error) => showToast(err.message, "error"),
   });
@@ -146,12 +155,6 @@ export default function EmailIngestSettingsPage() {
   const pollMutation = useMutation({
     mutationFn: emailIngestApi.triggerPoll,
     onSuccess: () => showToast("Poll started in background", "success"),
-    onError: (err: Error) => showToast(err.message, "error"),
-  });
-
-  const oauthMutation = useMutation({
-    mutationFn: emailIngestApi.startOAuth,
-    onSuccess: ({ auth_url }) => { window.location.href = auth_url; },
     onError: (err: Error) => showToast(err.message, "error"),
   });
 
@@ -164,18 +167,21 @@ export default function EmailIngestSettingsPage() {
     setDeepseekKey("");
   }
 
-  function savePollingSettings() {
-    updateMutation.mutate({
-      enabled,
-      gmail_poll_interval_minutes: pollInterval,
-    });
+  function saveImapSettings() {
+    const body: EmailIngestConfigUpdate = {
+      imap_host: imapHost || undefined,
+      imap_port: imapPort ? Number(imapPort) : undefined,
+      imap_username: imapUsername || undefined,
+      imap_use_ssl: imapUseSsl,
+      imap_mailbox: imapMailbox || "INBOX",
+    };
+    if (imapPassword) body.imap_password = imapPassword;
+    updateMutation.mutate(body);
+    setImapPassword("");
   }
 
-  function saveCredentials() {
-    if (!credentialsJson.trim()) return;
-    updateMutation.mutate({ gmail_credentials_json: credentialsJson.trim() });
-    setCredentialsJson("");
-    setShowCredentials(false);
+  function savePollingSettings() {
+    updateMutation.mutate({ enabled, poll_interval_minutes: pollInterval });
   }
 
   if (!isAdmin) {
@@ -195,6 +201,8 @@ export default function EmailIngestSettingsPage() {
     );
   }
 
+  const stats = config.last_poll_stats;
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       {/* Header */}
@@ -205,7 +213,7 @@ export default function EmailIngestSettingsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Email Ingest</h1>
           <p className="text-sm text-slate-500">
-            Automatically create issues from emails sent to a Gmail inbox.
+            Automatically create issues from emails received in an IMAP mailbox.
           </p>
         </div>
         <div className="ml-auto">
@@ -221,15 +229,17 @@ export default function EmailIngestSettingsPage() {
             <p className="text-sm text-slate-800 font-medium">
               {config.last_polled_at ? fmtDatetime(config.last_polled_at) : "Never"}
             </p>
-            {config.last_poll_stats && (
+            {stats && (
               <p className="text-xs text-slate-500">
-                {config.last_poll_stats.created} created · {config.last_poll_stats.skipped} skipped · {config.last_poll_stats.errors} errors
+                {stats.created} created
+                {stats.pending > 0 && ` · ${stats.pending} pending assignment`}
+                {" · "}{stats.skipped} skipped · {stats.errors} errors
               </p>
             )}
           </div>
           <button
             onClick={() => pollMutation.mutate()}
-            disabled={pollMutation.isPending || !config.has_gmail_token}
+            disabled={pollMutation.isPending || !config.imap_configured}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
               bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed
               transition-colors"
@@ -244,10 +254,7 @@ export default function EmailIngestSettingsPage() {
 
       {/* AI Provider */}
       <Section title="AI Provider">
-        <FieldRow
-          label="Provider"
-          hint="Used to parse email content into structured issues."
-        >
+        <FieldRow label="Provider" hint="Used to parse email content into structured issues.">
           <div className="flex gap-2">
             {(["anthropic", "deepseek"] as const).map((p) => (
               <button
@@ -267,7 +274,7 @@ export default function EmailIngestSettingsPage() {
 
         {aiProvider === "anthropic" && (
           <FieldRow label="Anthropic API Key">
-            <ApiKeyInput
+            <PasswordInput
               configured={config.has_anthropic_key}
               value={anthropicKey}
               onChange={setAnthropicKey}
@@ -278,7 +285,7 @@ export default function EmailIngestSettingsPage() {
 
         {aiProvider === "deepseek" && (
           <FieldRow label="DeepSeek API Key">
-            <ApiKeyInput
+            <PasswordInput
               configured={config.has_deepseek_key}
               value={deepseekKey}
               onChange={setDeepseekKey}
@@ -299,108 +306,122 @@ export default function EmailIngestSettingsPage() {
         </div>
       </Section>
 
-      {/* Gmail Connection */}
-      <Section title="Gmail Connection">
-        <FieldRow
-          label="Connection status"
-        >
-          {config.gmail_connected_email ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              <Badge ok label={config.gmail_connected_email} />
-              <button
-                onClick={() => disconnectMutation.mutate()}
-                disabled={disconnectMutation.isPending}
-                className="text-xs text-red-600 hover:text-red-800 font-medium"
-              >
-                Disconnect
-              </button>
-            </div>
-          ) : (
-            <Badge ok={false} label="Not connected" />
-          )}
-        </FieldRow>
-
-        <FieldRow
-          label="Client secrets JSON"
-          hint={
-            config.has_gmail_credentials
-              ? "Credentials saved. Re-paste to replace."
-              : "Paste the contents of client_secrets.json from Google Cloud Console."
-          }
-        >
-          <div className="space-y-2">
-            <button
-              onClick={() => setShowCredentials(!showCredentials)}
-              className="flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline"
-            >
-              {showCredentials ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              {config.has_gmail_credentials ? "Replace credentials JSON" : "Paste credentials JSON"}
-            </button>
-            {showCredentials && (
-              <div className="space-y-2">
-                <textarea
-                  rows={6}
-                  value={credentialsJson}
-                  onChange={(e) => setCredentialsJson(e.target.value)}
-                  placeholder='{"web": {"client_id": "...", "client_secret": "...", ...}}'
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={saveCredentials}
-                    disabled={!credentialsJson.trim() || updateMutation.isPending}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 text-white
-                      hover:bg-slate-900 disabled:opacity-40 transition-colors"
-                  >
-                    Save Credentials
-                  </button>
-                  <button
-                    onClick={() => { setCredentialsJson(""); setShowCredentials(false); }}
-                    className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+      {/* IMAP Connection */}
+      <Section title="IMAP Mailbox">
+        <FieldRow label="Connection status">
+          <div className="flex items-center gap-3 flex-wrap">
+            {config.imap_configured ? (
+              <>
+                <Badge ok label={config.imap_username ?? "Connected"} />
+                <button
+                  onClick={() => disconnectMutation.mutate()}
+                  disabled={disconnectMutation.isPending}
+                  className="text-xs text-red-600 hover:text-red-800 font-medium"
+                >
+                  Disconnect
+                </button>
+              </>
+            ) : (
+              <Badge ok={false} label="Not configured" />
             )}
           </div>
         </FieldRow>
 
-        <FieldRow label="Authorize Gmail">
-          <div className="space-y-2">
-            <button
-              onClick={() => oauthMutation.mutate()}
-              disabled={oauthMutation.isPending || !config.has_gmail_credentials}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
-                border border-slate-300 bg-white text-slate-700 hover:bg-slate-50
-                disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {oauthMutation.isPending
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Mail className="w-4 h-4" />}
-              {config.gmail_connected_email ? "Re-authorize Gmail" : "Authorize Gmail"}
-            </button>
-            {!config.has_gmail_credentials && (
-              <p className="text-xs text-amber-600">
-                Save your client_secrets.json above before authorizing.
-              </p>
-            )}
-            <p className="text-xs text-slate-400">
-              Register <code className="bg-slate-100 px-1 py-0.5 rounded">
-                {window.location.origin}/api/email-ingest/oauth/callback
-              </code> as an authorized redirect URI in Google Cloud Console.
-            </p>
+        <FieldRow label="IMAP Host" hint="e.g. mail.yourdomain.ca or imap.gmail.com">
+          <input
+            type="text"
+            className="input"
+            value={imapHost}
+            onChange={(e) => setImapHost(e.target.value)}
+            placeholder="imap.gmail.com"
+          />
+        </FieldRow>
+
+        <FieldRow label="Port &amp; Security">
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              className="input w-28"
+              value={imapPort}
+              onChange={(e) => setImapPort(e.target.value)}
+              placeholder={imapUseSsl ? "993" : "143"}
+            />
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="rounded border-slate-300"
+                checked={imapUseSsl}
+                onChange={(e) => {
+                  setImapUseSsl(e.target.checked);
+                  if (!imapPort) setImapPort(e.target.checked ? "993" : "143");
+                }}
+              />
+              Use SSL/TLS
+            </label>
           </div>
         </FieldRow>
+
+        <FieldRow label="Username" hint="Usually the full email address">
+          <input
+            type="email"
+            className="input"
+            value={imapUsername}
+            onChange={(e) => setImapUsername(e.target.value)}
+            placeholder="issues@yourdomain.ca"
+          />
+        </FieldRow>
+
+        <FieldRow
+          label="Password"
+          hint="For Gmail, use an App Password (Account → Security → App Passwords)"
+        >
+          <PasswordInput
+            configured={config.has_imap_password}
+            value={imapPassword}
+            onChange={setImapPassword}
+            placeholder="App password or account password"
+          />
+        </FieldRow>
+
+        <FieldRow label="Mailbox" hint='Folder to watch. Usually "INBOX".'>
+          <input
+            type="text"
+            className="input w-48"
+            value={imapMailbox}
+            onChange={(e) => setImapMailbox(e.target.value)}
+            placeholder="INBOX"
+          />
+        </FieldRow>
+
+        <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+          <button
+            onClick={() => testMutation.mutate()}
+            disabled={testMutation.isPending || !config.imap_configured}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
+              border border-slate-300 bg-white text-slate-700 hover:bg-slate-50
+              disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {testMutation.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : testMutation.data?.ok
+                ? <Wifi className="w-4 h-4 text-green-600" />
+                : <WifiOff className="w-4 h-4" />}
+            Test Connection
+          </button>
+          <button
+            onClick={saveImapSettings}
+            disabled={updateMutation.isPending}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white
+              hover:bg-blue-700 disabled:opacity-40 transition-colors"
+          >
+            {updateMutation.isPending ? "Saving…" : "Save IMAP Settings"}
+          </button>
+        </div>
       </Section>
 
       {/* Polling Settings */}
       <Section title="Polling Settings">
-        <FieldRow
-          label="Poll interval"
-          hint="How often (in minutes) to check for new emails."
-        >
+        <FieldRow label="Poll interval" hint="How often (in minutes) to check for new emails.">
           <div className="flex items-center gap-3">
             <input
               type="number"
@@ -408,8 +429,7 @@ export default function EmailIngestSettingsPage() {
               max={1440}
               value={pollInterval}
               onChange={(e) => setPollInterval(Math.max(1, Number(e.target.value)))}
-              className="w-28 border border-slate-300 rounded-lg px-3 py-2 text-sm
-                focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input w-28"
             />
             <span className="text-sm text-slate-500">minutes</span>
           </div>
@@ -433,10 +453,10 @@ export default function EmailIngestSettingsPage() {
               {enabled ? "Polling enabled" : "Polling disabled"}
             </span>
           </label>
-          {enabled && !config.has_gmail_token && (
+          {enabled && !config.imap_configured && (
             <p className="mt-1 text-xs text-amber-600 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
-              Gmail must be connected before polling can run.
+              Configure IMAP credentials before enabling.
             </p>
           )}
         </FieldRow>
@@ -457,15 +477,22 @@ export default function EmailIngestSettingsPage() {
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-6 py-5">
         <h3 className="text-sm font-semibold text-blue-900 mb-3">Setup guide</h3>
         <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
-          <li>Go to <span className="font-medium">Google Cloud Console</span> → create a project → enable the Gmail API.</li>
-          <li>Under <span className="font-medium">Credentials</span>, create an <span className="font-medium">OAuth 2.0 Client ID</span> (Web application type).</li>
-          <li>Add <code className="bg-blue-100 px-1 rounded text-xs">
-            {window.location.origin}/api/email-ingest/oauth/callback
-          </code> as an authorized redirect URI.</li>
-          <li>Download the JSON and paste it in the <span className="font-medium">Client secrets JSON</span> field above.</li>
-          <li>Choose an AI provider and enter its API key.</li>
-          <li>Click <span className="font-medium">Authorize Gmail</span> and complete the consent screen.</li>
-          <li>Enable polling and save — <span className="font-medium">all unread emails</span> arriving in that inbox will automatically become issues.</li>
+          <li>Create a dedicated email address for inbound issues (e.g. <span className="font-medium">issues@yourdomain.ca</span>).</li>
+          <li>
+            <span className="font-medium">Gmail users:</span> enable IMAP in Gmail Settings → Forwarding and POP/IMAP,
+            then generate an <span className="font-medium">App Password</span> under Google Account → Security → 2-Step Verification → App Passwords.
+            Use <code className="bg-blue-100 px-1 rounded text-xs">imap.gmail.com</code> port <code className="bg-blue-100 px-1 rounded text-xs">993</code> with SSL.
+          </li>
+          <li>
+            <span className="font-medium">cPanel / custom domain:</span> use your mail server host (e.g. <code className="bg-blue-100 px-1 rounded text-xs">mail.yourdomain.ca</code>),
+            port <code className="bg-blue-100 px-1 rounded text-xs">993</code> (SSL) or <code className="bg-blue-100 px-1 rounded text-xs">143</code> (plain), and your account credentials.
+          </li>
+          <li>Choose an AI provider and enter its API key — it extracts structured data from each email.</li>
+          <li>Save IMAP settings, click <span className="font-medium">Test Connection</span> to verify, then enable polling.</li>
+          <li>
+            Emails mentioning a unit that can't be matched automatically will appear as
+            <span className="font-medium"> Pending Assignment</span> in the Issues list, ready for a staff member to assign.
+          </li>
         </ol>
       </div>
     </div>

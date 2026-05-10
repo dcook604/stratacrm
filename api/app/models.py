@@ -99,6 +99,7 @@ class IssueStatus(str, enum.Enum):
     in_progress = "in_progress"
     resolved = "resolved"
     closed = "closed"
+    pending_assignment = "pending_assignment"
 
 
 class IssuePriority(str, enum.Enum):
@@ -451,7 +452,8 @@ class Issue(Base):
     source = Column(String(50), nullable=False, default="manual")
     reporter_email = Column(String(300), nullable=True)
     reporter_name = Column(String(200), nullable=True)
-    gmail_message_id = Column(String(200), nullable=True, unique=True)
+    email_message_id = Column(String(200), nullable=True, unique=True)
+    raw_unit_hint = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -461,7 +463,7 @@ class Issue(Base):
 
 
 class EmailIngestConfig(Base):
-    """Singleton config row (id=1) for the Gmail → Issue email ingest feature."""
+    """Singleton config row (id=1) for the IMAP → Issue email ingest feature."""
     __tablename__ = "email_ingest_config"
 
     id = Column(Integer, primary_key=True)
@@ -469,11 +471,19 @@ class EmailIngestConfig(Base):
     ai_provider = Column(String(50), nullable=False, default="anthropic")
     anthropic_api_key = Column(String(500), nullable=True)
     deepseek_api_key = Column(String(500), nullable=True)
+    # Legacy Gmail columns (kept for DB compatibility, unused by IMAP poller)
     gmail_poll_label = Column(String(200), nullable=False, default="CRM-Inbound")
-    gmail_poll_interval_minutes = Column(Integer, nullable=False, default=10)
     gmail_credentials_json = Column(Text, nullable=True)
     gmail_token_json = Column(Text, nullable=True)
     gmail_connected_email = Column(String(300), nullable=True)
+    # IMAP settings
+    imap_host = Column(String(500), nullable=True)
+    imap_port = Column(Integer, nullable=True)
+    imap_username = Column(String(300), nullable=True)
+    imap_password = Column(String(500), nullable=True)
+    imap_use_ssl = Column(Boolean, nullable=False, default=True)
+    imap_mailbox = Column(String(200), nullable=False, default="INBOX")
+    poll_interval_minutes = Column(Integer, nullable=False, default=10)
     last_polled_at = Column(DateTime(timezone=True), nullable=True)
     last_poll_stats = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

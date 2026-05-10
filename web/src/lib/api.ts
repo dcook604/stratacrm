@@ -627,7 +627,7 @@ export const shareApi = {
 // Issue types
 // ---------------------------------------------------------------------------
 
-export type IssueStatus = "open" | "in_progress" | "resolved" | "closed";
+export type IssueStatus = "open" | "in_progress" | "resolved" | "closed" | "pending_assignment";
 export type IssuePriority = "low" | "medium" | "high" | "urgent";
 
 export interface IssueUser {
@@ -661,6 +661,7 @@ export interface Issue {
   source: string;
   reporter_email: string | null;
   reporter_name: string | null;
+  raw_unit_hint: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -815,13 +816,16 @@ export interface EmailIngestConfig {
   ai_provider: "anthropic" | "deepseek";
   has_anthropic_key: boolean;
   has_deepseek_key: boolean;
-  gmail_poll_label: string;
-  gmail_poll_interval_minutes: number;
-  gmail_connected_email: string | null;
+  poll_interval_minutes: number;
+  imap_host: string | null;
+  imap_port: number | null;
+  imap_username: string | null;
+  imap_use_ssl: boolean;
+  imap_mailbox: string;
+  has_imap_password: boolean;
+  imap_configured: boolean;
   last_polled_at: string | null;
-  last_poll_stats: { created: number; skipped: number; errors: number } | null;
-  has_gmail_credentials: boolean;
-  has_gmail_token: boolean;
+  last_poll_stats: { created: number; skipped: number; errors: number; pending: number } | null;
 }
 
 export interface EmailIngestConfigUpdate {
@@ -829,17 +833,21 @@ export interface EmailIngestConfigUpdate {
   ai_provider?: "anthropic" | "deepseek";
   anthropic_api_key?: string;
   deepseek_api_key?: string;
-  gmail_poll_label?: string;
-  gmail_poll_interval_minutes?: number;
-  gmail_credentials_json?: string;
+  poll_interval_minutes?: number;
+  imap_host?: string;
+  imap_port?: number;
+  imap_username?: string;
+  imap_password?: string;
+  imap_use_ssl?: boolean;
+  imap_mailbox?: string;
 }
 
 export const emailIngestApi = {
   getConfig: () => api.get<EmailIngestConfig>("/email-ingest/config"),
   updateConfig: (body: EmailIngestConfigUpdate) =>
     api.patch<EmailIngestConfig>("/email-ingest/config", body),
-  disconnectGmail: () => api.delete("/email-ingest/config/gmail"),
-  startOAuth: () => api.get<{ auth_url: string }>("/email-ingest/oauth/start"),
+  disconnectImap: () => api.delete("/email-ingest/config/imap"),
+  testConnection: () => api.post<{ ok: boolean; error: string | null }>("/email-ingest/test"),
   triggerPoll: () => api.post<{ status: string }>("/email-ingest/poll"),
 };
 

@@ -1,26 +1,18 @@
-"""Email ingest — config management, Gmail OAuth2 flow, manual poll trigger."""
+"""Email ingest — IMAP config management, connection test, manual poll trigger."""
 
 import json
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database import SessionLocal, get_db
 from app.dependencies import get_current_user, require_write
 from app.models import EmailIngestConfig, User
-from app.services.email_ingest import (
-    build_oauth_flow,
-    fetch_gmail_address,
-    poll_gmail,
-)
+from app.services.email_ingest import poll_imap, test_imap_connection
 
 router = APIRouter(prefix="/email-ingest", tags=["email-ingest"])
-
-_OAUTH_REDIRECT_PATH = "/api/email-ingest/oauth/callback"
 
 
 def _get_config(db: Session) -> EmailIngestConfig:
@@ -28,10 +20,6 @@ def _get_config(db: Session) -> EmailIngestConfig:
     if not config:
         raise HTTPException(status_code=500, detail="Email ingest config missing — run migrations")
     return config
-
-
-def _redirect_uri() -> str:
-    return settings.app_base_url.rstrip("/") + _OAUTH_REDIRECT_PATH
 
 
 # ---------------------------------------------------------------------------
@@ -43,13 +31,16 @@ class EmailIngestConfigOut(BaseModel):
     ai_provider: str
     has_anthropic_key: bool
     has_deepseek_key: bool
-    gmail_poll_label: str
-    gmail_poll_interval_minutes: int
-    gmail_connected_email: Optional[str]
+    poll_interval_minutes: int
+    imap_host: Optional[str]
+    imap_port: Optional[int]
+    imap_username: Optional[str]
+    imap_use_ssl: bool
+    imap_mailbox: str
+    has_imap_password: bool
+    imap_configured: bool
     last_polled_at: Optional[str]
     last_poll_stats: Optional[dict]
-    has_gmail_credentials: bool
-    has_gmail_token: bool
 
 
 class EmailIngestConfigUpdate(BaseModel):
@@ -57,27 +48,32 @@ class EmailIngestConfigUpdate(BaseModel):
     ai_provider: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     deepseek_api_key: Optional[str] = None
-    gmail_poll_label: Optional[str] = None
-    gmail_poll_interval_minutes: Optional[int] = None
-    gmail_credentials_json: Optional[str] = None
+    poll_interval_minutes: Optional[int] = None
+    imap_host: Optional[str] = None
+    imap_port: Optional[int] = None
+    imap_username: Optional[str] = None
+    imap_password: Optional[str] = None
+    imap_use_ssl: Optional[bool] = None
+    imap_mailbox: Optional[str] = None
 
 
 class PollResult(BaseModel):
     created: int
     skipped: int
     errors: int
+    pending: int
+
+
+class TestResult(BaseModel):
+    ok: bool
+    error: Optional[str]
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("/config", response_model=EmailIngestConfigOut)
-def get_config(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
-):
-    config = _get_config(db)
+def _config_out(config: EmailIngestConfig, db: Session) -> EmailIngestConfigOut:
     stats = None
     if config.last_poll_stats:
         try:
@@ -89,14 +85,25 @@ def get_config(
         ai_provider=config.ai_provider,
         has_anthropic_key=bool(config.anthropic_api_key),
         has_deepseek_key=bool(config.deepseek_api_key),
-        gmail_poll_label=config.gmail_poll_label,
-        gmail_poll_interval_minutes=config.gmail_poll_interval_minutes,
-        gmail_connected_email=config.gmail_connected_email,
+        poll_interval_minutes=config.poll_interval_minutes,
+        imap_host=config.imap_host,
+        imap_port=config.imap_port,
+        imap_username=config.imap_username,
+        imap_use_ssl=config.imap_use_ssl,
+        imap_mailbox=config.imap_mailbox or "INBOX",
+        has_imap_password=bool(config.imap_password),
+        imap_configured=bool(config.imap_host and config.imap_username and config.imap_password),
         last_polled_at=config.last_polled_at.isoformat() if config.last_polled_at else None,
         last_poll_stats=stats,
-        has_gmail_credentials=bool(config.gmail_credentials_json),
-        has_gmail_token=bool(config.gmail_token_json),
     )
+
+
+@router.get("/config", response_model=EmailIngestConfigOut)
+def get_config(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    return _config_out(_get_config(db), db)
 
 
 @router.patch("/config", response_model=EmailIngestConfigOut)
@@ -117,115 +124,51 @@ def update_config(
         config.anthropic_api_key = body.anthropic_api_key or None
     if body.deepseek_api_key is not None:
         config.deepseek_api_key = body.deepseek_api_key or None
-    if body.gmail_poll_label is not None:
-        config.gmail_poll_label = body.gmail_poll_label or "CRM-Inbound"
-    if body.gmail_poll_interval_minutes is not None:
-        config.gmail_poll_interval_minutes = max(1, body.gmail_poll_interval_minutes)
-    if body.gmail_credentials_json is not None:
-        # Validate JSON before saving
-        try:
-            json.loads(body.gmail_credentials_json)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=422, detail="gmail_credentials_json is not valid JSON")
-        config.gmail_credentials_json = body.gmail_credentials_json
-        # Clear token when credentials change — require re-auth
-        config.gmail_token_json = None
-        config.gmail_connected_email = None
+    if body.poll_interval_minutes is not None:
+        config.poll_interval_minutes = max(1, body.poll_interval_minutes)
+    if body.imap_host is not None:
+        config.imap_host = body.imap_host or None
+    if body.imap_port is not None:
+        config.imap_port = body.imap_port or None
+    if body.imap_username is not None:
+        config.imap_username = body.imap_username or None
+    if body.imap_password is not None:
+        config.imap_password = body.imap_password or None
+    if body.imap_use_ssl is not None:
+        config.imap_use_ssl = body.imap_use_ssl
+    if body.imap_mailbox is not None:
+        config.imap_mailbox = body.imap_mailbox or "INBOX"
 
     db.commit()
     db.refresh(config)
-    return get_config(db)
+    return _config_out(config, db)
 
 
-@router.delete("/config/gmail")
-def disconnect_gmail(
+@router.delete("/config/imap")
+def disconnect_imap(
     db: Session = Depends(get_db),
     _: User = Depends(require_write),
 ):
-    """Revoke Gmail connection by clearing stored token."""
+    """Clear IMAP credentials and disable polling."""
     config = _get_config(db)
-    config.gmail_token_json = None
-    config.gmail_connected_email = None
+    config.imap_host = None
+    config.imap_port = None
+    config.imap_username = None
+    config.imap_password = None
     config.enabled = False
     db.commit()
     return {"status": "disconnected"}
 
 
-# ---------------------------------------------------------------------------
-# OAuth2 flow
-# ---------------------------------------------------------------------------
-
-@router.get("/oauth/start")
-def oauth_start(
-    request: Request,
+@router.post("/test", response_model=TestResult)
+def test_connection(
     db: Session = Depends(get_db),
     _: User = Depends(require_write),
 ):
-    """Generate the Google OAuth2 authorization URL."""
+    """Attempt an IMAP login and return success/error."""
     config = _get_config(db)
-    if not config.gmail_credentials_json:
-        raise HTTPException(
-            status_code=400,
-            detail="Gmail credentials not configured. Paste your client_secrets.json content first.",
-        )
-    try:
-        flow = build_oauth_flow(config.gmail_credentials_json, _redirect_uri())
-        auth_url, state = flow.authorization_url(
-            access_type="offline",
-            include_granted_scopes="true",
-            prompt="consent",
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Failed to build OAuth URL: {exc}")
-
-    request.session["gmail_oauth_state"] = state
-    return {"auth_url": auth_url}
-
-
-@router.get("/oauth/callback")
-def oauth_callback(
-    request: Request,
-    code: Optional[str] = None,
-    state: Optional[str] = None,
-    error: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
-    """Handle Google OAuth2 callback, exchange code for token, save to DB."""
-    frontend_base = settings.app_base_url.replace("/api", "").rstrip("/")
-    settings_url = f"{frontend_base}/settings/email-ingest"
-
-    if error:
-        return RedirectResponse(url=f"{settings_url}?error={error}")
-
-    saved_state = request.session.get("gmail_oauth_state")
-    if not saved_state or saved_state != state:
-        return RedirectResponse(url=f"{settings_url}?error=invalid_state")
-
-    config = _get_config(db)
-    if not config.gmail_credentials_json:
-        return RedirectResponse(url=f"{settings_url}?error=no_credentials")
-
-    try:
-        flow = build_oauth_flow(config.gmail_credentials_json, _redirect_uri())
-        flow.fetch_token(code=code)
-        creds = flow.credentials
-        token_json = json.dumps({
-            "token": creds.token,
-            "refresh_token": creds.refresh_token,
-            "token_uri": creds.token_uri,
-            "client_id": creds.client_id,
-            "client_secret": creds.client_secret,
-            "scopes": list(creds.scopes),
-        })
-        config.gmail_token_json = token_json
-        connected_email = fetch_gmail_address(token_json)
-        config.gmail_connected_email = connected_email
-        db.commit()
-    except Exception as exc:
-        return RedirectResponse(url=f"{settings_url}?error=token_exchange_failed")
-
-    request.session.pop("gmail_oauth_state", None)
-    return RedirectResponse(url=f"{settings_url}?connected=1")
+    result = test_imap_connection(config)
+    return TestResult(**result)
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +178,7 @@ def oauth_callback(
 def _run_poll_task():
     db = SessionLocal()
     try:
-        poll_gmail(db)
+        poll_imap(db)
     finally:
         db.close()
 
@@ -245,6 +188,6 @@ def trigger_poll(
     background_tasks: BackgroundTasks,
     _: User = Depends(require_write),
 ):
-    """Manually trigger a Gmail poll (runs in background)."""
+    """Manually trigger an IMAP poll (runs in background)."""
     background_tasks.add_task(_run_poll_task)
     return {"status": "polling started"}
