@@ -15,6 +15,7 @@ import email
 import hashlib
 import imaplib
 import json
+import os
 import re
 import socket
 import structlog
@@ -287,6 +288,111 @@ def test_imap_connection(config) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Attachment extraction
+# ---------------------------------------------------------------------------
+
+_ALLOWED_ATTACHMENT_TYPES = {
+    "application/pdf",
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
+def _save_email_attachments(msg: email.message.Message, incident_id: int, db: Session) -> int:
+    """Save MIME attachments from an email as Document records linked to the incident.
+    Returns the number of attachments saved."""
+    from app.config import settings
+    from app.models import Document
+    from app.utils.media import compress_image, generate_thumbnail
+
+    os.makedirs(settings.uploads_dir, exist_ok=True)
+    saved = 0
+
+    for part in msg.walk():
+        content_type = part.get_content_type()
+
+        # Skip multipart containers and plain-text/HTML body parts
+        if content_type.startswith("multipart/") or content_type in ("text/plain", "text/html"):
+            continue
+
+        filename = part.get_filename()
+        if not filename:
+            continue
+
+        filename = _decode_mime_header(filename)
+
+        if content_type not in _ALLOWED_ATTACHMENT_TYPES:
+            log.info("email_attachment_skipped_type", filename=filename, content_type=content_type)
+            continue
+
+        payload = part.get_payload(decode=True)
+        if not payload:
+            continue
+
+        safe_name = re.sub(r"[^\w.\-]", "_", os.path.basename(filename))[:200]
+        storage_filename = f"incident_{incident_id}_{safe_name}"
+        storage_path = os.path.join(settings.uploads_dir, storage_filename)
+
+        if os.path.exists(storage_path):
+            base, ext = os.path.splitext(storage_filename)
+            counter = 1
+            while os.path.exists(storage_path):
+                storage_path = os.path.join(settings.uploads_dir, f"{base}_{counter}{ext}")
+                counter += 1
+
+        try:
+            with open(storage_path, "wb") as fout:
+                fout.write(payload)
+        except Exception as exc:
+            log.error("email_attachment_write_failed", filename=filename, error=str(exc))
+            continue
+
+        effective_mime = content_type
+        final_size = len(payload)
+
+        if content_type.startswith("image/"):
+            try:
+                compressed_path, compressed_size = compress_image(storage_path)
+                if compressed_path != storage_path:
+                    os.replace(compressed_path, storage_path)
+                final_size = compressed_size
+            except Exception:
+                pass
+            effective_mime = "image/jpeg"
+            try:
+                generate_thumbnail(storage_path)
+            except Exception:
+                pass
+
+        doc = Document(
+            storage_path=storage_path,
+            original_filename=filename[:300],
+            mime_type=effective_mime,
+            file_size_bytes=final_size,
+            uploaded_by_id=None,
+            linked_entity_type="incident",
+            linked_entity_id=incident_id,
+            caption="Email attachment",
+            is_processing=False,
+        )
+        db.add(doc)
+        try:
+            db.commit()
+            saved += 1
+            log.info("email_attachment_saved", incident_id=incident_id, filename=filename)
+        except Exception as exc:
+            log.error("email_attachment_db_failed", filename=filename, error=str(exc))
+            db.rollback()
+            if os.path.exists(storage_path):
+                os.unlink(storage_path)
+
+    return saved
+
+
+# ---------------------------------------------------------------------------
 # Main poll function
 # ---------------------------------------------------------------------------
 
@@ -387,6 +493,9 @@ def poll_imap(db: Session) -> dict:
                 )
                 db.add(incident)
                 db.commit()
+                db.refresh(incident)
+
+                _save_email_attachments(msg, incident.id, db)
 
                 conn.store(uid, "+FLAGS", "\\Seen")
 
