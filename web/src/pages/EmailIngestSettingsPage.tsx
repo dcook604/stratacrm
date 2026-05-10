@@ -108,6 +108,7 @@ export default function EmailIngestSettingsPage() {
   // Polling form state
   const [pollInterval, setPollInterval] = useState(10);
   const [enabled, setEnabled] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
 
   useEffect(() => {
     if (config) {
@@ -202,7 +203,6 @@ export default function EmailIngestSettingsPage() {
   }
 
   const stats = config.last_poll_stats;
-  const [showErrors, setShowErrors] = useState(false);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
