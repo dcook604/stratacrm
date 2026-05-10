@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronUp } from "lucide-react";
 import {
   lotsApi, infractionsApi, incidentsApi, issuesApi,
   type Lot, type InfractionListItem, type Incident, type Issue,
