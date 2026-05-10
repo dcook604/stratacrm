@@ -2,7 +2,7 @@
 
 Self-hosted strata management system for **Strata Plan BCS2611** (Spectrum 4, Vancouver).
 Replaces ad-hoc spreadsheets and email threads for ownership tracking, bylaw enforcement,
-and council communications.
+incident management, and council communications.
 
 ---
 
@@ -31,10 +31,11 @@ Internet → Traefik (Let's Encrypt TLS) → web (nginx:1.27)
                                      SQLAlchemy │
                                                ↓
                                          db (PostgreSQL 16)
-                                               
+
                                   api also calls:
                                     - OpenSMTPD relay (10.0.9.1:10025) for transactional email
                                     - Listmonk (http://listmonk:9000) for bulk audience sync
+                                    - IMAP mailbox (configurable) for email ingest
 ```
 
 **Services:**
@@ -42,7 +43,7 @@ Internet → Traefik (Let's Encrypt TLS) → web (nginx:1.27)
 | Service | Image | Role |
 |---------|-------|------|
 | `db` | `postgres:16-alpine` | Persistent data store |
-| `api` | `./api` (Python 3.12 / FastAPI) | REST API, PDF generation, business logic |
+| `api` | `./api` (Python 3.12 / FastAPI) | REST API, PDF generation, IMAP polling, business logic |
 | `web` | `./web` (React 18 + nginx) | SPA frontend + API reverse proxy |
 
 **Volumes:**
@@ -50,7 +51,7 @@ Internet → Traefik (Let's Encrypt TLS) → web (nginx:1.27)
 | Volume | Contents |
 |--------|----------|
 | `postgres_data` | PostgreSQL data directory |
-| `uploads` | Notice PDFs and uploaded documents (mounted at `/app/uploads` in `api`) |
+| `uploads` | Notice PDFs, uploaded documents, and email attachments (mounted at `/app/uploads` in `api`) |
 
 ---
 
@@ -112,7 +113,7 @@ In Coolify's **Domains** tab:
 
 Click **Deploy** in Coolify. On first start the API will:
 
-1. Run all Alembic migrations (`001_initial_schema` → `002_import_staging` → `003_seed_bylaws`)
+1. Run all Alembic migrations automatically (`001_initial_schema` through the latest)
 2. Seed: strata corporation (BCS2611), 245 empty lots (SL1–SL245), one admin user
 3. Print first-run credentials to Docker logs — **retrieve before they scroll off**
 
@@ -143,6 +144,9 @@ All variables go in Coolify's Environment UI (or a `.env` file for local dev).
 | `LISTMONK_USERNAME` | `listmonk` | No | Listmonk admin username |
 | `LISTMONK_PASSWORD` | `changeme` | No | Listmonk admin password |
 | `UPLOADS_DIR` | `/app/uploads` | No | Container path for uploaded files (already volume-mounted) |
+
+> IMAP credentials for email ingest are stored in the database and managed
+> via the **Settings → Email Ingest** page in the UI — no environment variable required.
 
 ---
 
@@ -191,6 +195,39 @@ The management company (Gateway) provides a PDF owner list each quarter.
 > **s.135 compliance:** Every status transition is recorded as an append-only event.
 > Do not skip steps. The event trail is the legal record.
 
+### Email ingest (IMAP)
+
+Resident emails sent to a dedicated mailbox are automatically parsed into incidents.
+
+**Setup:**
+1. Create a dedicated inbox (e.g. `incidents@yourdomain.ca`) with IMAP access
+2. In the CRM go to **Settings → Email Ingest**
+3. Enter IMAP host, port, username, and password; choose SSL if required
+4. Select an AI provider (Anthropic Claude or DeepSeek) and enter the API key
+5. Set the poll interval (minimum 1 minute) and click **Save**
+6. Use **Test Connection** to verify IMAP credentials before enabling
+
+**How it works:**
+- The API polls the INBOX for UNSEEN messages on the configured interval
+- Each email is parsed by AI to extract category and description
+- Unit/lot numbers mentioned in the subject or body are matched to strata lots
+- If the lot is matched → incident created with status **Open**
+- If a unit is mentioned but not matched → status **Pending Assignment** (review in Incidents)
+- If no unit is found → incident created as a common-area incident
+- Email attachments (images, PDFs, Word, Excel) are saved and appear in the incident's media panel
+- Processed messages are marked as Seen in the mailbox
+
+**Manual poll:** Click **Poll Now** in Settings → Email Ingest to trigger immediately.
+
+### Logging and managing incidents
+
+1. Navigate to **Incidents**
+2. Incidents created via email are tagged with a purple **Email** badge
+3. Click any row to expand — shows full description, reporter email, status controls, and media attachments
+4. **Pending Assignment** incidents show a unit-search widget to link the incident to the correct lot
+5. Use **Email Report** to send an incident summary to any recipient
+6. Attach additional photos or videos using **Add Photo / Video** in the expanded row
+
 ### Syncing the Listmonk mailing list
 
 1. Navigate to **Dashboard**
@@ -200,7 +237,7 @@ The management company (Gateway) provides a PDF owner list each quarter.
 
 ### Backup and restore
 
-The `uploads` volume (notice PDFs, documents) and `postgres_data` volume must both be backed up.
+The `uploads` volume (notice PDFs, documents, email attachments) and `postgres_data` volume must both be backed up.
 
 **Database backup:**
 ```bash
@@ -295,14 +332,13 @@ docker compose exec api pytest tests/ -v
 | Import | `/import` | Quarterly owner list PDF import with duplicate detection and staged review |
 | Bylaws | `/bylaws` | Versioned bylaw library with fine schedules |
 | Infractions | `/infractions` | s.135-compliant bylaw contravention lifecycle; notice PDF generation; email delivery |
-| Incidents | `/incidents` | Property and common area incident log |
-| Issues | `/issues` | Maintenance and council action items with priority, due dates, assignees |
-| Communications | *(coming)* | Listmonk bulk send log and manual communications record |
+| Incidents | `/incidents` | Property incident log; IMAP email ingest with AI parsing; media attachments; shareable email reports |
+| Issues | `/issues` | Maintenance and council action items with priority, due dates, and assignees |
+| Email Ingest | `/settings/email-ingest` | IMAP configuration, AI provider selection, connection test, poll stats |
 
-### Not in v1 scope
+### Not in scope
 
 - Owner self-service portal
 - Accounting / strata fee tracking
 - AGM management
-- Inbound email parsing
 - Mobile app
