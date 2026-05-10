@@ -532,7 +532,7 @@ export const infractionsApi = {
 // Incident types
 // ---------------------------------------------------------------------------
 
-export type IncidentStatus = "open" | "in_progress" | "resolved" | "closed";
+export type IncidentStatus = "open" | "in_progress" | "resolved" | "closed" | "pending_assignment";
 
 export interface IncidentLot {
   id: number;
@@ -551,6 +551,9 @@ export interface Incident {
   reported_by: string | null;
   status: IncidentStatus;
   resolution: string | null;
+  source: string;
+  reporter_email: string | null;
+  raw_unit_hint: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -627,7 +630,7 @@ export const shareApi = {
 // Issue types
 // ---------------------------------------------------------------------------
 
-export type IssueStatus = "open" | "in_progress" | "resolved" | "closed" | "pending_assignment";
+export type IssueStatus = "open" | "in_progress" | "resolved" | "closed";
 export type IssuePriority = "low" | "medium" | "high" | "urgent";
 
 export interface IssueUser {
@@ -658,10 +661,6 @@ export interface Issue {
   status: IssueStatus;
   related_lot: IssueLot | null;
   related_incident: IssueIncident | null;
-  source: string;
-  reporter_email: string | null;
-  reporter_name: string | null;
-  raw_unit_hint: string | null;
   created_at: string;
   updated_at: string;
 }

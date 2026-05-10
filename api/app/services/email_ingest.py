@@ -130,22 +130,17 @@ def _extract_unit_hint(subject: str, body: str) -> Optional[str]:
 
 _SYSTEM_PROMPT = (
     "You are a data extraction assistant for a strata (condo) property management CRM. "
-    "Extract structured issue data from resident or staff emails. "
+    "Extract structured incident data from resident or staff emails. "
     "Return ONLY a JSON object — no markdown, no explanation."
 )
 
 _USER_PROMPT = """\
-Extract a structured issue from this email and return a JSON object with these fields:
-- title: string (max 200 chars, clear action-oriented summary)
-- description: string (preserve all relevant details and context)
-- priority: one of "low" | "medium" | "high" | "urgent"
+Extract a structured incident report from this email and return a JSON object with these fields:
+- category: one of "Water Damage" | "Elevator" | "Parkade" | "Common Area Damage" | "Security" | \
+"Fire Safety" | "Garbage / Recycling" | "Amenity Room" | "Lobby / Entrance" | "Roof / Exterior" | \
+"Suite Damage" | "Noise" | "Parking" | "Other"
+- description: string (preserve all relevant details and context from the email)
 - unit_number: string or null (strata unit/lot number if mentioned, e.g. "304", "1A", "SL42")
-
-Priority guide:
-  urgent — safety hazard, flooding, fire, gas leak, security breach
-  high   — significant damage, broken elevator, no hot water, pest infestation
-  medium — maintenance needed, noise complaint, parking violation
-  low    — general inquiry, suggestion, minor cosmetic issue
 
 Email:
 From: {sender}
@@ -153,26 +148,30 @@ Subject: {subject}
 
 {body}"""
 
+_VALID_CATEGORIES = {
+    "Water Damage", "Elevator", "Parkade", "Common Area Damage", "Security",
+    "Fire Safety", "Garbage / Recycling", "Amenity Room", "Lobby / Entrance",
+    "Roof / Exterior", "Suite Damage", "Noise", "Parking", "Other",
+}
+
 
 def _parse_ai_json(text: str) -> dict:
     text = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`").strip()
     try:
         data = json.loads(text)
-        priority = data.get("priority", "medium")
-        if priority not in ("low", "medium", "high", "urgent"):
-            priority = "medium"
+        category = data.get("category", "Other")
+        if category not in _VALID_CATEGORIES:
+            category = "Other"
         return {
-            "title": str(data.get("title", "Issue reported via email"))[:300],
+            "category": category,
             "description": str(data.get("description", "")),
-            "priority": priority,
             "unit_number": data.get("unit_number"),
         }
     except (json.JSONDecodeError, TypeError):
         log.warning("ai_parse_json_failed", preview=text[:200])
         return {
-            "title": "Issue reported via email",
+            "category": "Other",
             "description": text,
-            "priority": "medium",
             "unit_number": None,
         }
 
@@ -292,8 +291,9 @@ def test_imap_connection(config) -> dict:
 # ---------------------------------------------------------------------------
 
 def poll_imap(db: Session) -> dict:
-    """Load config from DB, poll IMAP mailbox, create issues. Returns stats dict."""
-    from app.models import EmailIngestConfig, Issue, IssuePriority, IssueStatus
+    """Load config from DB, poll IMAP mailbox, create incidents. Returns stats dict."""
+    from app.models import EmailIngestConfig, Incident, IncidentStatus
+    from app.utils.reference import generate_reference
 
     config = db.get(EmailIngestConfig, 1)
     if not config or not config.enabled:
@@ -346,7 +346,7 @@ def poll_imap(db: Session) -> dict:
 
                 dedup_key = _message_dedup_key(msg, uid)
                 existing = db.execute(
-                    select(Issue).where(Issue.email_message_id == dedup_key)
+                    select(Incident).where(Incident.email_message_id == dedup_key)
                 ).scalar_one_or_none()
                 if existing:
                     stats["skipped"] += 1
@@ -355,7 +355,7 @@ def poll_imap(db: Session) -> dict:
 
                 body = _extract_plain_text(msg)
 
-                reporter_name, reporter_email = _parse_sender(from_hint)
+                _, reporter_email = _parse_sender(from_hint)
                 parsed = parse_email_with_ai(subject_hint, body, from_hint, config)
 
                 # Unit resolution: prefer AI extraction, fall back to regex
@@ -366,35 +366,36 @@ def poll_imap(db: Session) -> dict:
                 lot_id = _find_lot_id(db, unit_hint)
 
                 if unit_hint and not lot_id:
-                    issue_status = IssueStatus.pending_assignment
+                    inc_status = IncidentStatus.pending_assignment
                     raw_unit_hint = unit_hint
                 else:
-                    issue_status = IssueStatus.open
+                    inc_status = IncidentStatus.open
                     raw_unit_hint = None
 
-                issue = Issue(
-                    title=parsed["title"],
+                incident = Incident(
+                    reference=generate_reference("TKT"),
+                    incident_date=datetime.now(timezone.utc),
+                    category=parsed["category"],
                     description=f"**From:** {from_hint}\n**Subject:** {subject_hint}\n\n{parsed['description']}",
-                    priority=IssuePriority(parsed["priority"]),
-                    status=issue_status,
+                    reported_by=from_hint or None,
+                    status=inc_status,
+                    lot_id=lot_id,
                     source="email",
                     reporter_email=reporter_email or None,
-                    reporter_name=reporter_name or None,
                     email_message_id=dedup_key,
-                    related_lot_id=lot_id,
                     raw_unit_hint=raw_unit_hint,
                 )
-                db.add(issue)
+                db.add(incident)
                 db.commit()
 
                 conn.store(uid, "+FLAGS", "\\Seen")
 
-                if issue_status == IssueStatus.pending_assignment:
+                if inc_status == IncidentStatus.pending_assignment:
                     stats["pending"] += 1
-                    log.info("email_issue_pending", dedup=dedup_key, hint=unit_hint)
+                    log.info("email_incident_pending", dedup=dedup_key, hint=unit_hint)
                 else:
                     stats["created"] += 1
-                    log.info("email_issue_created", dedup=dedup_key, title=parsed["title"])
+                    log.info("email_incident_created", dedup=dedup_key, category=parsed["category"])
 
             except Exception as exc:
                 log.error("imap_message_failed", uid=uid, error=str(exc))

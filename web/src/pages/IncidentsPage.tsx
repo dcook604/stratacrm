@@ -17,6 +17,7 @@ const STATUS_LABELS: Record<IncidentStatus, string> = {
   in_progress: "In Progress",
   resolved: "Resolved",
   closed: "Closed",
+  pending_assignment: "Pending Assignment",
 };
 
 const STATUS_COLOURS: Record<IncidentStatus, string> = {
@@ -24,6 +25,7 @@ const STATUS_COLOURS: Record<IncidentStatus, string> = {
   in_progress: "badge-blue",
   resolved: "badge-green",
   closed: "badge-slate",
+  pending_assignment: "badge-red",
 };
 
 const COMMON_CATEGORIES = [
@@ -702,6 +704,66 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
 // Expandable incident row
 // ---------------------------------------------------------------------------
 
+function QuickAssignLot({ incident }: { incident: Incident }) {
+  const qc = useQueryClient();
+  const [lotSearch, setLotSearch] = useState(incident.raw_unit_hint ?? "");
+  const [selectedLotId, setSelectedLotId] = useState("");
+
+  const { data: lotsData } = useQuery({
+    queryKey: ["lots", { search: lotSearch }],
+    queryFn: () => lotsApi.list({ limit: 20, search: lotSearch || undefined }),
+    enabled: lotSearch.length > 0,
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: () => incidentsApi.update(incident.id, { lot_id: Number(selectedLotId), status: "open" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }),
+  });
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+      <p className="text-xs font-semibold text-amber-800">
+        Unit not matched — assign manually
+        {incident.raw_unit_hint && (
+          <span className="ml-1 font-normal text-amber-700">
+            (email mentioned: <span className="font-mono">{incident.raw_unit_hint}</span>)
+          </span>
+        )}
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="search"
+          placeholder="Search lot…"
+          className="input text-xs py-1 w-32"
+          value={lotSearch}
+          onChange={(e) => { setLotSearch(e.target.value); setSelectedLotId(""); }}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <select
+          className="input text-xs py-1 flex-1 min-w-[160px]"
+          value={selectedLotId}
+          onChange={(e) => setSelectedLotId(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <option value="">— select lot —</option>
+          {lotsData?.items.map((l) => (
+            <option key={l.id} value={l.id}>
+              SL{l.strata_lot_number}{l.unit_number ? ` — Unit ${l.unit_number}` : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={(e) => { e.stopPropagation(); assignMutation.mutate(); }}
+          disabled={!selectedLotId || assignMutation.isPending}
+          className="btn btn-primary text-xs py-1 px-3 disabled:opacity-40"
+        >
+          {assignMutation.isPending ? "Assigning…" : "Assign & Open"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
@@ -712,19 +774,33 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
     onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }),
   });
 
+  const isPending = incident.status === "pending_assignment";
+
   const locationLabel = incident.lot
     ? `SL${incident.lot.strata_lot_number}${incident.lot.unit_number ? ` Unit ${incident.lot.unit_number}` : ""}`
-    : incident.common_area_description ?? "Common area";
+    : isPending && incident.raw_unit_hint
+      ? `Unit hint: ${incident.raw_unit_hint}`
+      : incident.common_area_description ?? "Common area";
 
   return (
     <>
       <tr
-        className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+        className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${isPending ? "bg-amber-50/40" : ""}`}
         onClick={() => setExpanded((x) => !x)}
       >
         <td className="px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
         <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDatetime(incident.incident_date)}</td>
-        <td className="px-4 py-3 text-sm font-medium">{incident.category}</td>
+        <td className="px-4 py-3 text-sm font-medium">
+          <div className="flex items-center gap-1.5">
+            {incident.category}
+            {incident.source === "email" && (
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded bg-purple-100 text-purple-700"
+                title={incident.reporter_email ?? "Via email"}>
+                <Mail className="w-3 h-3" />Email
+              </span>
+            )}
+          </div>
+        </td>
         <td className="px-4 py-3 text-sm text-slate-500">{locationLabel}</td>
         <td className="px-4 py-3">
           <span className={`badge ${STATUS_COLOURS[incident.status]}`}>
@@ -747,9 +823,13 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
         <tr className="bg-slate-50 border-b border-slate-200">
           <td colSpan={6} className="px-6 py-4">
             <div className="max-w-3xl space-y-3">
+              {isPending && <QuickAssignLot incident={incident} />}
               <p className="text-sm text-slate-700 whitespace-pre-wrap">{incident.description}</p>
               {incident.reported_by && (
                 <p className="text-xs text-slate-500">Reported by: {incident.reported_by}</p>
+              )}
+              {incident.reporter_email && (
+                <p className="text-xs text-slate-500">Reporter email: {incident.reporter_email}</p>
               )}
               {incident.resolution && (
                 <div className="border-l-2 border-green-400 pl-3">
@@ -803,6 +883,7 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
 
 const STATUS_FILTERS: { value: IncidentStatus | ""; label: string }[] = [
   { value: "", label: "All statuses" },
+  { value: "pending_assignment", label: "Pending Assignment" },
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
   { value: "resolved", label: "Resolved" },
@@ -829,6 +910,8 @@ export default function IncidentsPage() {
     i.status === "open" || i.status === "in_progress"
   ).length ?? 0;
 
+  const pendingCount = incidents?.filter((i) => i.status === "pending_assignment").length ?? 0;
+
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -847,11 +930,20 @@ export default function IncidentsPage() {
       </div>
 
       {incidents && (
-        <div className="flex gap-2 md:gap-4">
+        <div className="flex gap-2 md:gap-4 flex-wrap">
           <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
             <p className="text-2xl font-bold text-amber-600">{activeCount}</p>
             <p className="text-xs text-slate-500 mt-0.5">Active</p>
           </div>
+          {pendingCount > 0 && (
+            <button
+              className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] border-amber-300 hover:border-amber-400 transition-colors"
+              onClick={() => setStatusFilter("pending_assignment")}
+            >
+              <p className="text-2xl font-bold text-amber-500">{pendingCount}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Needs Unit</p>
+            </button>
+          )}
           <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
             <p className="text-2xl font-bold text-green-600">
               {incidents.filter((i) => i.status === "resolved").length}

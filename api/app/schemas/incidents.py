@@ -47,5 +47,8 @@ class IncidentOut(BaseModel):
     reported_by: Optional[str]
     status: IncidentStatus
     resolution: Optional[str]
+    source: str = "manual"
+    reporter_email: Optional[str] = None
+    raw_unit_hint: Optional[str] = None
     created_at: datetime
     updated_at: datetime

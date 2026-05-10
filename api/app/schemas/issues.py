@@ -61,9 +61,5 @@ class IssueOut(BaseModel):
     status: IssueStatus
     related_lot: Optional[LotMini] = None
     related_incident: Optional[IncidentMini] = None
-    source: str = "manual"
-    reporter_email: Optional[str] = None
-    reporter_name: Optional[str] = None
-    raw_unit_hint: Optional[str] = None
     created_at: datetime
     updated_at: datetime

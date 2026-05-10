@@ -92,6 +92,7 @@ class IncidentStatus(str, enum.Enum):
     in_progress = "in_progress"
     resolved = "resolved"
     closed = "closed"
+    pending_assignment = "pending_assignment"
 
 
 class IssueStatus(str, enum.Enum):
@@ -431,6 +432,11 @@ class Incident(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
+    source = Column(String(50), nullable=False, default="manual")
+    reporter_email = Column(String(300), nullable=True)
+    email_message_id = Column(String(200), nullable=True, unique=True)
+    raw_unit_hint = Column(String(200), nullable=True)
+
     lot = relationship("Lot", back_populates="incidents")
     issues = relationship("Issue", back_populates="related_incident", foreign_keys="Issue.related_incident_id")
 
@@ -448,12 +454,6 @@ class Issue(Base):
     status = Column(SAEnum(IssueStatus, name="issuestatus"), nullable=False, default=IssueStatus.open)
     related_lot_id = Column(Integer, ForeignKey("lots.id", ondelete="SET NULL"), nullable=True)
     related_incident_id = Column(Integer, ForeignKey("incidents.id", ondelete="SET NULL"), nullable=True)
-    # Email ingest fields
-    source = Column(String(50), nullable=False, default="manual")
-    reporter_email = Column(String(300), nullable=True)
-    reporter_name = Column(String(200), nullable=True)
-    email_message_id = Column(String(200), nullable=True, unique=True)
-    raw_unit_hint = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
