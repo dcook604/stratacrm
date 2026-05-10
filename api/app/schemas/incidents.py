@@ -52,3 +52,18 @@ class IncidentOut(BaseModel):
     raw_unit_hint: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+class IncidentNoteCreate(BaseModel):
+    content: str
+
+
+class IncidentNoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    incident_id: int
+    content: str
+    source: str
+    author_email: Optional[str]
+    author_name: Optional[str]
+    created_at: datetime

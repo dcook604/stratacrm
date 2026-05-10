@@ -495,14 +495,16 @@ def poll_imap(db: Session) -> dict:
                 # Check if this is a reply in an existing incident's thread
                 thread_incident = _find_thread_incident(msg, db)
                 if thread_incident:
-                    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-                    thread_incident.description += (
-                        f"\n\n---\n\n"
-                        f"**Follow-up from:** {from_hint}\n"
-                        f"**Subject:** {subject_hint}\n"
-                        f"**Received:** {timestamp}\n\n"
-                        f"{body[:3000]}"
+                    from app.models import IncidentNote
+                    _, reporter_email_thread = _parse_sender(from_hint)
+                    note = IncidentNote(
+                        incident_id=thread_incident.id,
+                        content=f"**From:** {from_hint}\n**Subject:** {subject_hint}\n\n{body[:3000]}",
+                        source="email",
+                        author_email=reporter_email_thread or None,
+                        author_name=from_hint or None,
                     )
+                    db.add(note)
                     thread_incident.updated_at = datetime.now(timezone.utc)
                     # Re-open if it was resolved or closed
                     if thread_incident.status in (IncidentStatus.resolved, IncidentStatus.closed):

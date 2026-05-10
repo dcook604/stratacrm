@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle, Trash2, MessageSquare, Send } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import {
   issuesApi, lotsApi, incidentsApi,
-  type Issue, type IssueStatus, type IssuePriority,
+  type Issue, type IssueStatus, type IssuePriority, type EntityNote,
 } from "../lib/api";
 import { useToast } from "../lib/toast";
 
@@ -379,6 +379,7 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
                     </button>
                   ))}
               </div>
+              <IssueNotesPanel issueId={issue.id} />
             </div>
           </td>
         </tr>
@@ -386,6 +387,77 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Issue notes panel
+// ---------------------------------------------------------------------------
+
+function IssueNotesPanel({ issueId }: { issueId: number }) {
+  const qc = useQueryClient();
+  const { addToast } = useToast();
+  const [text, setText] = useState("");
+
+  const { data: notes } = useQuery<EntityNote[]>({
+    queryKey: ["issue-notes", issueId],
+    queryFn: () => issuesApi.listNotes(issueId),
+  });
+
+  const addMut = useMutation({
+    mutationFn: () => issuesApi.addNote(issueId, text.trim()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["issue-notes", issueId] });
+      setText("");
+    },
+    onError: (e: Error) => addToast("error", e.message),
+  });
+
+  return (
+    <div className="mt-3 border-t border-slate-200 pt-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
+        <MessageSquare className="w-3.5 h-3.5" />
+        Updates {notes && notes.length > 0 && `(${notes.length})`}
+      </h4>
+      {notes && notes.length > 0 && (
+        <div className="space-y-2 mb-2">
+          {notes.map((note) => (
+            <div key={note.id} className="rounded-lg px-3 py-2 text-sm bg-white border border-slate-200">
+              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                <span className="text-xs text-slate-500 font-medium">
+                  {note.author_name || note.author_email || "Unknown"}
+                </span>
+                <span className="text-xs text-slate-400">{fmtDatetime(note.created_at)}</span>
+              </div>
+              <p className="text-slate-700 whitespace-pre-wrap text-xs leading-relaxed">{note.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2 items-end">
+        <textarea
+          className="input text-sm flex-1 min-h-[52px] resize-y"
+          placeholder="Add an update…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && text.trim()) {
+              e.preventDefault();
+              addMut.mutate();
+            }
+          }}
+        />
+        <button
+          className="btn btn-primary text-xs py-2 px-3 flex items-center gap-1.5 self-end"
+          disabled={!text.trim() || addMut.isPending}
+          onClick={() => addMut.mutate()}
+        >
+          <Send className="w-3.5 h-3.5" />
+          {addMut.isPending ? "Saving…" : "Add"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 // ---------------------------------------------------------------------------
 // Main page

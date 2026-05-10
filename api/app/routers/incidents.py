@@ -12,8 +12,8 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.email import send_email
-from app.models import Document, Incident, IncidentStatus, Lot, User
-from app.schemas.incidents import IncidentCreate, IncidentOut, IncidentUpdate
+from app.models import Document, Incident, IncidentNote, IncidentStatus, Lot, User
+from app.schemas.incidents import IncidentCreate, IncidentNoteCreate, IncidentNoteOut, IncidentOut, IncidentUpdate
 from app.utils.reference import generate_reference
 from app.utils.share_token import create_share_token
 
@@ -132,6 +132,52 @@ def delete_incident(
                actor_id=current_user.id, actor_email=current_user.email, request=request)
     db.delete(inc)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Notes / timeline
+# ---------------------------------------------------------------------------
+
+@router.get("/{incident_id}/notes", response_model=list[IncidentNoteOut])
+def list_incident_notes(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    inc = db.get(Incident, incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    notes = db.execute(
+        select(IncidentNote)
+        .where(IncidentNote.incident_id == incident_id)
+        .order_by(IncidentNote.created_at.asc())
+    ).scalars().all()
+    return notes
+
+
+@router.post("/{incident_id}/notes", response_model=IncidentNoteOut,
+             status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_csrf)])
+def add_incident_note(
+    incident_id: int,
+    body: IncidentNoteCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write),
+):
+    inc = db.get(Incident, incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    note = IncidentNote(
+        incident_id=incident_id,
+        content=body.content,
+        source="manual",
+        author_email=current_user.email,
+        author_name=current_user.full_name,
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note
 
 
 # ---------------------------------------------------------------------------

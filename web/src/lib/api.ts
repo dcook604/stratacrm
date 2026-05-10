@@ -558,6 +558,15 @@ export interface Incident {
   updated_at: string;
 }
 
+export interface EntityNote {
+  id: number;
+  content: string;
+  source: string;
+  author_email: string | null;
+  author_name: string | null;
+  created_at: string;
+}
+
 export const incidentsApi = {
   list: (params?: {
     status?: IncidentStatus;
@@ -582,6 +591,9 @@ export const incidentsApi = {
   delete: (id: number) => api.delete(`/incidents/${id}`),
   sendEmail: (id: number, body: { to: string; message?: string }) =>
     api.post<void>(`/incidents/${id}/send-email`, body),
+  listNotes: (id: number) => api.get<EntityNote[]>(`/incidents/${id}/notes`),
+  addNote: (id: number, content: string) =>
+    api.post<EntityNote>(`/incidents/${id}/notes`, { content }),
 };
 
 // ---------------------------------------------------------------------------
@@ -691,6 +703,9 @@ export const issuesApi = {
   create: (body: object) => api.post<Issue>("/issues", body),
   update: (id: number, body: object) => api.patch<Issue>(`/issues/${id}`, body),
   delete: (id: number) => api.delete(`/issues/${id}`),
+  listNotes: (id: number) => api.get<EntityNote[]>(`/issues/${id}/notes`),
+  addNote: (id: number, content: string) =>
+    api.post<EntityNote>(`/issues/${id}/notes`, { content }),
 };
 
 // ---------------------------------------------------------------------------

@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session, selectinload
 from app.audit import log_action
 from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
-from app.models import Incident, Issue, IssuePriority, IssueStatus, Lot, User
-from app.schemas.issues import IssueCreate, IssueOut, IssueUpdate
+from app.models import Incident, Issue, IssueNote, IssuePriority, IssueStatus, Lot, User
+from app.schemas.issues import IssueCreate, IssueNoteCreate, IssueNoteOut, IssueOut, IssueUpdate
 
 router = APIRouter(prefix="/issues", tags=["issues"])
 
@@ -156,3 +156,49 @@ def delete_issue(
                actor_id=current_user.id, actor_email=current_user.email, request=request)
     db.delete(issue)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Notes / timeline
+# ---------------------------------------------------------------------------
+
+@router.get("/{issue_id}/notes", response_model=list[IssueNoteOut])
+def list_issue_notes(
+    issue_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    issue = db.get(Issue, issue_id)
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    notes = db.execute(
+        select(IssueNote)
+        .where(IssueNote.issue_id == issue_id)
+        .order_by(IssueNote.created_at.asc())
+    ).scalars().all()
+    return notes
+
+
+@router.post("/{issue_id}/notes", response_model=IssueNoteOut,
+             status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_csrf)])
+def add_issue_note(
+    issue_id: int,
+    body: IssueNoteCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write),
+):
+    issue = db.get(Issue, issue_id)
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    note = IssueNote(
+        issue_id=issue_id,
+        content=body.content,
+        source="manual",
+        author_email=current_user.email,
+        author_name=current_user.full_name,
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note

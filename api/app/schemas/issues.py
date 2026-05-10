@@ -63,3 +63,18 @@ class IssueOut(BaseModel):
     related_incident: Optional[IncidentMini] = None
     created_at: datetime
     updated_at: datetime
+
+
+class IssueNoteCreate(BaseModel):
+    content: str
+
+
+class IssueNoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    issue_id: int
+    content: str
+    source: str
+    author_email: Optional[str]
+    author_name: Optional[str]
+    created_at: datetime

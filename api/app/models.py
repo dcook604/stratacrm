@@ -79,6 +79,7 @@ class InfractionEventType(str, enum.Enum):
     fine_levied = "fine_levied"
     payment_received = "payment_received"
     dismissed = "dismissed"
+    note = "note"
 
 
 class DeliveryMethod(str, enum.Enum):
@@ -439,6 +440,23 @@ class Incident(Base):
 
     lot = relationship("Lot", back_populates="incidents")
     issues = relationship("Issue", back_populates="related_incident", foreign_keys="Issue.related_incident_id")
+    notes = relationship("IncidentNote", back_populates="incident",
+                         cascade="all, delete-orphan", order_by="IncidentNote.created_at")
+
+
+class IncidentNote(Base):
+    """Timeline notes/updates for an incident (manual or email follow-up)."""
+    __tablename__ = "incident_notes"
+
+    id = Column(Integer, primary_key=True)
+    incident_id = Column(Integer, ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False)
+    content = Column(Text, nullable=False)
+    source = Column(String(50), nullable=False, default="manual")  # 'manual' | 'email'
+    author_email = Column(String(200), nullable=True)
+    author_name = Column(String(200), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    incident = relationship("Incident", back_populates="notes")
 
 
 class Issue(Base):
@@ -460,6 +478,23 @@ class Issue(Base):
     assignee = relationship("User", foreign_keys=[assignee_id])
     related_lot = relationship("Lot", foreign_keys=[related_lot_id])
     related_incident = relationship("Incident", back_populates="issues", foreign_keys=[related_incident_id])
+    notes = relationship("IssueNote", back_populates="issue",
+                         cascade="all, delete-orphan", order_by="IssueNote.created_at")
+
+
+class IssueNote(Base):
+    """Timeline notes/updates for an issue."""
+    __tablename__ = "issue_notes"
+
+    id = Column(Integer, primary_key=True)
+    issue_id = Column(Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False)
+    content = Column(Text, nullable=False)
+    source = Column(String(50), nullable=False, default="manual")
+    author_email = Column(String(200), nullable=True)
+    author_name = Column(String(200), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    issue = relationship("Issue", back_populates="notes")
 
 
 class EmailIngestConfig(Base):
