@@ -93,4 +93,4 @@ def downgrade() -> None:
     op.execute("DROP TABLE IF EXISTS import_staged_lots CASCADE")
     op.execute("DROP TABLE IF EXISTS import_batches CASCADE")
     for t in ["duplicateconfidence", "stagedpartyaction", "stagedlotstatus", "importbatchstatus"]:
-        op.execute(f"DROP TYPE IF EXISTS {t}")
+        op.execute(f"DROP TYPE IF EXISTS {t}")  # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query, python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query

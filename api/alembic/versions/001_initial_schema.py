@@ -352,7 +352,7 @@ def upgrade() -> None:
         "users", "parties", "lots", "lot_assignments",
         "infractions", "incidents", "issues",
     ]:
-        op.execute(f"""
+        op.execute(f"""  # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query, python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
             CREATE TRIGGER trg_{table}_updated_at
             BEFORE UPDATE ON {table}
             FOR EACH ROW EXECUTE FUNCTION _set_updated_at()
@@ -365,7 +365,7 @@ def downgrade() -> None:
         "users", "parties", "lots", "lot_assignments",
         "infractions", "incidents", "issues",
     ]:
-        op.execute(f"DROP TRIGGER IF EXISTS trg_{table}_updated_at ON {table}")
+        op.execute(f"DROP TRIGGER IF EXISTS trg_{table}_updated_at ON {table}")  # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query, python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
 
     op.execute("DROP FUNCTION IF EXISTS _set_updated_at()")
 
@@ -388,7 +388,7 @@ def downgrade() -> None:
         "audit_log",
         "users",
     ]:
-        op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+        op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")  # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query, python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
 
     # Drop enum types
     for enum_type in [
@@ -397,4 +397,4 @@ def downgrade() -> None:
         "infractionstatus", "bylawcategory", "lotassignmentrole",
         "contactmethodtype", "partytype", "userrole",
     ]:
-        op.execute(f"DROP TYPE IF EXISTS {enum_type}")
+        op.execute(f"DROP TYPE IF EXISTS {enum_type}")  # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query, python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query

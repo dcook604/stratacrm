@@ -87,7 +87,7 @@ def _message_dedup_key(msg: email.message.Message, imap_uid: bytes) -> str:
         return mid[:200]
     # Fallback: hash sender + subject + date so we still deduplicate reliably
     raw = f"{msg.get('From','')}{msg.get('Subject','')}{msg.get('Date','')}"
-    return "hash:" + hashlib.sha1(raw.encode()).hexdigest()
+    return "hash:" + hashlib.sha256(raw.encode()).hexdigest()
 
 
 def _parse_sender(from_header: str) -> tuple[str, str]:

@@ -15,6 +15,8 @@ services:
       POSTGRES_DB: spectrum4_crm
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spectrum4 -d spectrum4_crm"]
       interval: 10s

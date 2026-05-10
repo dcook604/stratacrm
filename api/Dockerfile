@@ -29,6 +29,11 @@ COPY . .
 
 RUN mkdir -p /app/uploads
 
+# Run as non-root user to limit blast radius if the process is compromised
+RUN groupadd --system appuser && useradd --system --gid appuser --no-create-home appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
 # Alembic runs migrations on every start (idempotent). uvicorn is multi-worker.
