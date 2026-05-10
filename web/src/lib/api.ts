@@ -825,7 +825,13 @@ export interface EmailIngestConfig {
   has_imap_password: boolean;
   imap_configured: boolean;
   last_polled_at: string | null;
-  last_poll_stats: { created: number; skipped: number; errors: number; pending: number } | null;
+  last_poll_stats: {
+    created: number;
+    skipped: number;
+    errors: number;
+    pending: number;
+    error_details?: { subject: string | null; from: string | null; error: string }[];
+  } | null;
 }
 
 export interface EmailIngestConfigUpdate {

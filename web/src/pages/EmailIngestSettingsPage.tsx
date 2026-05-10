@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Mail, CheckCircle, XCircle, RefreshCw, Loader2,
-  Eye, EyeOff, AlertCircle, Wifi, WifiOff,
+  Eye, EyeOff, AlertCircle, Wifi, WifiOff, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { emailIngestApi, type EmailIngestConfigUpdate } from "../lib/api";
 import { useToast as useToastCtx } from "../lib/toast";
@@ -202,6 +202,7 @@ export default function EmailIngestSettingsPage() {
   }
 
   const stats = config.last_poll_stats;
+  const [showErrors, setShowErrors] = useState(false);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -230,11 +231,33 @@ export default function EmailIngestSettingsPage() {
               {config.last_polled_at ? fmtDatetime(config.last_polled_at) : "Never"}
             </p>
             {stats && (
-              <p className="text-xs text-slate-500">
-                {stats.created} created
-                {stats.pending > 0 && ` · ${stats.pending} pending assignment`}
-                {" · "}{stats.skipped} skipped · {stats.errors} errors
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500">
+                  {stats.created} created
+                  {stats.pending > 0 && ` · ${stats.pending} pending assignment`}
+                  {" · "}{stats.skipped} skipped
+                  {stats.errors > 0 && (
+                    <button
+                      onClick={() => setShowErrors((x) => !x)}
+                      className="ml-1 inline-flex items-center gap-0.5 text-red-600 font-medium hover:underline"
+                    >
+                      · {stats.errors} error{stats.errors !== 1 ? "s" : ""}
+                      {showErrors ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                  )}
+                </p>
+                {showErrors && stats.error_details && stats.error_details.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {stats.error_details.map((e, i) => (
+                      <div key={i} className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs">
+                        {e.from && <p className="text-slate-500 font-medium">From: {e.from}</p>}
+                        {e.subject && <p className="text-slate-500">Subject: {e.subject}</p>}
+                        <p className="text-red-700 mt-0.5 font-mono break-all">{e.error}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <button

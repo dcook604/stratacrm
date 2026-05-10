@@ -303,12 +303,14 @@ def poll_imap(db: Session) -> dict:
         return {"created": 0, "skipped": 0, "errors": 0, "pending": 0,
                 "skipped_reason": "IMAP credentials incomplete"}
 
-    stats = {"created": 0, "skipped": 0, "errors": 0, "pending": 0}
+    stats: dict = {"created": 0, "skipped": 0, "errors": 0, "pending": 0, "error_details": []}
 
     try:
         conn = _get_imap_connection(config)
     except Exception as exc:
         log.error("imap_connect_failed", error=str(exc))
+        stats["error_details"].append({"subject": None, "from": None, "error": f"Connection failed: {exc}"})
+        stats["errors"] += 1
         _save_poll_stats(db, stats)
         return stats
 
@@ -318,6 +320,8 @@ def poll_imap(db: Session) -> dict:
         status, data = conn.search(None, "UNSEEN")
         if status != "OK":
             log.error("imap_search_failed", status=status)
+            stats["error_details"].append({"subject": None, "from": None, "error": f"IMAP SEARCH failed: {status}"})
+            stats["errors"] += 1
             _save_poll_stats(db, stats)
             return stats
 
@@ -325,14 +329,20 @@ def poll_imap(db: Session) -> dict:
         log.info("imap_unseen_messages", count=len(uid_list))
 
         for uid in uid_list:
+            subject_hint = None
+            from_hint = None
             try:
                 status, msg_data = conn.fetch(uid, "(RFC822)")
                 if status != "OK" or not msg_data or not msg_data[0]:
                     stats["errors"] += 1
+                    stats["error_details"].append({"subject": None, "from": None, "error": f"Failed to fetch message uid={uid.decode()}"})
                     continue
 
                 raw = msg_data[0][1]
                 msg = email.message_from_bytes(raw)
+
+                subject_hint = _decode_mime_header(msg.get("Subject", "(No subject)"))
+                from_hint = _decode_mime_header(msg.get("From", ""))
 
                 dedup_key = _message_dedup_key(msg, uid)
                 existing = db.execute(
@@ -343,16 +353,14 @@ def poll_imap(db: Session) -> dict:
                     conn.store(uid, "+FLAGS", "\\Seen")
                     continue
 
-                subject = _decode_mime_header(msg.get("Subject", "(No subject)"))
-                from_raw = _decode_mime_header(msg.get("From", ""))
                 body = _extract_plain_text(msg)
 
-                reporter_name, reporter_email = _parse_sender(from_raw)
-                parsed = parse_email_with_ai(subject, body, from_raw, config)
+                reporter_name, reporter_email = _parse_sender(from_hint)
+                parsed = parse_email_with_ai(subject_hint, body, from_hint, config)
 
                 # Unit resolution: prefer AI extraction, fall back to regex
                 ai_unit = parsed.get("unit_number")
-                regex_unit = _extract_unit_hint(subject, body)
+                regex_unit = _extract_unit_hint(subject_hint, body)
                 unit_hint = ai_unit or regex_unit
 
                 lot_id = _find_lot_id(db, unit_hint)
@@ -366,7 +374,7 @@ def poll_imap(db: Session) -> dict:
 
                 issue = Issue(
                     title=parsed["title"],
-                    description=f"**From:** {from_raw}\n**Subject:** {subject}\n\n{parsed['description']}",
+                    description=f"**From:** {from_hint}\n**Subject:** {subject_hint}\n\n{parsed['description']}",
                     priority=IssuePriority(parsed["priority"]),
                     status=issue_status,
                     source="email",
@@ -392,6 +400,11 @@ def poll_imap(db: Session) -> dict:
                 log.error("imap_message_failed", uid=uid, error=str(exc))
                 db.rollback()
                 stats["errors"] += 1
+                stats["error_details"].append({
+                    "subject": subject_hint,
+                    "from": from_hint,
+                    "error": str(exc),
+                })
 
     finally:
         try:
