@@ -38,6 +38,7 @@ def list_issues(
     status_filter: Optional[IssueStatus] = Query(None, alias="status"),
     priority: Optional[IssuePriority] = Query(None),
     assignee_id: Optional[int] = Query(None),
+    lot_id: Optional[int] = Query(None),
     open_only: bool = Query(False),
     overdue_only: bool = Query(False),
     skip: int = Query(0, ge=0),
@@ -68,6 +69,8 @@ def list_issues(
         stmt = stmt.where(Issue.priority == priority)
     if assignee_id:
         stmt = stmt.where(Issue.assignee_id == assignee_id)
+    if lot_id:
+        stmt = stmt.where(Issue.related_lot_id == lot_id)
     stmt = stmt.offset(skip).limit(limit)
     return db.execute(stmt).scalars().all()
 

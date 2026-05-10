@@ -670,6 +670,7 @@ export const issuesApi = {
     status?: IssueStatus;
     priority?: IssuePriority;
     assignee_id?: number;
+    lot_id?: number;
     open_only?: boolean;
     overdue_only?: boolean;
     skip?: number;
@@ -679,6 +680,7 @@ export const issuesApi = {
     if (params?.status) qs.set("status", params.status);
     if (params?.priority) qs.set("priority", params.priority);
     if (params?.assignee_id != null) qs.set("assignee_id", String(params.assignee_id));
+    if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
     if (params?.open_only) qs.set("open_only", "true");
     if (params?.overdue_only) qs.set("overdue_only", "true");
     if (params?.skip != null) qs.set("skip", String(params.skip));
