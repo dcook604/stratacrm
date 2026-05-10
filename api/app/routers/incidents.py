@@ -180,6 +180,21 @@ def add_incident_note(
     return note
 
 
+@router.delete("/{incident_id}/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_csrf)])
+def delete_incident_note(
+    incident_id: int,
+    note_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_write),
+):
+    note = db.get(IncidentNote, note_id)
+    if not note or note.incident_id != incident_id:
+        raise HTTPException(status_code=404, detail="Note not found")
+    db.delete(note)
+    db.commit()
+
+
 # ---------------------------------------------------------------------------
 # Email sharing
 # ---------------------------------------------------------------------------

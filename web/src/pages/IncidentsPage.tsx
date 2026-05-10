@@ -723,6 +723,12 @@ function NotesPanel({ incidentId }: { incidentId: number }) {
     onError: (e: Error) => addToast("error", e.message),
   });
 
+  const delMut = useMutation({
+    mutationFn: (noteId: number) => incidentsApi.deleteNote(incidentId, noteId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incident-notes", incidentId] }),
+    onError: (e: Error) => addToast("error", e.message),
+  });
+
   return (
     <div className="mt-4 border-t border-slate-200 pt-4">
       <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
@@ -744,6 +750,14 @@ function NotesPanel({ incidentId }: { incidentId: number }) {
                   {note.author_name || note.author_email || "Unknown"}
                 </span>
                 <span className="text-xs text-slate-400">{fmtDatetime(note.created_at)}</span>
+                <button
+                  className="ml-auto text-slate-300 hover:text-red-500 transition-colors"
+                  title="Delete note"
+                  disabled={delMut.isPending}
+                  onClick={() => delMut.mutate(note.id)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
               <p className="text-slate-700 whitespace-pre-wrap text-xs leading-relaxed">{note.content}</p>
             </div>

@@ -202,3 +202,18 @@ def add_issue_note(
     db.commit()
     db.refresh(note)
     return note
+
+
+@router.delete("/{issue_id}/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_csrf)])
+def delete_issue_note(
+    issue_id: int,
+    note_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_write),
+):
+    note = db.get(IssueNote, note_id)
+    if not note or note.issue_id != issue_id:
+        raise HTTPException(status_code=404, detail="Note not found")
+    db.delete(note)
+    db.commit()

@@ -594,6 +594,8 @@ export const incidentsApi = {
   listNotes: (id: number) => api.get<EntityNote[]>(`/incidents/${id}/notes`),
   addNote: (id: number, content: string) =>
     api.post<EntityNote>(`/incidents/${id}/notes`, { content }),
+  deleteNote: (id: number, noteId: number) =>
+    api.delete(`/incidents/${id}/notes/${noteId}`),
 };
 
 // ---------------------------------------------------------------------------
@@ -706,6 +708,8 @@ export const issuesApi = {
   listNotes: (id: number) => api.get<EntityNote[]>(`/issues/${id}/notes`),
   addNote: (id: number, content: string) =>
     api.post<EntityNote>(`/issues/${id}/notes`, { content }),
+  deleteNote: (id: number, noteId: number) =>
+    api.delete(`/issues/${id}/notes/${noteId}`),
 };
 
 // ---------------------------------------------------------------------------
