@@ -767,11 +767,22 @@ function QuickAssignLot({ incident }: { incident: Incident }) {
 function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const qc = useQueryClient();
+  const { addToast } = useToast();
 
   const quickStatus = useMutation({
     mutationFn: (status: IncidentStatus) => incidentsApi.update(incident.id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => incidentsApi.delete(incident.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["incidents"] });
+      addToast("success", `${incident.reference} deleted.`);
+    },
+    onError: (e: Error) => addToast("error", e.message),
   });
 
   const isPending = incident.status === "pending_assignment";
@@ -807,16 +818,49 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
             {STATUS_LABELS[incident.status]}
           </span>
         </td>
-        <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="text-slate-400 hover:text-blue-600"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          {expanded
-            ? <ChevronUp className="w-4 h-4 text-slate-400" />
-            : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        <td className="px-4 py-3 text-right flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+          {confirmDelete ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-red-700 font-medium whitespace-nowrap">Delete?</span>
+              <button
+                className="text-xs text-red-600 font-semibold hover:underline disabled:opacity-50"
+                disabled={deleteMut.isPending}
+                onClick={() => deleteMut.mutate()}
+              >
+                Yes
+              </button>
+              <button
+                className="text-xs text-slate-500 hover:underline"
+                onClick={() => setConfirmDelete(false)}
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => onEdit()}
+                className="text-slate-400 hover:text-blue-600"
+                title="Edit"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-slate-400 hover:text-red-600"
+                title="Delete"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          {!confirmDelete && (
+            <span onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }} className="cursor-pointer">
+              {expanded
+                ? <ChevronUp className="w-4 h-4 text-slate-400" />
+                : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </span>
+          )}
         </td>
       </tr>
       {expanded && (
