@@ -122,7 +122,7 @@ export default function LotDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 bg-slate-200 rounded" />
           <div className="h-48 bg-slate-100 rounded-lg" />
@@ -133,7 +133,7 @@ export default function LotDetailPage() {
 
   if (error || !lot) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <Link to="/lots" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-4">
           <ArrowLeft className="w-4 h-4" /> Back to Lots
         </Link>
@@ -143,12 +143,12 @@ export default function LotDetailPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
       <Link to="/lots" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Lots
       </Link>
 
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
             SL{lot.strata_lot_number}
@@ -191,7 +191,7 @@ export default function LotDetailPage() {
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-4">Lot Details</h2>
         {editing ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Unit Number</label>
               <input
@@ -245,7 +245,7 @@ export default function LotDetailPage() {
                 onChange={(e) => setForm((f) => ({ ...f, scooter_lockers: e.target.value }))}
               />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="label">Notes</label>
               <textarea
                 className="input"
@@ -256,7 +256,7 @@ export default function LotDetailPage() {
             </div>
           </div>
         ) : (
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Field label="Unit Number" value={lot.unit_number} />
             <Field
               label="Square Feet"
@@ -266,7 +266,7 @@ export default function LotDetailPage() {
             <Field label="Storage Lockers" value={lot.storage_lockers} />
             <Field label="Bike Lockers" value={lot.bike_lockers} />
             <Field label="Scooter Lockers" value={lot.scooter_lockers} />
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <Field label="Notes" value={lot.notes} />
             </div>
           </dl>
@@ -275,14 +275,14 @@ export default function LotDetailPage() {
 
       {/* Activity summary */}
       {(infractions || incidents || issues) && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
           <button
-            className={`card p-4 text-left hover:border-amber-300 transition-colors ${expandedSection === "infractions" ? "border-amber-400 bg-amber-50/30" : ""}`}
+            className={`card p-3 sm:p-4 text-left hover:border-amber-300 transition-colors ${expandedSection === "infractions" ? "border-amber-400 bg-amber-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "infractions" ? null : "infractions")}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Infractions</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">Infractions</span>
             </div>
             <p className="text-2xl font-bold text-slate-800">{infractions?.length ?? "—"}</p>
             {infractions && infractions.filter(i => i.status !== "dismissed" && i.status !== "fined").length > 0 && (
@@ -292,12 +292,12 @@ export default function LotDetailPage() {
             )}
           </button>
           <button
-            className={`card p-4 text-left hover:border-blue-300 transition-colors ${expandedSection === "incidents" ? "border-blue-400 bg-blue-50/30" : ""}`}
+            className={`card p-3 sm:p-4 text-left hover:border-blue-300 transition-colors ${expandedSection === "incidents" ? "border-blue-400 bg-blue-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "incidents" ? null : "incidents")}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="w-4 h-4 text-blue-500" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Incidents</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+              <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">Incidents</span>
             </div>
             <p className="text-2xl font-bold text-slate-800">{incidents?.length ?? "—"}</p>
             {incidents && incidents.filter(i => i.status === "open" || i.status === "in_progress").length > 0 && (
@@ -307,12 +307,12 @@ export default function LotDetailPage() {
             )}
           </button>
           <button
-            className={`card p-4 text-left hover:border-purple-300 transition-colors ${expandedSection === "issues" ? "border-purple-400 bg-purple-50/30" : ""}`}
+            className={`card p-3 sm:p-4 text-left hover:border-purple-300 transition-colors ${expandedSection === "issues" ? "border-purple-400 bg-purple-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "issues" ? null : "issues")}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <Wrench className="w-4 h-4 text-purple-500" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Issues</span>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+              <Wrench className="w-4 h-4 text-purple-500 shrink-0" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">Issues</span>
             </div>
             <p className="text-2xl font-bold text-slate-800">{issues?.length ?? "—"}</p>
             {issues && issues.filter(i => i.status === "open" || i.status === "in_progress").length > 0 && (
@@ -404,6 +404,7 @@ export default function LotDetailPage() {
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
+                    <th className="w-16" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -418,6 +419,11 @@ export default function LotDetailPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{inc.description}</td>
+                      <td className="px-4 py-3">
+                        <Link to={`/incidents?open=${inc.id}`} className="text-blue-600 hover:underline text-xs font-medium">
+                          View
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -451,6 +457,7 @@ export default function LotDetailPage() {
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Due</th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Assignee</th>
+                    <th className="w-16" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -474,6 +481,11 @@ export default function LotDetailPage() {
                       </td>
                       <td className="px-4 py-3 text-slate-500">
                         {issue.assignee?.full_name ?? <span className="text-slate-300">Unassigned</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link to={`/issues?open=${issue.id}`} className="text-blue-600 hover:underline text-xs font-medium">
+                          View
+                        </Link>
                       </td>
                     </tr>
                   ))}

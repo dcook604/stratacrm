@@ -75,7 +75,7 @@ export default function PartyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 bg-slate-200 rounded" />
           <div className="h-64 bg-slate-100 rounded-lg" />
@@ -86,7 +86,7 @@ export default function PartyDetailPage() {
 
   if (error || !party) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <Link to="/parties" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-4">
           <ArrowLeft className="w-4 h-4" /> Back
         </Link>
@@ -96,12 +96,12 @@ export default function PartyDetailPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
       <Link to="/parties" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Parties
       </Link>
 
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{party.full_name}</h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -157,8 +157,8 @@ export default function PartyDetailPage() {
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-4">Details</h2>
         {editing ? (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="col-span-1 sm:col-span-2">
               <label className="label">Full Name</label>
               <input
                 className="input"
@@ -187,7 +187,7 @@ export default function PartyDetailPage() {
               />
               <label htmlFor="is_pm" className="text-sm text-slate-700">Property Manager</label>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="label">Mailing Address</label>
               <input
                 className="input mb-2"
@@ -222,7 +222,7 @@ export default function PartyDetailPage() {
                 />
               </div>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="label">Notes</label>
               <textarea
                 className="input"
@@ -233,7 +233,7 @@ export default function PartyDetailPage() {
             </div>
           </div>
         ) : (
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Field label="Mailing Address" value={[
               party.mailing_address_line1,
               party.mailing_address_line2,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
@@ -856,8 +857,14 @@ function QuickAssignLot({ incident }: { incident: Incident }) {
   );
 }
 
-function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => void }) {
-  const [expanded, setExpanded] = useState(false);
+function IncidentRow({ incident, onEdit, initialExpanded }: { incident: Incident; onEdit: () => void; initialExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(initialExpanded ?? false);
+  const rowRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (initialExpanded && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [initialExpanded]);
   const [emailOpen, setEmailOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const qc = useQueryClient();
@@ -888,6 +895,7 @@ function IncidentRow({ incident, onEdit }: { incident: Incident; onEdit: () => v
   return (
     <>
       <tr
+        ref={rowRef}
         className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${isPending ? "bg-amber-50/40" : ""}`}
         onClick={() => setExpanded((x) => !x)}
       >
@@ -1028,6 +1036,8 @@ const STATUS_FILTERS: { value: IncidentStatus | ""; label: string }[] = [
 ];
 
 export default function IncidentsPage() {
+  const [searchParams] = useSearchParams();
+  const openId = searchParams.get("open") ? Number(searchParams.get("open")) : null;
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | "">("");
   const [openOnly, setOpenOnly] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -1152,6 +1162,7 @@ export default function IncidentsPage() {
                 key={inc.id}
                 incident={inc}
                 onEdit={() => setEditIncident(inc)}
+                initialExpanded={inc.id === openId}
               />
             ))}
           </tbody>

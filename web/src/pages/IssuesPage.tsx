@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle, Trash2, MessageSquare, Send } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
@@ -271,8 +272,14 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
 // Issue row
 // ---------------------------------------------------------------------------
 
-function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
-  const [expanded, setExpanded] = useState(false);
+function IssueRow({ issue, onEdit, initialExpanded }: { issue: Issue; onEdit: () => void; initialExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(initialExpanded ?? false);
+  const rowRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (initialExpanded && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [initialExpanded]);
   const qc = useQueryClient();
 
   const quickStatus = useMutation({
@@ -297,6 +304,7 @@ function IssueRow({ issue, onEdit }: { issue: Issue; onEdit: () => void }) {
   return (
     <>
       <tr
+        ref={rowRef}
         className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${overdue ? "bg-red-50/30" : ""}`}
         onClick={() => setExpanded((x) => !x)}
       >
@@ -494,6 +502,8 @@ const STATUS_FILTERS: { value: IssueStatus | ""; label: string }[] = [
 ];
 
 export default function IssuesPage() {
+  const [searchParams] = useSearchParams();
+  const openId = searchParams.get("open") ? Number(searchParams.get("open")) : null;
   const [statusFilter, setStatusFilter] = useState<IssueStatus | "">("");
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | "">("");
   const [openOnly, setOpenOnly] = useState(false);
@@ -634,6 +644,7 @@ export default function IssuesPage() {
                 key={issue.id}
                 issue={issue}
                 onEdit={() => setEditIssue(issue)}
+                initialExpanded={issue.id === openId}
               />
             ))}
           </tbody>
