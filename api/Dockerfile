@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     shared-mime-info \
     ffmpeg \
+    gosu \
     && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,12 +30,16 @@ COPY . .
 
 RUN mkdir -p /app/uploads
 
-# Run as non-root user to limit blast radius if the process is compromised
+# Create non-root user; chown happens at runtime via entrypoint (volume mounts
+# shadow the image directory, so build-time chown doesn't reach the volume).
 RUN groupadd --system appuser && useradd --system --gid appuser --no-create-home appuser \
     && chown -R appuser:appuser /app
-USER appuser
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
-# Alembic runs migrations on every start (idempotent). uvicorn is multi-worker.
+# entrypoint.sh runs as root, fixes /app/uploads ownership, then execs as appuser.
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips='*'"]
