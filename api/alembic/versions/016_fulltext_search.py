@@ -79,14 +79,18 @@ def upgrade():
 
     # 2. Create the shared trigger function
     cases = []
+    first = True
     for table, cfg in _TABLES.items():
-        when = f"TG_TABLE_NAME = '{table}'"
+        kw = "IF" if first else "ELSIF"
+        first = False
+        when = f"{kw} TG_TABLE_NAME = '{table}'"
         weight_exprs = " || ".join(
             f"\n                    {_weight_expr(w, cols)}"
             for w, cols in cfg["weights"].items()
         )
         then = f"NEW.search_vector := {weight_exprs};"
         cases.append(f"            {when} THEN\n{then}")
+    cases.append("            END IF;")
 
     trigger_body = "\n".join(cases)
 
