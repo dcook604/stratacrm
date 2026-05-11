@@ -444,10 +444,15 @@ class Incident(Base):
     email_message_id = Column(String(200), nullable=True, unique=True)
     raw_unit_hint = Column(String(200), nullable=True)
 
+    merged_into_id = Column(Integer, ForeignKey("incidents.id", ondelete="SET NULL"), nullable=True)
+    merged_at = Column(DateTime(timezone=True), nullable=True)
+
     lot = relationship("Lot", back_populates="incidents")
     issues = relationship("Issue", back_populates="related_incident", foreign_keys="Issue.related_incident_id")
     notes = relationship("IncidentNote", back_populates="incident",
                          cascade="all, delete-orphan", order_by="IncidentNote.created_at")
+    merged_into = relationship("Incident", remote_side=[id], back_populates="merged_sources")
+    merged_sources = relationship("Incident", back_populates="merged_into")
 
 
 class IncidentNote(Base):

@@ -1,10 +1,11 @@
 """Incident log router — property/common-area incidents and their status."""
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import select, update as sa_update
 from sqlalchemy.orm import Session, selectinload
 
 from app.audit import log_action
@@ -12,8 +13,8 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.email import send_email
-from app.models import Document, Incident, IncidentNote, IncidentStatus, Lot, User
-from app.schemas.incidents import IncidentCreate, IncidentNoteCreate, IncidentNoteOut, IncidentOut, IncidentUpdate
+from app.models import Document, Incident, IncidentNote, IncidentStatus, Issue, Lot, User
+from app.schemas.incidents import IncidentCreate, IncidentMergeRequest, IncidentNoteCreate, IncidentNoteOut, IncidentOut, IncidentUpdate
 from app.utils.reference import generate_reference
 from app.utils.share_token import create_share_token
 
@@ -44,6 +45,7 @@ def list_incidents(
 ):
     stmt = (
         select(Incident)
+        .where(Incident.merged_into_id.is_(None))
         .options(selectinload(Incident.lot))
         .order_by(Incident.incident_date.desc(), Incident.id.desc())
     )
@@ -132,6 +134,90 @@ def delete_incident(
                actor_id=current_user.id, actor_email=current_user.email, request=request)
     db.delete(inc)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Merge incidents
+# ---------------------------------------------------------------------------
+
+@router.post("/{incident_id}/merge", response_model=IncidentOut,
+             dependencies=[Depends(require_csrf)])
+def merge_incidents(
+    incident_id: int,
+    request: Request,
+    body: IncidentMergeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write),
+):
+    primary = _load(incident_id, db)
+    if not body.merge_ids:
+        raise HTTPException(status_code=400, detail="merge_ids is required")
+
+    secondaries = db.execute(
+        select(Incident)
+        .where(Incident.id.in_(body.merge_ids))
+    ).scalars().all()
+
+    if len(secondaries) != len(body.merge_ids):
+        raise HTTPException(status_code=404, detail="One or more incidents not found")
+
+    now = datetime.now(timezone.utc)
+    refs = []
+
+    for sec in secondaries:
+        if sec.merged_into_id is not None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Incident {sec.reference} is already merged into another incident",
+            )
+        if sec.id == primary.id:
+            raise HTTPException(status_code=400, detail="Cannot merge an incident into itself")
+        refs.append(sec.reference)
+
+    # Reassign notes from secondary incidents to primary
+    db.execute(
+        sa_update(IncidentNote)
+        .where(IncidentNote.incident_id.in_(body.merge_ids))
+        .values(incident_id=primary.id)
+    )
+
+    # Reassign issues linked to secondary incidents
+    db.execute(
+        sa_update(Issue)
+        .where(Issue.related_incident_id.in_(body.merge_ids))
+        .values(related_incident_id=primary.id)
+    )
+
+    # Reassign documents linked to secondary incidents
+    db.execute(
+        sa_update(Document)
+        .where(Document.linked_entity_type == "incident")
+        .where(Document.linked_entity_id.in_(body.merge_ids))
+        .values(linked_entity_id=primary.id)
+    )
+
+    # Mark secondaries as merged
+    for sec in secondaries:
+        sec.merged_into_id = primary.id
+        sec.merged_at = now
+
+    # Add audit note to primary
+    merged_desc = ", ".join(refs)
+    note = IncidentNote(
+        incident_id=primary.id,
+        content=f"Merged incidents: {merged_desc}",
+        source="manual",
+        author_email=current_user.email,
+        author_name=current_user.full_name,
+    )
+    db.add(note)
+
+    log_action(db, action="merge", entity_type="incident", entity_id=incident_id,
+               changes={"merged_ids": body.merge_ids, "merged_references": refs},
+               actor_id=current_user.id, actor_email=current_user.email, request=request)
+    db.commit()
+
+    return _load(incident_id, db)
 
 
 # ---------------------------------------------------------------------------

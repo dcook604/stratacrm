@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document, type EntityNote } from "../lib/api";
 import { useToast } from "../lib/toast";
@@ -857,7 +857,13 @@ function QuickAssignLot({ incident }: { incident: Incident }) {
   );
 }
 
-function IncidentRow({ incident, onEdit, initialExpanded }: { incident: Incident; onEdit: () => void; initialExpanded?: boolean }) {
+function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSelect }: {
+  incident: Incident;
+  onEdit: () => void;
+  initialExpanded?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const [expanded, setExpanded] = useState(initialExpanded ?? false);
   const rowRef = useRef<HTMLTableRowElement>(null);
   useEffect(() => {
@@ -896,9 +902,20 @@ function IncidentRow({ incident, onEdit, initialExpanded }: { incident: Incident
     <>
       <tr
         ref={rowRef}
-        className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${isPending ? "bg-amber-50/40" : ""}`}
-        onClick={() => setExpanded((x) => !x)}
+        className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${isPending ? "bg-amber-50/40" : ""} ${isSelected ? "bg-blue-50/60" : ""}`}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("input[type=checkbox]")) return;
+          setExpanded((x) => !x);
+        }}
       >
+        <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            className="rounded border-slate-300"
+            checked={!!isSelected}
+            onChange={onToggleSelect}
+          />
+        </td>
         <td className="px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
         <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDatetime(incident.incident_date)}</td>
         <td className="px-4 py-3 text-sm font-medium">
@@ -965,7 +982,7 @@ function IncidentRow({ incident, onEdit, initialExpanded }: { incident: Incident
       </tr>
       {expanded && (
         <tr className="bg-slate-50 border-b border-slate-200">
-          <td colSpan={6} className="px-6 py-4">
+          <td colSpan={7} className="px-6 py-4">
             <div className="max-w-3xl space-y-3">
               {isPending && <QuickAssignLot incident={incident} />}
               <p className="text-sm text-slate-700 whitespace-pre-wrap">{incident.description}</p>
@@ -1023,6 +1040,117 @@ function IncidentRow({ incident, onEdit, initialExpanded }: { incident: Incident
 }
 
 // ---------------------------------------------------------------------------
+// Merge dialog
+// ---------------------------------------------------------------------------
+
+function MergeDialog({
+  incidents,
+  selectedIds,
+  mergePrimaryId,
+  onSetMergePrimaryId,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  incidents: Incident[];
+  selectedIds: Set<number>;
+  mergePrimaryId: number | null;
+  onSetMergePrimaryId: (id: number) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const selected = incidents.filter((i) => selectedIds.has(i.id));
+  const firstInList = selected.length > 0 ? selected[0].id : null;
+  const effectivePrimary = mergePrimaryId ?? firstInList;
+  const primary = selected.find((i) => i.id === effectivePrimary);
+  const otherCount = effectivePrimary ? selected.length - 1 : 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <GitMerge className="w-5 h-5 text-slate-500" />
+            Merge {selected.length} Incidents
+          </h2>
+          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
+          <p className="text-sm text-slate-600">
+            Select the primary incident — it will survive and absorb the others.
+          </p>
+
+          <div className="space-y-2">
+            {selected.map((inc) => (
+              <label
+                key={inc.id}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  effectivePrimary === inc.id
+                    ? "border-blue-300 bg-blue-50"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="merge-primary"
+                  className="mt-0.5"
+                  checked={effectivePrimary === inc.id}
+                  onChange={() => onSetMergePrimaryId(inc.id)}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-semibold text-slate-800">{inc.reference}</span>
+                    <span className={`badge ${STATUS_COLOURS[inc.status]}`}>{STATUS_LABELS[inc.status]}</span>
+                  </div>
+                  <p className="text-sm text-slate-600 mt-0.5 line-clamp-1">{inc.category}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {inc.lot
+                      ? `SL${inc.lot.strata_lot_number}${inc.lot.unit_number ? ` Unit ${inc.lot.unit_number}` : ""}`
+                      : inc.common_area_description || "Common area"}
+                    {" · "}
+                    {fmtDatetime(inc.incident_date)}
+                  </p>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {effectivePrimary && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 space-y-1">
+              <p className="font-medium">What will happen</p>
+              <ul className="text-xs space-y-0.5 list-disc list-inside text-amber-700">
+                <li>All notes from the other {otherCount} incident{otherCount !== 1 ? "s" : ""} will move to <strong>{primary?.reference}</strong>.</li>
+                <li>Any linked issues will be reassigned to the primary incident.</li>
+                <li>Media attachments will be consolidated under the primary.</li>
+                <li>The other incident{otherCount !== 1 ? "s" : ""} will be marked as merged and hidden from the list.</li>
+                <li>A timeline note will be added recording this merge.</li>
+                <li className="font-semibold">This action cannot be undone.</li>
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 sm:px-6 py-4 border-t flex justify-end gap-3">
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button
+            className="btn bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+            disabled={!effectivePrimary || isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? "Merging…" : `Merge ${selected.length} Incidents`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -1042,6 +1170,24 @@ export default function IncidentsPage() {
   const [openOnly, setOpenOnly] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editIncident, setEditIncident] = useState<Incident | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergePrimaryId, setMergePrimaryId] = useState<number | null>(null);
+
+  const qc2 = useQueryClient();
+  const { addToast } = useToast();
+
+  const mergeMut = useMutation({
+    mutationFn: ({ primaryId, mergeIds }: { primaryId: number; mergeIds: number[] }) =>
+      incidentsApi.merge(primaryId, mergeIds),
+    onSuccess: () => {
+      qc2.invalidateQueries({ queryKey: ["incidents"] });
+      setSelectedIds(new Set());
+      setMergeOpen(false);
+      addToast("success", "Incidents merged.");
+    },
+    onError: (e: Error) => addToast("error", e.message),
+  });
 
   const { data: incidents, isLoading } = useQuery({
     queryKey: ["incidents", { statusFilter, openOnly }],
@@ -1071,9 +1217,17 @@ export default function IncidentsPage() {
             Property and common area incident log
           </p>
         </div>
-        <button className="btn btn-primary self-start sm:self-auto" onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">Log Incident</span><span className="sm:hidden ml-1">New</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {selectedIds.size >= 2 && (
+            <button className="btn btn-secondary text-sm" onClick={() => { setMergeOpen(true); setMergePrimaryId(null); }}>
+              <GitMerge className="w-4 h-4" />
+              Merge {selectedIds.size} Selected
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">Log Incident</span><span className="sm:hidden ml-1">New</span>
+          </button>
+        </div>
       </div>
 
       {incidents && (
@@ -1136,6 +1290,20 @@ export default function IncidentsPage() {
         <table className="w-full min-w-[600px]">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="px-2 py-3 w-10">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300"
+                  checked={selectedIds.size > 0 && selectedIds.size === incidents?.filter((i) => i.status !== "pending_assignment").length}
+                  onChange={() => {
+                    if (selectedIds.size > 0) {
+                      setSelectedIds(new Set());
+                    } else {
+                      setSelectedIds(new Set(incidents?.filter((i) => i.status !== "pending_assignment").map((i) => i.id) ?? []));
+                    }
+                  }}
+                />
+              </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">Ref</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Date</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Category</th>
@@ -1147,12 +1315,12 @@ export default function IncidentsPage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">Loading…</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400">Loading…</td>
               </tr>
             )}
             {!isLoading && (!incidents || incidents.length === 0) && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400">
                   No incidents found.
                 </td>
               </tr>
@@ -1163,6 +1331,15 @@ export default function IncidentsPage() {
                 incident={inc}
                 onEdit={() => setEditIncident(inc)}
                 initialExpanded={inc.id === openId}
+                isSelected={selectedIds.has(inc.id)}
+                onToggleSelect={() => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(inc.id)) next.delete(inc.id);
+                    else next.add(inc.id);
+                    return next;
+                  });
+                }}
               />
             ))}
           </tbody>
@@ -1181,6 +1358,22 @@ export default function IncidentsPage() {
           initial={editIncident}
           onClose={() => setEditIncident(null)}
           onSaved={() => setEditIncident(null)}
+        />
+      )}
+
+      {mergeOpen && incidents && selectedIds.size >= 2 && (
+        <MergeDialog
+          incidents={incidents}
+          selectedIds={selectedIds}
+          mergePrimaryId={mergePrimaryId}
+          onSetMergePrimaryId={setMergePrimaryId}
+          onConfirm={() => {
+            const primaryId = mergePrimaryId ?? Array.from(selectedIds)[0];
+            const mergeIds = Array.from(selectedIds).filter((id) => id !== primaryId);
+            mergeMut.mutate({ primaryId, mergeIds });
+          }}
+          onCancel={() => { setMergeOpen(false); setMergePrimaryId(null); }}
+          isPending={mergeMut.isPending}
         />
       )}
     </div>

@@ -35,6 +35,14 @@ class IncidentUpdate(BaseModel):
     resolution: Optional[str] = None
 
 
+class IncidentMini(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    reference: str
+    category: str
+    description: str
+
+
 class IncidentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -50,8 +58,14 @@ class IncidentOut(BaseModel):
     source: str = "manual"
     reporter_email: Optional[str] = None
     raw_unit_hint: Optional[str] = None
+    merged_into: Optional[IncidentMini] = None
+    merged_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+
+
+class IncidentMergeRequest(BaseModel):
+    merge_ids: list[int]
 
 
 class IncidentNoteCreate(BaseModel):

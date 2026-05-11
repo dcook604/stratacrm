@@ -554,6 +554,13 @@ export interface Incident {
   source: string;
   reporter_email: string | null;
   raw_unit_hint: string | null;
+  merged_into: {
+    id: number;
+    reference: string;
+    category: string;
+    description: string;
+  } | null;
+  merged_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -589,6 +596,8 @@ export const incidentsApi = {
   create: (body: object) => api.post<Incident>("/incidents", body),
   update: (id: number, body: object) => api.patch<Incident>(`/incidents/${id}`, body),
   delete: (id: number) => api.delete(`/incidents/${id}`),
+  merge: (primaryId: number, mergeIds: number[]) =>
+    api.post<Incident>(`/incidents/${primaryId}/merge`, { merge_ids: mergeIds }),
   sendEmail: (id: number, body: { to: string; message?: string }) =>
     api.post<void>(`/incidents/${id}/send-email`, body),
   listNotes: (id: number) => api.get<EntityNote[]>(`/incidents/${id}/notes`),
