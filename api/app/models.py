@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric, String, Text, UniqueConstraint, JSON,
     Enum as SAEnum, Index,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
 
@@ -200,6 +201,7 @@ class Party(Base):
     mailing_postal_code = Column(String(10), nullable=True)
     mailing_country = Column(String(100), nullable=True, default="Canada")
     notes = Column(Text, nullable=True)
+    search_vector = Column(TSVECTOR, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -226,6 +228,7 @@ class Lot(Base):
     bike_lockers = Column(Text, nullable=True)
     scooter_lockers = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+    search_vector = Column(TSVECTOR, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -319,6 +322,7 @@ class Bylaw(Base):
     category = Column(SAEnum(BylawCategory, name="bylawcategory"), nullable=False)
     active_from = Column(Date, nullable=False)
     superseded_by = Column(Integer, ForeignKey("bylaws.id", ondelete="SET NULL"), nullable=True)
+    search_vector = Column(TSVECTOR, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     superseded_by_bylaw = relationship("Bylaw", remote_side="Bylaw.id", foreign_keys=[superseded_by])
@@ -366,6 +370,7 @@ class Infraction(Base):
     )
     assessed_fine_amount = Column(Numeric(10, 2), nullable=True)
     occurrence_number = Column(Integer, nullable=False, default=1)
+    search_vector = Column(TSVECTOR, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -433,6 +438,7 @@ class Incident(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
+    search_vector = Column(TSVECTOR, nullable=True)
     source = Column(String(50), nullable=False, default="manual")
     reporter_email = Column(String(300), nullable=True)
     email_message_id = Column(String(200), nullable=True, unique=True)
@@ -472,6 +478,7 @@ class Issue(Base):
     status = Column(SAEnum(IssueStatus, name="issuestatus"), nullable=False, default=IssueStatus.open)
     related_lot_id = Column(Integer, ForeignKey("lots.id", ondelete="SET NULL"), nullable=True)
     related_incident_id = Column(Integer, ForeignKey("incidents.id", ondelete="SET NULL"), nullable=True)
+    search_vector = Column(TSVECTOR, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
