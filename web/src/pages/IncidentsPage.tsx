@@ -19,6 +19,7 @@ const STATUS_LABELS: Record<IncidentStatus, string> = {
   resolved: "Resolved",
   closed: "Closed",
   pending_assignment: "Pending Assignment",
+  pending_assignment: "Pending Assignment",
 };
 
 const STATUS_COLOURS: Record<IncidentStatus, string> = {
@@ -27,6 +28,15 @@ const STATUS_COLOURS: Record<IncidentStatus, string> = {
   resolved: "badge-green",
   closed: "badge-slate",
   pending_assignment: "badge-red",
+};
+
+// Select element colour classes per status
+const STATUS_SELECT_CLS: Record<IncidentStatus, string> = {
+  open:               "bg-amber-50  text-amber-800  border-amber-300  focus:ring-amber-400",
+  in_progress:        "bg-blue-50   text-blue-800   border-blue-300   focus:ring-blue-400",
+  resolved:           "bg-green-50  text-green-800  border-green-300  focus:ring-green-400",
+  closed:             "bg-slate-100 text-slate-600  border-slate-300  focus:ring-slate-400",
+  pending_assignment: "bg-red-50    text-red-800    border-red-300    focus:ring-red-400",
 };
 
 const COMMON_CATEGORIES = [
@@ -930,10 +940,17 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
           </div>
         </td>
         <td className="px-4 py-3 text-sm text-slate-500">{locationLabel}</td>
-        <td className="px-4 py-3">
-          <span className={`badge ${STATUS_COLOURS[incident.status]}`}>
-            {STATUS_LABELS[incident.status]}
-          </span>
+        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <select
+            value={incident.status}
+            disabled={quickStatus.isPending}
+            onChange={(e) => quickStatus.mutate(e.target.value as IncidentStatus)}
+            className={`text-xs font-medium rounded-full px-2.5 py-1 border cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors disabled:opacity-60 ${STATUS_SELECT_CLS[incident.status]}`}
+          >
+            {(Object.entries(STATUS_LABELS) as [IncidentStatus, string][]).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
         </td>
         <td className="px-4 py-3 text-right flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
           {confirmDelete ? (
