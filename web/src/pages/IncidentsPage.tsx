@@ -106,6 +106,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
     mutationFn: () => incidentsApi.delete(initial!.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["incidents"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       addToast("success", `${initial!.reference} deleted.`);
       onSaved();
     },
@@ -132,6 +133,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["incidents"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       addToast("success", initial ? "Incident updated." : "Incident logged.");
       onSaved();
     },
@@ -819,7 +821,10 @@ function QuickAssignLot({ incident }: { incident: Incident }) {
 
   const assignMutation = useMutation({
     mutationFn: () => incidentsApi.update(incident.id, { lot_id: Number(selectedLotId), status: "open" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["incidents"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   return (
@@ -887,7 +892,10 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
 
   const quickStatus = useMutation({
     mutationFn: (status: IncidentStatus) => incidentsApi.update(incident.id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["incidents"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   const deleteMut = useMutation({
@@ -1198,6 +1206,7 @@ export default function IncidentsPage() {
       incidentsApi.merge(primaryId, mergeIds),
     onSuccess: () => {
       qc2.invalidateQueries({ queryKey: ["incidents"] });
+      qc2.invalidateQueries({ queryKey: ["dashboard-stats"] });
       setSelectedIds(new Set());
       setMergeOpen(false);
       addToast("success", "Incidents merged.");
