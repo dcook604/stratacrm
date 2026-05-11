@@ -340,7 +340,7 @@ export default function LotDetailPage() {
             <p className="px-6 py-6 text-sm text-slate-400 text-center">No infractions recorded for this lot.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[500px] text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ref</th>
@@ -396,7 +396,7 @@ export default function LotDetailPage() {
             <p className="px-6 py-6 text-sm text-slate-400 text-center">No incidents recorded for this lot.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[600px] text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Ref</th>
@@ -452,7 +452,7 @@ export default function LotDetailPage() {
             <p className="px-6 py-6 text-sm text-slate-400 text-center">No issues linked to this lot.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[600px] text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Title</th>
