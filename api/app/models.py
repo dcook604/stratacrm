@@ -444,6 +444,7 @@ class Incident(Base):
     reporter_email = Column(String(300), nullable=True)
     email_message_id = Column(String(200), nullable=True, unique=True)
     raw_unit_hint = Column(String(200), nullable=True)
+    email_subject = Column(String(500), nullable=True)  # normalized subject for dedup matching
 
     merged_into_id = Column(Integer, ForeignKey("incidents.id", ondelete="SET NULL"), nullable=True)
     merged_at = Column(DateTime(timezone=True), nullable=True)

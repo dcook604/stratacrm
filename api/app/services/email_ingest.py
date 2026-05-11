@@ -288,22 +288,55 @@ def test_imap_connection(config) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Email thread detection
+# Subject normalisation for dedup
 # ---------------------------------------------------------------------------
 
-def _find_thread_incident(msg: email.message.Message, db: Session):
-    """Return an existing incident this email is a reply to, or None.
+_SUBJECT_PREFIX = re.compile(
+    r'^(?:re|fwd?|fw|aw|sv|vs|enc|antw|odp|tr):\s*', re.IGNORECASE
+)
+_SUBJECT_TAG = re.compile(r'^\[[^\]]*\]\s*')
 
-    Checks In-Reply-To first (direct parent), then the full References chain.
+
+def _normalize_subject(subject: str) -> str:
+    """Strip Re:/Fwd: prefixes and [TAG] brackets to get the canonical subject."""
+    s = subject.strip()
+    for _ in range(10):
+        n = _SUBJECT_PREFIX.sub("", s)
+        n = _SUBJECT_TAG.sub("", n).strip()
+        if n == s:
+            break
+        s = n
+    return s.lower()
+
+
+# ---------------------------------------------------------------------------
+# Email thread / duplicate detection
+# ---------------------------------------------------------------------------
+
+_SAME_SENDER_WINDOW_HOURS = 2   # fresh emails from same sender within N hours → append
+_SUBJECT_MATCH_DAYS = 60        # subject-match lookback window
+
+
+def _find_existing_incident(
+    msg: email.message.Message,
+    db: Session,
+    subject: str,
+    reporter_email: str,
+):
+    """Return an existing open incident this email belongs to, or None.
+
+    Resolution order (most-specific → least-specific):
+    1. In-Reply-To / References thread headers  → direct link
+    2. Normalised subject + same sender within 60 days
+    3. Same sender within 2 hours (catches batched/forwarded emails)
     """
-    from app.models import Incident
+    from app.models import Incident, IncidentStatus
 
+    # ── 1. Thread headers ────────────────────────────────────────────────────
     ref_ids: list[str] = []
-
     in_reply_to = (msg.get("In-Reply-To") or "").strip()
     if in_reply_to:
         ref_ids.append(in_reply_to[:200])
-
     references = (msg.get("References") or "").strip()
     if references:
         ref_ids.extend(r.strip()[:200] for r in references.split() if r.strip())
@@ -313,7 +346,49 @@ def _find_thread_incident(msg: email.message.Message, db: Session):
             select(Incident).where(Incident.email_message_id == ref_id)
         ).scalar_one_or_none()
         if inc:
+            log.info("email_dedup_thread_header", incident_id=inc.id, ref=ref_id)
             return inc
+
+    if not reporter_email:
+        return None
+
+    _open_statuses = [IncidentStatus.open, IncidentStatus.in_progress, IncidentStatus.pending_assignment]
+
+    # ── 2. Normalised subject + same sender ──────────────────────────────────
+    norm = _normalize_subject(subject)
+    if norm:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=_SUBJECT_MATCH_DAYS)
+        candidates = db.execute(
+            select(Incident)
+            .where(Incident.reporter_email == reporter_email)
+            .where(Incident.source == "email")
+            .where(Incident.status.in_(_open_statuses))
+            .where(Incident.created_at >= cutoff)
+            .order_by(Incident.created_at.desc())
+            .limit(20)
+        ).scalars().all()
+
+        for inc in candidates:
+            stored_norm = _normalize_subject(inc.email_subject or "")
+            if stored_norm and norm == stored_norm:
+                log.info("email_dedup_subject_match", incident_id=inc.id, subject=subject)
+                return inc
+
+    # ── 3. Same sender within short window (batch emails) ────────────────────
+    cutoff_batch = datetime.now(timezone.utc) - timedelta(hours=_SAME_SENDER_WINDOW_HOURS)
+    recent = db.execute(
+        select(Incident)
+        .where(Incident.reporter_email == reporter_email)
+        .where(Incident.source == "email")
+        .where(Incident.status.in_(_open_statuses))
+        .where(Incident.created_at >= cutoff_batch)
+        .order_by(Incident.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    if recent:
+        log.info("email_dedup_same_sender_window", incident_id=recent.id, reporter=reporter_email)
+        return recent
 
     return None
 
@@ -332,9 +407,43 @@ _ALLOWED_ATTACHMENT_TYPES = {
 }
 
 
+def _attachment_hash(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _attachment_already_saved(db: Session, incident_id: int, file_hash: str, filename: str, size: int) -> bool:
+    """Return True if an identical attachment is already stored for this incident."""
+    from app.models import Document
+    from sqlalchemy import or_
+
+    # Primary check: SHA-256 match
+    existing = db.execute(
+        select(Document)
+        .where(Document.linked_entity_type == "incident")
+        .where(Document.linked_entity_id == incident_id)
+        .where(Document.file_hash == file_hash)
+    ).scalar_one_or_none()
+    if existing:
+        return True
+
+    # Fallback for legacy docs with NULL hash: filename + size
+    existing = db.execute(
+        select(Document)
+        .where(Document.linked_entity_type == "incident")
+        .where(Document.linked_entity_id == incident_id)
+        .where(Document.original_filename == filename[:300])
+        .where(Document.file_size_bytes == size)
+        .where(Document.file_hash == None)  # noqa: E711
+    ).scalar_one_or_none()
+    return existing is not None
+
+
 def _save_email_attachments(msg: email.message.Message, incident_id: int, db: Session) -> int:
     """Save MIME attachments from an email as Document records linked to the incident.
-    Returns the number of attachments saved."""
+
+    Skips exact duplicates (by SHA-256 hash, or filename+size for legacy docs).
+    Returns the number of new attachments saved.
+    """
     from app.config import settings
     from app.models import Document
     from app.utils.media import compress_image, generate_thumbnail
@@ -345,7 +454,6 @@ def _save_email_attachments(msg: email.message.Message, incident_id: int, db: Se
     for part in msg.walk():
         content_type = part.get_content_type()
 
-        # Skip multipart containers and plain-text/HTML body parts
         if content_type.startswith("multipart/") or content_type in ("text/plain", "text/html"):
             continue
 
@@ -361,6 +469,12 @@ def _save_email_attachments(msg: email.message.Message, incident_id: int, db: Se
 
         payload = part.get_payload(decode=True)
         if not payload:
+            continue
+
+        # ── Dedup check before writing anything to disk ──────────────────────
+        file_hash = _attachment_hash(payload)
+        if _attachment_already_saved(db, incident_id, file_hash, filename, len(payload)):
+            log.info("email_attachment_duplicate_skipped", incident_id=incident_id, filename=filename)
             continue
 
         safe_name = re.sub(r"[^\w.\-]", "_", os.path.basename(filename))[:200]
@@ -403,6 +517,7 @@ def _save_email_attachments(msg: email.message.Message, incident_id: int, db: Se
             original_filename=filename[:300],
             mime_type=effective_mime,
             file_size_bytes=final_size,
+            file_hash=file_hash,
             uploaded_by_id=None,
             linked_entity_type="incident",
             linked_entity_id=incident_id,
@@ -491,33 +606,30 @@ def poll_imap(db: Session) -> dict:
                     continue
 
                 body = _extract_plain_text(msg)
+                _, reporter_email = _parse_sender(from_hint)
 
-                # Check if this is a reply in an existing incident's thread
-                thread_incident = _find_thread_incident(msg, db)
-                if thread_incident:
+                # Check if this email belongs to an existing incident
+                existing_incident = _find_existing_incident(msg, db, subject_hint, reporter_email)
+                if existing_incident:
                     from app.models import IncidentNote
-                    _, reporter_email_thread = _parse_sender(from_hint)
                     note = IncidentNote(
-                        incident_id=thread_incident.id,
+                        incident_id=existing_incident.id,
                         content=f"**From:** {from_hint}\n**Subject:** {subject_hint}\n\n{body[:3000]}",
                         source="email",
-                        author_email=reporter_email_thread or None,
+                        author_email=reporter_email or None,
                         author_name=from_hint or None,
                     )
                     db.add(note)
-                    thread_incident.updated_at = datetime.now(timezone.utc)
-                    # Re-open if it was resolved or closed
-                    if thread_incident.status in (IncidentStatus.resolved, IncidentStatus.closed):
-                        thread_incident.status = IncidentStatus.in_progress
+                    existing_incident.updated_at = datetime.now(timezone.utc)
+                    if existing_incident.status in (IncidentStatus.resolved, IncidentStatus.closed):
+                        existing_incident.status = IncidentStatus.in_progress
                     db.commit()
-                    db.refresh(thread_incident)
-                    _save_email_attachments(msg, thread_incident.id, db)
+                    db.refresh(existing_incident)
+                    _save_email_attachments(msg, existing_incident.id, db)
                     conn.store(uid, "+FLAGS", "\\Seen")
                     stats["appended"] += 1
-                    log.info("email_incident_appended", incident_id=thread_incident.id, subject=subject_hint)
+                    log.info("email_incident_appended", incident_id=existing_incident.id, subject=subject_hint)
                     continue
-
-                _, reporter_email = _parse_sender(from_hint)
                 parsed = parse_email_with_ai(subject_hint, body, from_hint, config)
 
                 # Unit resolution: prefer AI extraction, fall back to regex
@@ -545,6 +657,7 @@ def poll_imap(db: Session) -> dict:
                     source="email",
                     reporter_email=reporter_email or None,
                     email_message_id=dedup_key,
+                    email_subject=subject_hint[:500] if subject_hint else None,
                     raw_unit_hint=raw_unit_hint,
                 )
                 db.add(incident)
