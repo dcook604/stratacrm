@@ -1,11 +1,12 @@
 """Incident log router — property/common-area incidents and their status."""
 
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select, update as sa_update
+from sqlalchemy import func, select, update as sa_update
 from sqlalchemy.orm import Session, selectinload
 
 from app.audit import log_action
@@ -15,6 +16,7 @@ from app.dependencies import get_current_user, require_csrf, require_write
 from app.email import send_email
 from app.models import Document, Incident, IncidentNote, IncidentStatus, Issue, Lot, User
 from app.schemas.incidents import IncidentCreate, IncidentMergeRequest, IncidentNoteCreate, IncidentNoteOut, IncidentOut, IncidentUpdate
+from app.utils.media import thumbnail_path_for
 from app.utils.reference import generate_reference
 from app.utils.share_token import create_share_token
 
@@ -196,6 +198,42 @@ def merge_incidents(
         .values(linked_entity_id=primary.id)
     )
 
+    # Deduplicate documents by file_hash — keep the oldest copy, remove extras
+    duplicate_count = 0
+    dup_groups = db.execute(
+        select(Document.file_hash, func.count(Document.id).label("cnt"))
+        .where(Document.linked_entity_type == "incident")
+        .where(Document.linked_entity_id == primary.id)
+        .where(Document.file_hash.isnot(None))
+        .group_by(Document.file_hash)
+        .having(func.count(Document.id) > 1)
+    ).all()
+
+    if dup_groups:
+        for hash_val, _ in dup_groups:
+            dup_docs = db.execute(
+                select(Document)
+                .where(Document.linked_entity_type == "incident")
+                .where(Document.linked_entity_id == primary.id)
+                .where(Document.file_hash == hash_val)
+                .order_by(Document.uploaded_at.asc())
+            ).scalars().all()
+            # Keep the oldest, delete the rest
+            for doc in dup_docs[1:]:
+                if doc.storage_path and os.path.exists(doc.storage_path):
+                    try:
+                        os.remove(doc.storage_path)
+                    except OSError:
+                        pass
+                thumb_path = thumbnail_path_for(doc.storage_path) if doc.storage_path else None
+                if thumb_path and os.path.exists(thumb_path):
+                    try:
+                        os.remove(thumb_path)
+                    except OSError:
+                        pass
+                db.delete(doc)
+                duplicate_count += 1
+
     # Mark secondaries as merged
     for sec in secondaries:
         sec.merged_into_id = primary.id
@@ -203,9 +241,12 @@ def merge_incidents(
 
     # Add audit note to primary
     merged_desc = ", ".join(refs)
+    note_text = f"Merged incidents: {merged_desc}"
+    if duplicate_count:
+        note_text += f". Removed {duplicate_count} duplicate attachment{'s' if duplicate_count != 1 else ''}."
     note = IncidentNote(
         incident_id=primary.id,
-        content=f"Merged incidents: {merged_desc}",
+        content=note_text,
         source="manual",
         author_email=current_user.email,
         author_name=current_user.full_name,

@@ -1,5 +1,6 @@
 """Document storage router — upload, list, download generic file attachments."""
 
+import hashlib
 import logging
 import os
 import re
@@ -187,12 +188,16 @@ async def upload_document(
         except Exception:
             pass
 
+    # Compute SHA-256 hash of the final stored file for duplicate detection
+    file_hash = _compute_file_hash(storage_path)
+
     # Videos: commit record immediately as is_processing=True, transcode in background
     doc = Document(
         storage_path=storage_path,
         original_filename=safe_name,
         mime_type=effective_mime,
         file_size_bytes=final_size,
+        file_hash=file_hash,
         uploaded_by_id=current_user.id,
         linked_entity_type=entity_type,
         linked_entity_id=entity_id,
@@ -243,6 +248,21 @@ def doc_safe(name: str) -> str:
     """Sanitize filename — keep only alphanumeric, dot, dash, underscore."""
     import re
     return re.sub(r"[^\w.\-]", "_", name)[:200]
+
+
+def _compute_file_hash(path: str) -> str | None:
+    """Compute SHA-256 hex digest of a file. Returns None if file is missing."""
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            while True:
+                chunk = f.read(1024 * 1024)
+                if not chunk:
+                    break
+                h.update(chunk)
+        return h.hexdigest()
+    except (OSError, FileNotFoundError):
+        return None
 
 
 @router.get("", response_model=list[DocumentOut])
