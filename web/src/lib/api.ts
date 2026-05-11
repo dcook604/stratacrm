@@ -197,6 +197,8 @@ export interface Lot {
   storage_lockers: string | null;
   bike_lockers: string | null;
   scooter_lockers: string | null;
+  bedrooms: number | null;
+  is_townhouse: boolean | null;
   notes: string | null;
   updated_at: string;
   current_assignments: LotAssignmentDetail[];

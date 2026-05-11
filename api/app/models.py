@@ -227,6 +227,8 @@ class Lot(Base):
     storage_lockers = Column(Text, nullable=True)
     bike_lockers = Column(Text, nullable=True)
     scooter_lockers = Column(Text, nullable=True)
+    bedrooms = Column(Integer, nullable=True)
+    is_townhouse = Column(Boolean, nullable=True)
     notes = Column(Text, nullable=True)
     search_vector = Column(TSVECTOR, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

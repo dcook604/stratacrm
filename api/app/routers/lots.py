@@ -124,12 +124,13 @@ def update_lot(
     if not lot:
         raise HTTPException(status_code=404, detail="Lot not found")
 
-    before = {k: str(getattr(lot, k)) for k in body.model_dump(exclude_unset=True)}
-    for field, value in body.model_dump(exclude_unset=True).items():
+    updated = body.model_dump(exclude_unset=True)
+    before = {k: str(getattr(lot, k)) for k in updated}
+    for field, value in updated.items():
         setattr(lot, field, value)
 
     log_action(db, action="update", entity_type="lot", entity_id=lot_id,
-               changes={"before": before, "after": body.model_dump(exclude_unset=True)},
+               changes={"before": before, "after": body.model_dump(mode="json", exclude_unset=True)},
                actor_id=current_user.id, actor_email=current_user.email, request=request)
     db.commit()
 

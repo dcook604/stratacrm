@@ -115,6 +115,8 @@ export default function LotDetailPage() {
       storage_lockers: lot.storage_lockers ?? "",
       bike_lockers: lot.bike_lockers ?? "",
       scooter_lockers: lot.scooter_lockers ?? "",
+      bedrooms: lot.bedrooms ?? undefined,
+      is_townhouse: lot.is_townhouse ?? undefined,
       notes: lot.notes ?? "",
     });
     setEditing(true);
@@ -245,6 +247,37 @@ export default function LotDetailPage() {
                 onChange={(e) => setForm((f) => ({ ...f, scooter_lockers: e.target.value }))}
               />
             </div>
+            <div>
+              <label className="label">Bedrooms</label>
+              <select
+                className="input"
+                value={form.bedrooms ?? ""}
+                onChange={(e) => setForm((f) => ({
+                  ...f,
+                  bedrooms: e.target.value === "" ? undefined : Number(e.target.value),
+                }))}
+              >
+                <option value="">— Unknown —</option>
+                <option value="1">1 Bedroom</option>
+                <option value="2">2 Bedrooms</option>
+                <option value="3">3 Bedrooms</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Townhouse</label>
+              <select
+                className="input"
+                value={form.is_townhouse === undefined || form.is_townhouse === null ? "" : String(form.is_townhouse)}
+                onChange={(e) => setForm((f) => ({
+                  ...f,
+                  is_townhouse: e.target.value === "" ? undefined : e.target.value === "true",
+                }))}
+              >
+                <option value="">— Unknown —</option>
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+              </select>
+            </div>
             <div className="col-span-1 sm:col-span-2">
               <label className="label">Notes</label>
               <textarea
@@ -266,6 +299,14 @@ export default function LotDetailPage() {
             <Field label="Storage Lockers" value={lot.storage_lockers} />
             <Field label="Bike Lockers" value={lot.bike_lockers} />
             <Field label="Scooter Lockers" value={lot.scooter_lockers} />
+            <Field
+              label="Bedrooms"
+              value={lot.bedrooms != null ? `${lot.bedrooms} Bedroom${lot.bedrooms !== 1 ? "s" : ""}` : null}
+            />
+            <Field
+              label="Townhouse"
+              value={lot.is_townhouse === true ? "Yes" : lot.is_townhouse === false ? "No" : null}
+            />
             <div className="col-span-1 sm:col-span-2">
               <Field label="Notes" value={lot.notes} />
             </div>

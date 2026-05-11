@@ -33,6 +33,8 @@ class LotUpdate(BaseModel):
     storage_lockers: Optional[str] = None
     bike_lockers: Optional[str] = None
     scooter_lockers: Optional[str] = None
+    bedrooms: Optional[int] = None
+    is_townhouse: Optional[bool] = None
     notes: Optional[str] = None
 
 
@@ -45,6 +47,8 @@ class LotOut(BaseModel):
     storage_lockers: Optional[str]
     bike_lockers: Optional[str]
     scooter_lockers: Optional[str]
+    bedrooms: Optional[int]
+    is_townhouse: Optional[bool]
     notes: Optional[str]
     updated_at: datetime
     current_assignments: List[AssignmentDetail] = []
