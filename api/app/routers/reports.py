@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import String, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
@@ -69,7 +69,7 @@ def lot_summary(
         like = f"%{search}%"
         base = base.where(
             Lot.unit_number.ilike(like)
-            | Lot.strata_lot_number.cast(str).ilike(like)
+            | Lot.strata_lot_number.cast(String).ilike(like)
         )
 
     count_q = select(func.count()).select_from(base.subquery())
