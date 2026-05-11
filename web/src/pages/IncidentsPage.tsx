@@ -586,7 +586,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
                   <img
                     src={doc.thumbnail_url ?? doc.download_url}
                     alt={doc.caption ?? doc.original_filename ?? ""}
-                    className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    className="w-full h-32 object-contain bg-slate-100 cursor-pointer hover:opacity-90 transition-opacity"
                     loading="lazy"
                     onClick={() => {
                       const imgIdx = images.findIndex((d) => d.id === doc.id);

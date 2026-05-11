@@ -213,7 +213,7 @@ export default function ShareIncidentPage() {
                         <img
                           src={doc.thumbnail_url}
                           alt={doc.caption ?? doc.original_filename ?? ""}
-                          className="w-full h-32 object-cover group-hover:opacity-90 transition-opacity"
+                          className="w-full h-32 object-contain bg-slate-100 group-hover:opacity-90 transition-opacity"
                           loading="lazy"
                         />
                       )}
