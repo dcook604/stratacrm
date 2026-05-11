@@ -778,6 +778,107 @@ export const documentsApi = {
 };
 
 // ---------------------------------------------------------------------------
+// Reports types
+// ---------------------------------------------------------------------------
+
+export interface LotReportParty {
+  id: number;
+  full_name: string;
+  role: string;
+}
+
+export interface LotReportSummary {
+  id: number;
+  strata_lot_number: number;
+  unit_number: string | null;
+  square_feet: number | null;
+  owners: string[];
+  tenants: string[];
+  open_infractions: number;
+  total_infractions: number;
+  open_incidents: number;
+  total_incidents: number;
+  open_issues: number;
+  total_issues: number;
+  latest_activity: string | null;
+}
+
+export interface PaginatedLotReports {
+  items: LotReportSummary[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface ReportInfraction {
+  id: number;
+  status: string;
+  bylaw_number: string;
+  bylaw_title: string;
+  complaint_received_date: string;
+  assessed_fine_amount: number | null;
+  occurrence_number: number;
+  party_name: string | null;
+  created_at: string;
+}
+
+export interface ReportIncident {
+  id: number;
+  category: string;
+  incident_date: string;
+  status: string;
+  description: string;
+  reported_by: string | null;
+  created_at: string;
+}
+
+export interface ReportIssue {
+  id: number;
+  title: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  assignee_name: string | null;
+  created_at: string;
+}
+
+export interface LotReportDetail {
+  id: number;
+  strata_lot_number: number;
+  unit_number: string | null;
+  square_feet: number | null;
+  parking_stalls: string | null;
+  storage_lockers: string | null;
+  notes: string | null;
+  parties: LotReportParty[];
+  open_infractions: number;
+  total_infractions: number;
+  open_incidents: number;
+  total_incidents: number;
+  open_issues: number;
+  total_issues: number;
+  infractions: ReportInfraction[];
+  incidents: ReportIncident[];
+  issues: ReportIssue[];
+}
+
+export const reportsApi = {
+  list: (params?: {
+    search?: string;
+    skip?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set("search", params.search);
+    if (params?.skip != null) qs.set("skip", String(params.skip));
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    return api.get<PaginatedLotReports>(`/reports/lot-summary?${qs}`);
+  },
+  get: (id: number) => api.get<LotReportDetail>(`/reports/lot-summary/${id}`),
+  pdfUrl: (id: number) => `/api/reports/lot-summary/${id}/pdf`,
+};
+
+// ---------------------------------------------------------------------------
 // Sync API
 // ---------------------------------------------------------------------------
 

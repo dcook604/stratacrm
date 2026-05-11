@@ -37,6 +37,7 @@ from app.routers import sync as sync_router
 from app.routers import share as share_router
 from app.routers import email_ingest as email_ingest_router
 from app.routers import dashboard as dashboard_router
+from app.routers import reports as reports_router
 from app.routers import search as search_router
 from app.routers.auth import limiter
 
@@ -252,6 +253,7 @@ app.include_router(share_router.router, prefix=API_PREFIX)
 app.include_router(email_ingest_router.router, prefix=API_PREFIX)
 app.include_router(dashboard_router.router, prefix=API_PREFIX)
 app.include_router(search_router.router, prefix=API_PREFIX)
+app.include_router(reports_router.router, prefix=API_PREFIX)
 
 @app.get(f"{API_PREFIX}/health")
 def health(db = Depends(get_db)):

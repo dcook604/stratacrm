@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: letter;
+    margin: 2cm 2cm 2cm 2cm;
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 9pt;
+      color: #888;
+    }
+  }
+
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: #222;
+  }
+
+  .letterhead {
+    border-bottom: 2px solid #1a3a5c;
+    padding-bottom: 10pt;
+    margin-bottom: 18pt;
+  }
+
+  .letterhead-corp {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #1a3a5c;
+    margin: 0;
+  }
+
+  .letterhead-plan {
+    font-size: 10pt;
+    color: #666;
+    margin: 2pt 0 0 0;
+  }
+
+  .letterhead-address {
+    font-size: 10pt;
+    color: #666;
+    margin: 2pt 0 0 0;
+  }
+
+  .report-title {
+    font-size: 16pt;
+    font-weight: bold;
+    color: #1a3a5c;
+    margin-bottom: 4pt;
+  }
+
+  .report-subtitle {
+    font-size: 11pt;
+    color: #555;
+    margin-bottom: 18pt;
+  }
+
+  .info-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin-bottom: 18pt;
+    border: 1px solid #ddd;
+    border-radius: 3pt;
+  }
+
+  .info-item {
+    width: 50%;
+    padding: 6pt 10pt;
+    border-bottom: 1px solid #eee;
+    box-sizing: border-box;
+  }
+
+  .info-item:nth-last-child(-n+2) {
+    border-bottom: none;
+  }
+
+  .info-label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    color: #888;
+  }
+
+  .info-value {
+    font-size: 10pt;
+    font-weight: 600;
+    color: #222;
+  }
+
+  h2 {
+    font-size: 11pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    color: #1a3a5c;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 3pt;
+    margin-top: 20pt;
+    margin-bottom: 8pt;
+  }
+
+  .parties-list {
+    margin-bottom: 6pt;
+  }
+
+  .party-tag {
+    display: inline-block;
+    background: #eef2f7;
+    border-radius: 3pt;
+    padding: 2pt 8pt;
+    margin: 2pt 2pt;
+    font-size: 9pt;
+  }
+
+  .party-role {
+    color: #1a3a5c;
+    font-weight: 600;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6pt 0;
+    font-size: 9pt;
+  }
+
+  table th {
+    background: #1a3a5c;
+    color: white;
+    padding: 5pt 6pt;
+    text-align: left;
+    font-weight: 600;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3pt;
+  }
+
+  table td {
+    padding: 4pt 6pt;
+    border-bottom: 1px solid #eee;
+  }
+
+  table tr:nth-child(even) td {
+    background: #f8f9fb;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 1pt 6pt;
+    border-radius: 2pt;
+    font-size: 8pt;
+    font-weight: 600;
+  }
+
+  .status-open { background: #fef3c7; color: #92400e; }
+  .status-in_progress { background: #dbeafe; color: #1e40af; }
+  .status-notice_sent { background: #fef3c7; color: #92400e; }
+  .status-response_received { background: #dbeafe; color: #1e40af; }
+  .status-hearing_scheduled { background: #f3e8ff; color: #6b21a8; }
+  .status-fined { background: #fee2e2; color: #991b1b; }
+  .status-dismissed { background: #f0fdf4; color: #166534; }
+  .status-resolved { background: #f0fdf4; color: #166534; }
+  .status-closed { background: #f3f4f6; color: #374151; }
+
+  .count-summary {
+    display: flex;
+    gap: 12pt;
+    margin: 8pt 0;
+  }
+
+  .count-box {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 3pt;
+    padding: 8pt 10pt;
+    text-align: center;
+  }
+
+  .count-number {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #1a3a5c;
+  }
+
+  .count-label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    color: #888;
+    margin-top: 2pt;
+  }
+
+  .empty-state {
+    color: #999;
+    font-style: italic;
+    font-size: 9pt;
+    padding: 6pt 0;
+  }
+
+  .footer-note {
+    margin-top: 24pt;
+    font-size: 8pt;
+    color: #999;
+    border-top: 1px solid #ddd;
+    padding-top: 6pt;
+  }
+
+  p { margin: 0 0 6pt 0; }
+</style>
+</head>
+<body>
+
+<!-- LETTERHEAD -->
+<div class="letterhead">
+  <p class="letterhead-corp">{{CORP_NAME}}</p>
+  <p class="letterhead-plan">Strata Plan {{STRATA_PLAN}}</p>
+  <p class="letterhead-address">{{CORP_ADDRESS}}</p>
+</div>
+
+<!-- REPORT TITLE -->
+<div class="report-title">Lot Summary Report</div>
+<div class="report-subtitle">Generated {{GENERATED_DATE}}</div>
+
+<!-- LOT INFO -->
+<div class="info-grid">
+  <div class="info-item">
+    <div class="info-label">Strata Lot</div>
+    <div class="info-value">SL{{SL_NUMBER}}</div>
+  </div>
+  <div class="info-item">
+    <div class="info-label">Unit Number</div>
+    <div class="info-value">{{UNIT_NUMBER}}</div>
+  </div>
+  <div class="info-item">
+    <div class="info-label">Square Feet</div>
+    <div class="info-value">{{SQUARE_FEET}}</div>
+  </div>
+  <div class="info-item">
+    <div class="info-label">Parking / Storage</div>
+    <div class="info-value">{{PARKING_STORAGE}}</div>
+  </div>
+</div>
+
+<!-- CURRENT PARTIES -->
+<h2>Current Parties</h2>
+<div class="parties-list">
+{{PARTIES_SECTION}}
+</div>
+
+<!-- SUMMARY COUNTS -->
+<h2>Summary</h2>
+<div class="count-summary">
+  <div class="count-box">
+    <div class="count-number">{{OPEN_INFRACTIONS}}</div>
+    <div class="count-label">Open Infractions</div>
+  </div>
+  <div class="count-box">
+    <div class="count-number">{{OPEN_INCIDENTS}}</div>
+    <div class="count-label">Open Incidents</div>
+  </div>
+  <div class="count-box">
+    <div class="count-number">{{OPEN_ISSUES}}</div>
+    <div class="count-label">Open Issues</div>
+  </div>
+</div>
+
+<!-- INFRACTIONS -->
+<h2>Infractions ({{TOTAL_INFRACTIONS}} total)</h2>
+{{INFRACTIONS_TABLE}}
+
+<!-- INCIDENTS -->
+<h2>Incidents ({{TOTAL_INCIDENTS}} total)</h2>
+{{INCIDENTS_TABLE}}
+
+<!-- ISSUES -->
+<h2>Issues ({{TOTAL_ISSUES}} total)</h2>
+{{ISSUES_TABLE}}
+
+<div class="footer-note">
+  This report was generated from the Spectrum 4 Strata CRM system.
+  Data is current as of {{GENERATED_DATE}}.
+</div>
+
+</body>
+</html>
