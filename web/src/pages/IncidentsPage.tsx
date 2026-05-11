@@ -19,7 +19,6 @@ const STATUS_LABELS: Record<IncidentStatus, string> = {
   resolved: "Resolved",
   closed: "Closed",
   pending_assignment: "Pending Assignment",
-  pending_assignment: "Pending Assignment",
 };
 
 const STATUS_COLOURS: Record<IncidentStatus, string> = {
