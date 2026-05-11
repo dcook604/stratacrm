@@ -14,6 +14,8 @@ from datetime import datetime, date, timezone
 from decimal import Decimal
 from typing import Optional
 
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from sqlalchemy import func, select
@@ -610,3 +612,83 @@ def download_notice_pdf(
             "Content-Disposition": f'attachment; filename="{notice.document.original_filename}"'
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Bulk operations
+# ---------------------------------------------------------------------------
+
+
+class BulkStatusUpdate(BaseModel):
+    """Update the status of multiple infractions at once."""
+    infraction_ids: list[int]
+    new_status: InfractionStatus
+    notes: Optional[str] = None
+
+
+@router.post("/bulk-status-update",
+             dependencies=[Depends(require_csrf)], status_code=status.HTTP_200_OK)
+def bulk_status_update(
+    request: Request,
+    body: BulkStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write),
+):
+    if not body.infraction_ids:
+        raise HTTPException(status_code=400, detail="No infraction IDs provided.")
+
+    results: list[dict] = []
+    succeeded = 0
+    failed = 0
+
+    for inf_id in body.infraction_ids:
+        inf = db.get(Infraction, inf_id)
+        if not inf:
+            results.append({"id": inf_id, "status": "error", "detail": "Not found"})
+            failed += 1
+            continue
+
+        # Find a transition that leads to the requested status
+        from app.models import InfractionEventType
+        transition_event_type = None
+        for event_type, (allowed_statuses, target_status) in _TRANSITIONS.items():
+            if target_status == body.new_status and inf.status in allowed_statuses:
+                transition_event_type = event_type
+                break
+
+        if transition_event_type is None:
+            results.append({
+                "id": inf_id,
+                "status": "error",
+                "detail": f"Cannot transition from '{inf.status.value}' to '{body.new_status.value}'",
+            })
+            failed += 1
+            continue
+
+        inf.status = body.new_status
+        event = InfractionEvent(
+            infraction_id=inf_id,
+            event_type=transition_event_type,
+            occurred_at=datetime.now(timezone.utc),
+            actor_id=current_user.id,
+            actor_email=current_user.email,
+            notes=body.notes or f"Bulk status update to {body.new_status.value}",
+        )
+        db.add(event)
+        results.append({"id": inf_id, "status": "ok"})
+        succeeded += 1
+
+    log_action(
+        db, action="bulk_status_update", entity_type="infraction",
+        changes={"infraction_ids": body.infraction_ids, "new_status": body.new_status.value,
+                 "succeeded": succeeded, "failed": failed},
+        actor_id=current_user.id, actor_email=current_user.email, request=request,
+    )
+
+    db.commit()
+
+    return {
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results,
+    }

@@ -399,28 +399,31 @@ export default function LotDetailPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ref</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Ref</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Category</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-                    <th className="w-16" />
+                    <th className="w-24 px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {incidents.map(inc => (
                     <tr key={inc.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono text-slate-500">{inc.reference}</td>
-                      <td className="px-4 py-3 text-slate-700 font-medium">{inc.category}</td>
+                      <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">{inc.reference}</td>
+                      <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">{inc.category}</td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmtDatetime(inc.incident_date)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`badge ${INCIDENT_STATUS_COLOURS[inc.status]}`}>
                           {INCIDENT_STATUS_LABELS[inc.status]}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{inc.description}</td>
-                      <td className="px-4 py-3">
-                        <Link to={`/incidents?open=${inc.id}`} className="text-blue-600 hover:underline text-xs font-medium">
+                      <td className="px-4 py-3 text-slate-500 min-w-0 max-w-[240px] truncate">{inc.description}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <Link
+                          to={`/incidents?open=${inc.id}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200"
+                        >
                           View
                         </Link>
                       </td>
@@ -452,26 +455,24 @@ export default function LotDetailPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Priority</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Due</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Assignee</th>
-                    <th className="w-16" />
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Title</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Priority</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Due</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Assignee</th>
+                    <th className="w-24 px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {issues.map(issue => (
                     <tr key={issue.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 text-slate-700 font-medium max-w-xs">
-                        <span className="line-clamp-2">{issue.title}</span>
-                      </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-slate-700 font-medium min-w-0 max-w-[200px] truncate">{issue.title}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`badge ${ISSUE_PRIORITY_COLOURS[issue.priority]}`}>
                           {ISSUE_PRIORITY_LABELS[issue.priority]}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`badge ${ISSUE_STATUS_COLOURS[issue.status]}`}>
                           {ISSUE_STATUS_LABELS[issue.status]}
                         </span>
@@ -479,11 +480,14 @@ export default function LotDetailPage() {
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                         {issue.due_date ? formatDate(issue.due_date) : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                         {issue.assignee?.full_name ?? <span className="text-slate-300">Unassigned</span>}
                       </td>
-                      <td className="px-4 py-3">
-                        <Link to={`/issues?open=${issue.id}`} className="text-blue-600 hover:underline text-xs font-medium">
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <Link
+                          to={`/issues?open=${issue.id}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200"
+                        >
                           View
                         </Link>
                       </td>

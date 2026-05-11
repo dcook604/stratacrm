@@ -71,7 +71,7 @@ def set_csrf_cookie(request: Request, response: Response, token: str | None = No
     response.set_cookie(
         key=_CSRF_COOKIE,
         value=token,
-        max_age=30 * 24 * 3600,  # match session lifetime
+        max_age=8 * 3600,         # 8 hours (matches session lifetime)
         httponly=False,           # JS must read it to set the header
         samesite=request.app.state.settings.same_site,
         secure=request.app.state.settings.https_only,

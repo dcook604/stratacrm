@@ -20,6 +20,7 @@ import UserManagementPage from "./pages/UserManagementPage";
 import AuditLogPage from "./pages/AuditLogPage";
 import ShareIncidentPage from "./pages/ShareIncidentPage";
 import EmailIngestSettingsPage from "./pages/EmailIngestSettingsPage";
+import CommunicationsPage from "./pages/CommunicationsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useMe();
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="infractions/:id" element={<InfractionDetailPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="issues" element={<IssuesPage />} />
+          <Route path="communications" element={<CommunicationsPage />} />
           <Route path="users" element={<UserManagementPage />} />
           <Route path="audit-log" element={<AuditLogPage />} />
           <Route path="settings/email-ingest" element={<EmailIngestSettingsPage />} />

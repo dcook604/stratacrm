@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 
 import bcrypt
 import structlog
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from fastapi.responses import JSONResponse
@@ -23,7 +23,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.database import SessionLocal
+from app.database import SessionLocal, get_db
 from app.models import Lot, StrataCorporation, User, UserRole
 from app.routers import auth as auth_router
 from app.routers import lots as lots_router
@@ -36,6 +36,8 @@ from app.routers import documents as documents_router
 from app.routers import sync as sync_router
 from app.routers import share as share_router
 from app.routers import email_ingest as email_ingest_router
+from app.routers import dashboard as dashboard_router
+from app.routers import search as search_router
 from app.routers.auth import limiter
 
 structlog.configure(
@@ -223,7 +225,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=settings.secret_key,
     session_cookie="s4_session",
-    max_age=30 * 24 * 3600,        # 30 days
+    max_age=8 * 3600,              # 8 hours (matches absolute timeout in dependencies.py)
     same_site=settings.same_site,  # "lax" dev / "strict" prod
     https_only=settings.https_only,
 )
@@ -248,186 +250,14 @@ app.include_router(documents_router.router, prefix=API_PREFIX)
 app.include_router(sync_router.router, prefix=API_PREFIX)
 app.include_router(share_router.router, prefix=API_PREFIX)
 app.include_router(email_ingest_router.router, prefix=API_PREFIX)
-
-
-# ---------------------------------------------------------------------------
-# Dashboard stats endpoint
-# ---------------------------------------------------------------------------
-
-from fastapi import Depends, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import select, func as sqlfunc
-from app.database import get_db
-from app.dependencies import get_current_user
-from app.models import AuditLog, Incident, IncidentStatus, Infraction, InfractionStatus, Issue, IssueStatus, Party
-from datetime import date, datetime, timedelta, timezone
-
-
-@app.get(f"{API_PREFIX}/dashboard/stats")
-def dashboard_stats(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
-):
-    lot_count = db.execute(select(sqlfunc.count()).select_from(Lot)).scalar() or 0
-    party_count = db.execute(select(sqlfunc.count()).select_from(Party)).scalar() or 0
-
-    open_infractions = db.execute(
-        select(sqlfunc.count()).select_from(Infraction)
-        .where(Infraction.status.in_([InfractionStatus.open, InfractionStatus.notice_sent,
-                                       InfractionStatus.response_received, InfractionStatus.hearing_scheduled]))
-    ).scalar() or 0
-
-    open_incidents = db.execute(
-        select(sqlfunc.count()).select_from(Incident)
-        .where(Incident.status.in_([IncidentStatus.open, IncidentStatus.in_progress]))
-    ).scalar() or 0
-
-    open_issues = db.execute(
-        select(sqlfunc.count()).select_from(Issue)
-        .where(Issue.status.in_([IssueStatus.open, IssueStatus.in_progress]))
-    ).scalar() or 0
-
-    # "Needs Attention" items
-    # 1. Infractions in notice_sent older than 14 days (response window expired)
-    from app.models import InfractionEvent, InfractionEventType
-    from sqlalchemy.orm import selectinload as sio
-    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=14)
-    overdue_notice_infs = db.execute(
-        select(Infraction)
-        .join(InfractionEvent, InfractionEvent.infraction_id == Infraction.id)
-        .where(Infraction.status == InfractionStatus.notice_sent)
-        .where(InfractionEvent.event_type == InfractionEventType.notice_sent)
-        .where(InfractionEvent.occurred_at < cutoff_dt)
-        .options(sio(Infraction.lot), sio(Infraction.primary_party))
-        .distinct()
-        .limit(10)
-    ).scalars().all()
-
-    # 2. Overdue issues
-    overdue_issues = db.execute(
-        select(Issue)
-        .where(Issue.due_date < date.today())
-        .where(Issue.status.in_([IssueStatus.open, IssueStatus.in_progress]))
-        .options(sio(Issue.assignee))
-        .order_by(Issue.due_date.asc())
-        .limit(10)
-    ).scalars().all()
-
-    recent_audit = db.execute(
-        select(AuditLog)
-        .order_by(AuditLog.occurred_at.desc())
-        .limit(5)
-    ).scalars().all()
-
-    # Resolve user names for entries referencing user entities
-    user_ids = {e.entity_id for e in recent_audit if e.entity_type == "user" and e.entity_id}
-    user_names = {}
-    if user_ids:
-        users = db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()
-        user_names = {u.id: u.full_name for u in users}
-
-    return {
-        "lot_count": lot_count,
-        "party_count": party_count,
-        "open_infractions": open_infractions,
-        "open_incidents": open_incidents,
-        "open_issues": open_issues,
-        "overdue_notice_infractions": [
-            {
-                "id": i.id,
-                "lot_number": i.lot.strata_lot_number if i.lot else None,
-                "unit_number": i.lot.unit_number if i.lot else None,
-                "party_name": i.primary_party.full_name if i.primary_party else None,
-            }
-            for i in overdue_notice_infs
-        ],
-        "overdue_issues": [
-            {
-                "id": i.id,
-                "title": i.title,
-                "due_date": i.due_date.isoformat() if i.due_date else None,
-                "priority": i.priority.value,
-                "assignee_email": i.assignee.email if i.assignee else None,
-            }
-            for i in overdue_issues
-        ],
-        "recent_audit": [
-            {
-                "id": e.id,
-                "actor_email": e.actor_email,
-                "action": e.action,
-                "entity_type": e.entity_type,
-                "entity_id": e.entity_id,
-                "entity_name": user_names.get(e.entity_id) if e.entity_type == "user" else None,
-                "occurred_at": e.occurred_at.isoformat() if e.occurred_at else None,
-            }
-            for e in recent_audit
-        ],
-    }
-
-
-# ---------------------------------------------------------------------------
-# Audit log endpoint (paginated, for full activity log page)
-# ---------------------------------------------------------------------------
-
-
-@app.get(f"{API_PREFIX}/audit-log")
-def get_audit_log(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
-    action: str = Query(None, description="Filter by action type"),
-    entity_type: str = Query(None, description="Filter by entity type"),
-):
-    query = select(AuditLog)
-
-    if action:
-        query = query.where(AuditLog.action == action)
-    if entity_type:
-        query = query.where(AuditLog.entity_type == entity_type)
-
-    # Get total count
-    count_query = select(sqlfunc.count()).select_from(query.subquery())
-    total = db.execute(count_query).scalar() or 0
-
-    # Get paginated results
-    entries = db.execute(
-        query.order_by(AuditLog.occurred_at.desc())
-        .offset(skip)
-        .limit(limit)
-    ).scalars().all()
-
-    # Resolve user names for entries referencing user entities
-    user_ids = {e.entity_id for e in entries if e.entity_type == "user" and e.entity_id}
-    user_names = {}
-    if user_ids:
-        users = db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()
-        user_names = {u.id: u.full_name for u in users}
-
-    from app.schemas.audit import AuditLogResponse, AuditLogEntry
-
-    return AuditLogResponse(
-        items=[
-            AuditLogEntry(
-                id=e.id,
-                actor_email=e.actor_email,
-                action=e.action,
-                entity_type=e.entity_type,
-                entity_id=e.entity_id,
-                entity_name=user_names.get(e.entity_id) if e.entity_type == "user" else None,
-                changes=e.changes,
-                occurred_at=e.occurred_at.isoformat() if e.occurred_at else None,
-                ip_address=e.ip_address,
-            )
-            for e in entries
-        ],
-        total=total,
-        skip=skip,
-        limit=limit,
-    )
-
+app.include_router(dashboard_router.router, prefix=API_PREFIX)
+app.include_router(search_router.router, prefix=API_PREFIX)
 
 @app.get(f"{API_PREFIX}/health")
-def health():
+def health(db = Depends(get_db)):
+    from sqlalchemy import text
+    try:
+        db.execute(text("SELECT 1")).scalar()
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "unhealthy"})
     return {"status": "ok"}

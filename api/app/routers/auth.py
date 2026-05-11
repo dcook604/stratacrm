@@ -42,6 +42,12 @@ from app.schemas.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+# In-memory rate limiter — resets on container restart. Acceptable given:
+#   1. Locked-down user base (authenticated users only)
+#   2. Primary brute-force protection is the account lockout mechanism
+#      (5 failed attempts → 15 min lockout via _check_account_locked)
+#   3. The rate limiter is defense-in-depth
+# To persist across restarts, add Redis and set storage_uri="redis://...".
 limiter = Limiter(key_func=get_remote_address)
 
 # Brute-force lockout constants
