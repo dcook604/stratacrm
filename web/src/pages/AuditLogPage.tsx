@@ -5,6 +5,60 @@ import { formatDateTime } from "../lib/utils";
 import { ChevronLeft, ChevronRight, Filter, ClipboardList } from "lucide-react";
 
 // ---------------------------------------------------------------------------
+// Changes display helpers
+// ---------------------------------------------------------------------------
+
+function toLabel(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatValue(val: unknown): string {
+  if (val === null || val === undefined) return "—";
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  if (Array.isArray(val)) return val.length === 0 ? "(none)" : val.join(", ");
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
+}
+
+function ChangesDisplay({ changes }: { changes: Record<string, unknown> }) {
+  const entries = Object.entries(changes);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      {entries.map(([key, val]) => {
+        const label = toLabel(key);
+        // Before/after object: { from: X, to: Y }
+        if (
+          val !== null &&
+          typeof val === "object" &&
+          !Array.isArray(val) &&
+          ("from" in (val as object) || "to" in (val as object))
+        ) {
+          const { from, to } = val as { from?: unknown; to?: unknown };
+          return (
+            <div key={key} className="text-xs">
+              <span className="font-medium text-slate-600">{label}:</span>{" "}
+              <span className="line-through text-slate-400">{formatValue(from)}</span>
+              <span className="mx-1 text-slate-400">→</span>
+              <span className="text-slate-700">{formatValue(to)}</span>
+            </div>
+          );
+        }
+        return (
+          <div key={key} className="text-xs">
+            <span className="font-medium text-slate-600">{label}:</span>{" "}
+            <span className="text-slate-700">{formatValue(val)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Action labels
 // ---------------------------------------------------------------------------
 
@@ -173,15 +227,8 @@ export default function AuditLogPage() {
                       {entry.actor_email ?? <span className="text-slate-400 italic">system</span>}
                     </td>
                     <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 max-w-xs">
-                      {entry.changes ? (
-                        <details className="group">
-                          <summary className="cursor-pointer text-blue-600 hover:text-blue-700 text-xs font-medium">
-                            View details
-                          </summary>
-                          <pre className="mt-1 p-2 bg-slate-50 rounded text-xs text-slate-600 overflow-x-auto max-h-32 overflow-y-auto">
-                            {JSON.stringify(entry.changes, null, 2)}
-                          </pre>
-                        </details>
+                      {entry.changes && Object.keys(entry.changes).length > 0 ? (
+                        <ChangesDisplay changes={entry.changes as Record<string, unknown>} />
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
