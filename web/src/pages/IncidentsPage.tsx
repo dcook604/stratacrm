@@ -944,14 +944,15 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             value={incident.status}
             disabled={quickStatus.isPending}
             onChange={(e) => quickStatus.mutate(e.target.value as IncidentStatus)}
-            className={`text-xs font-medium rounded-full px-2.5 py-1 border cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors disabled:opacity-60 ${STATUS_SELECT_CLS[incident.status]}`}
+            className={`w-full text-xs font-medium rounded-full px-2.5 py-1 border cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors disabled:opacity-60 ${STATUS_SELECT_CLS[incident.status]}`}
           >
             {(Object.entries(STATUS_LABELS) as [IncidentStatus, string][]).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
         </td>
-        <td className="px-4 py-3 text-right flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-2">
           {confirmDelete ? (
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-red-700 font-medium whitespace-nowrap">Delete?</span>
@@ -994,6 +995,7 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
                 : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </span>
           )}
+          </div>
         </td>
       </tr>
       {expanded && (
@@ -1320,11 +1322,11 @@ export default function IncidentsPage() {
                   }}
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">Ref</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">Ref</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">Date</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Category</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Location</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-40">Status</th>
               <th className="w-20" />
             </tr>
           </thead>

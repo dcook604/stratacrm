@@ -151,7 +151,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="card p-5 animate-pulse flex flex-col gap-3">
               <div className="flex items-center justify-between">
@@ -167,7 +167,7 @@ export default function DashboardPage() {
           {error instanceof Error ? error.message : "Failed to load dashboard stats."}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard
             icon={Building2}
             label="Strata Lots"
