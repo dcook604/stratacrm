@@ -15,7 +15,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.email import send_email
 from app.models import Document, Incident, IncidentNote, IncidentStatus, Issue, Lot, User
-from app.schemas.incidents import IncidentCreate, IncidentMergeRequest, IncidentNoteCreate, IncidentNoteOut, IncidentOut, IncidentUpdate
+from app.schemas.incidents import IncidentCreate, IncidentMergeRequest, IncidentNoteCreate, IncidentNoteOut, IncidentOut, IncidentUpdate, PaginatedIncidents
 from app.utils.media import thumbnail_path_for
 from app.utils.reference import generate_reference
 from app.utils.share_token import create_share_token
@@ -34,7 +34,7 @@ def _load(incident_id: int, db: Session) -> Incident:
     return inc
 
 
-@router.get("", response_model=list[IncidentOut])
+@router.get("", response_model=PaginatedIncidents)
 def list_incidents(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -42,9 +42,11 @@ def list_incidents(
     lot_id: Optional[int] = Query(None),
     category: Optional[str] = Query(None),
     open_only: bool = Query(False),
+    search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(25, ge=1, le=500),
 ):
+    from sqlalchemy import or_
     stmt = (
         select(Incident)
         .where(Incident.merged_into_id.is_(None))
@@ -59,8 +61,19 @@ def list_incidents(
         stmt = stmt.where(Incident.lot_id == lot_id)
     if category:
         stmt = stmt.where(Incident.category.ilike(f"%{category}%"))
-    stmt = stmt.offset(skip).limit(limit)
-    return db.execute(stmt).scalars().all()
+    if search:
+        term = f"%{search}%"
+        stmt = stmt.where(
+            or_(
+                Incident.reference.ilike(term),
+                Incident.description.ilike(term),
+                Incident.category.ilike(term),
+                Incident.reported_by.ilike(term),
+            )
+        )
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
+    items = db.execute(stmt.offset(skip).limit(limit)).scalars().all()
+    return PaginatedIncidents(items=list(items), total=total, skip=skip, limit=limit)
 
 
 @router.post("", response_model=IncidentOut, status_code=status.HTTP_201_CREATED,

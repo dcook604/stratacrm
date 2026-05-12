@@ -64,6 +64,13 @@ class IncidentOut(BaseModel):
     updated_at: datetime
 
 
+class PaginatedIncidents(BaseModel):
+    items: list[IncidentOut]
+    total: int
+    skip: int
+    limit: int
+
+
 class IncidentMergeRequest(BaseModel):
     merge_ids: list[int]
 

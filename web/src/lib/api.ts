@@ -578,12 +578,20 @@ export interface EntityNote {
   created_at: string;
 }
 
+export interface PaginatedIncidents {
+  items: Incident[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 export const incidentsApi = {
   list: (params?: {
     status?: IncidentStatus;
     lot_id?: number;
     category?: string;
     open_only?: boolean;
+    search?: string;
     skip?: number;
     limit?: number;
   }) => {
@@ -592,9 +600,10 @@ export const incidentsApi = {
     if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
     if (params?.category) qs.set("category", params.category);
     if (params?.open_only) qs.set("open_only", "true");
+    if (params?.search) qs.set("search", params.search);
     if (params?.skip != null) qs.set("skip", String(params.skip));
     if (params?.limit != null) qs.set("limit", String(params.limit));
-    return api.get<Incident[]>(`/incidents?${qs}`);
+    return api.get<PaginatedIncidents>(`/incidents?${qs}`);
   },
   get: (id: number) => api.get<Incident>(`/incidents/${id}`),
   create: (body: object) => api.post<Incident>("/incidents", body),

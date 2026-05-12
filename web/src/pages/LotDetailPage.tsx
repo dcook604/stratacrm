@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronUp, Home } from "lucide-react";
 import {
   lotsApi, infractionsApi, incidentsApi, issuesApi,
-  type Lot, type InfractionListItem, type Incident, type Issue,
+  type Lot, type InfractionListItem, type Incident, type Issue, type PaginatedIncidents,
   type InfractionStatus, type IncidentStatus, type IssueStatus, type IssuePriority,
 } from "../lib/api";
 import { ROLE_LABELS, roleBadgeClass, formatDate } from "../lib/utils";
@@ -85,11 +85,12 @@ export default function LotDetailPage() {
     enabled: !!lotId,
   });
 
-  const { data: incidents } = useQuery<Incident[]>({
+  const { data: incidentsData } = useQuery<PaginatedIncidents>({
     queryKey: ["incidents", { lot_id: lotId }],
-    queryFn: () => incidentsApi.list({ lot_id: lotId, limit: 200 }),
+    queryFn: () => incidentsApi.list({ lot_id: lotId, limit: 500 }),
     enabled: !!lotId,
   });
+  const incidents = incidentsData?.items;
 
   const { data: issues } = useQuery<Issue[]>({
     queryKey: ["issues", { lot_id: lotId }],
