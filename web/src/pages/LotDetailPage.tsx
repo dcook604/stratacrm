@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronUp, Home } from "lucide-react";
 import {
   lotsApi, infractionsApi, incidentsApi, issuesApi,
-  type Lot, type InfractionListItem, type Incident, type Issue, type PaginatedIncidents,
+  type Lot, type InfractionListItem, type Issue, type PaginatedIncidents,
   type InfractionStatus, type IncidentStatus, type IssueStatus, type IssuePriority,
 } from "../lib/api";
 import { ROLE_LABELS, roleBadgeClass, formatDate } from "../lib/utils";

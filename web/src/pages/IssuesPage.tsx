@@ -244,7 +244,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
               onChange={(e) => setForm({ ...form, related_incident_id: e.target.value })}
             >
               <option value="">— none —</option>
-              {incidents?.map((inc) => (
+              {incidents?.items?.map((inc) => (
                 <option key={inc.id} value={inc.id}>
                   INC-{inc.id} — {inc.category} ({fmtDatetime(inc.incident_date)})
                 </option>
