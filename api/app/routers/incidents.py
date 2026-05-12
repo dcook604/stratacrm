@@ -1,5 +1,6 @@
 """Incident log router — property/common-area incidents and their status."""
 
+import hashlib
 import os
 from datetime import datetime, timezone
 from typing import Optional
@@ -211,8 +212,47 @@ def merge_incidents(
         .values(linked_entity_id=primary.id)
     )
 
-    # Deduplicate documents by file_hash — keep the oldest copy, remove extras
+    # Deduplicate documents — keep the oldest copy, remove extras
     duplicate_count = 0
+
+    def _remove_doc(doc: Document) -> None:
+        """Delete doc's files from disk and mark the ORM object for deletion."""
+        if doc.storage_path and os.path.exists(doc.storage_path):
+            try:
+                os.remove(doc.storage_path)
+            except OSError:
+                pass
+        thumb_path = thumbnail_path_for(doc.storage_path) if doc.storage_path else None
+        if thumb_path and os.path.exists(thumb_path):
+            try:
+                os.remove(thumb_path)
+            except OSError:
+                pass
+        db.delete(doc)
+
+    # Pass 1: backfill file_hash for any docs that are missing it so the hash
+    # dedup below can catch them too.
+    null_hash_docs = db.execute(
+        select(Document)
+        .where(Document.linked_entity_type == "incident")
+        .where(Document.linked_entity_id == primary.id)
+        .where(Document.file_hash.is_(None))
+    ).scalars().all()
+
+    for doc in null_hash_docs:
+        if doc.storage_path and os.path.exists(doc.storage_path):
+            try:
+                h = hashlib.sha256()
+                with open(doc.storage_path, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(65536), b""):
+                        h.update(chunk)
+                doc.file_hash = h.hexdigest()
+            except OSError:
+                pass
+
+    db.flush()  # make backfilled hashes visible to the SELECT below
+
+    # Pass 2: dedup by file_hash (now covers both old and new docs)
     dup_groups = db.execute(
         select(Document.file_hash, func.count(Document.id).label("cnt"))
         .where(Document.linked_entity_type == "incident")
@@ -222,30 +262,36 @@ def merge_incidents(
         .having(func.count(Document.id) > 1)
     ).all()
 
-    if dup_groups:
-        for hash_val, _ in dup_groups:
-            dup_docs = db.execute(
-                select(Document)
-                .where(Document.linked_entity_type == "incident")
-                .where(Document.linked_entity_id == primary.id)
-                .where(Document.file_hash == hash_val)
-                .order_by(Document.uploaded_at.asc())
-            ).scalars().all()
-            # Keep the oldest, delete the rest
-            for doc in dup_docs[1:]:
-                if doc.storage_path and os.path.exists(doc.storage_path):
-                    try:
-                        os.remove(doc.storage_path)
-                    except OSError:
-                        pass
-                thumb_path = thumbnail_path_for(doc.storage_path) if doc.storage_path else None
-                if thumb_path and os.path.exists(thumb_path):
-                    try:
-                        os.remove(thumb_path)
-                    except OSError:
-                        pass
-                db.delete(doc)
-                duplicate_count += 1
+    for hash_val, _ in dup_groups:
+        dup_docs = db.execute(
+            select(Document)
+            .where(Document.linked_entity_type == "incident")
+            .where(Document.linked_entity_id == primary.id)
+            .where(Document.file_hash == hash_val)
+            .order_by(Document.uploaded_at.asc())
+        ).scalars().all()
+        for doc in dup_docs[1:]:
+            _remove_doc(doc)
+            duplicate_count += 1
+
+    # Pass 3: dedup NULL-hash docs (files that couldn't be read) by
+    # (original_filename, file_size_bytes) as a best-effort fallback.
+    seen_name_size: set[tuple] = set()
+    null_remaining = db.execute(
+        select(Document)
+        .where(Document.linked_entity_type == "incident")
+        .where(Document.linked_entity_id == primary.id)
+        .where(Document.file_hash.is_(None))
+        .order_by(Document.uploaded_at.asc())
+    ).scalars().all()
+
+    for doc in null_remaining:
+        key = (doc.original_filename, doc.file_size_bytes)
+        if key in seen_name_size:
+            _remove_doc(doc)
+            duplicate_count += 1
+        else:
+            seen_name_size.add(key)
 
     # Mark secondaries as merged
     for sec in secondaries:
