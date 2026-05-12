@@ -412,11 +412,16 @@ def _attachment_hash(payload: bytes) -> str:
 
 
 def _attachment_already_saved(db: Session, incident_id: int, file_hash: str, filename: str, size: int) -> bool:
-    """Return True if an identical attachment is already stored for this incident."""
-    from app.models import Document
-    from sqlalchemy import or_
+    """Return True if an identical attachment already exists for this incident.
 
-    # Primary check: SHA-256 match
+    Checks by SHA-256 hash first (strongest signal), then falls back to
+    filename+size for legacy docs that pre-date the file_hash column.
+    The check is scoped to this incident so that the same image can legitimately
+    appear on different incidents.
+    """
+    from app.models import Document
+
+    # Primary check: SHA-256 match within this incident
     existing = db.execute(
         select(Document)
         .where(Document.linked_entity_type == "incident")
@@ -426,7 +431,7 @@ def _attachment_already_saved(db: Session, incident_id: int, file_hash: str, fil
     if existing:
         return True
 
-    # Fallback for legacy docs with NULL hash: filename + size
+    # Fallback for legacy docs with NULL hash: filename + size within this incident
     existing = db.execute(
         select(Document)
         .where(Document.linked_entity_type == "incident")

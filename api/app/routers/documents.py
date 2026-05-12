@@ -191,6 +191,22 @@ async def upload_document(
     # Compute SHA-256 hash of the final stored file for duplicate detection
     file_hash = _compute_file_hash(storage_path)
 
+    # Reject if this exact file is already attached to this entity
+    if file_hash:
+        existing = db.execute(
+            select(Document)
+            .where(Document.linked_entity_type == entity_type)
+            .where(Document.linked_entity_id == entity_id)
+            .where(Document.file_hash == file_hash)
+            .limit(1)
+        ).scalar_one_or_none()
+        if existing:
+            # Clean up the file we just wrote — it's a duplicate
+            if os.path.exists(storage_path):
+                os.unlink(storage_path)
+            # Return the existing document so the UI shows it normally
+            return _doc_out(existing)
+
     # Videos: commit record immediately as is_processing=True, transcode in background
     doc = Document(
         storage_path=storage_path,
