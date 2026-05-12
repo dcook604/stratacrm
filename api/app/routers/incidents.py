@@ -373,7 +373,7 @@ def send_incident_email(
     date_str = inc.incident_date.strftime("%B %-d, %Y")
     status_label = inc.status.value.replace("_", " ").title()
 
-    # Build media rows for HTML email
+    # Build media rows for HTML email (stack vertically for mobile)
     image_rows = ""
     video_count = 0
     for doc in docs:
@@ -384,12 +384,12 @@ def send_incident_email(
             thumb_src = f"{settings.app_base_url}/api/share/media/{token}/{doc.id}?thumb=1"
             caption = doc.caption or doc.original_filename or "Image"
             image_rows += (
-                f'<td style="padding:4px;vertical-align:top;width:160px">'
+                f'<tr><td style="padding:4px 0;vertical-align:top">'
                 f'<a href="{share_url}" style="text-decoration:none">'
-                f'<img src="{thumb_src}" alt="{caption}" width="152" height="114" '
-                f'style="border-radius:6px;object-fit:cover;display:block;border:1px solid #e2e8f0"/>'
+                f'<img src="{thumb_src}" alt="{caption}" width="100%" height="auto" '
+                f'style="border-radius:6px;object-fit:cover;display:block;border:1px solid #e2e8f0;max-width:280px"/>'
                 f'<span style="display:block;font-size:11px;color:#64748b;margin-top:4px">{caption}</span>'
-                f'</a></td>'
+                f'</a></td></tr>'
             )
         elif mime.startswith("video/"):
             video_count += 1
@@ -401,7 +401,7 @@ def send_incident_email(
           <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.05em">
             Attachments
           </p>
-          <table cellpadding="0" cellspacing="0"><tr>{image_rows}</tr></table>
+          <table cellpadding="0" cellspacing="0" style="width:100%;max-width:320px">{image_rows}</table>
           {"" if not video_count else f'<p style="margin:8px 0 0;font-size:12px;color:#64748b">+ {video_count} video{"s" if video_count>1 else ""} — view online below</p>'}
         </td></tr>"""
 
@@ -414,11 +414,11 @@ def send_incident_email(
         </td></tr>"""
 
     html = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"/></head>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
+<tr><td align="center" style="padding:16px 8px">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);max-width:560px">
   <!-- Header -->
   <tr><td style="background:#1e293b;padding:24px 32px">
     <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em">Spectrum 4 — Strata Plan BCS2611</p>
