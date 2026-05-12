@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronUp } from "lucide-react";
+import { ArrowLeft, Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronUp, Home } from "lucide-react";
 import {
   lotsApi, infractionsApi, incidentsApi, issuesApi,
   type Lot, type InfractionListItem, type Incident, type Issue,
@@ -117,6 +117,7 @@ export default function LotDetailPage() {
       scooter_lockers: lot.scooter_lockers ?? "",
       bedrooms: lot.bedrooms ?? undefined,
       is_townhouse: lot.is_townhouse ?? undefined,
+      suspected_airbnb: lot.suspected_airbnb ?? false,
       notes: lot.notes ?? "",
     });
     setEditing(true);
@@ -182,6 +183,13 @@ export default function LotDetailPage() {
           </div>
         )}
       </div>
+
+      {lot.suspected_airbnb && (
+        <div className="mb-4 rounded-md bg-orange-50 border border-orange-300 px-4 py-3 flex items-center gap-2 text-sm text-orange-800">
+          <Home className="w-4 h-4 shrink-0 text-orange-500" />
+          <span><strong>Suspected Airbnb</strong> — this lot is flagged for short-term rental investigation.</span>
+        </div>
+      )}
 
       {updateMut.error && (
         <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -279,6 +287,17 @@ export default function LotDetailPage() {
               </select>
             </div>
             <div className="col-span-1 sm:col-span-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-400"
+                  checked={!!form.suspected_airbnb}
+                  onChange={(e) => setForm((f) => ({ ...f, suspected_airbnb: e.target.checked }))}
+                />
+                <span className="text-sm font-medium text-slate-700">Suspected Airbnb / short-term rental — flag for investigation</span>
+              </label>
+            </div>
+            <div className="col-span-1 sm:col-span-2">
               <label className="label">Notes</label>
               <textarea
                 className="input"
@@ -307,6 +326,15 @@ export default function LotDetailPage() {
               label="Townhouse"
               value={lot.is_townhouse === true ? "Yes" : lot.is_townhouse === false ? "No" : null}
             />
+            <div>
+              <dt className="text-xs font-medium text-slate-500 uppercase tracking-wider">Suspected Airbnb</dt>
+              <dd className="mt-1">
+                {lot.suspected_airbnb
+                  ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200"><Home className="w-3 h-3" />Flagged</span>
+                  : <span className="text-sm text-slate-400">—</span>
+                }
+              </dd>
+            </div>
             <div className="col-span-1 sm:col-span-2">
               <Field label="Notes" value={lot.notes} />
             </div>

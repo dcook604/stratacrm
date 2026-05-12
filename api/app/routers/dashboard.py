@@ -57,6 +57,7 @@ def dashboard_stats(
             .scalar_subquery().label("open_infractions"),
             select(func.count()).select_from(Incident)
             .where(Incident.status.in_(_OPEN_INCIDENT_STATUSES))
+            .where(Incident.merged_into_id.is_(None))
             .scalar_subquery().label("open_incidents"),
             select(func.count()).select_from(Issue)
             .where(Issue.status.in_(_OPEN_ISSUE_STATUSES))

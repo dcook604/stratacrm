@@ -80,6 +80,7 @@ def list_lots(
             strata_lot_number=lot.strata_lot_number,
             unit_number=lot.unit_number,
             square_feet=lot.square_feet,
+            suspected_airbnb=lot.suspected_airbnb,
             owners=[a.party.full_name for a in current if a.role.value in owner_roles],
             tenants=[a.party.full_name for a in current if a.role.value in tenant_roles],
         ))

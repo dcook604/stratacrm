@@ -35,6 +35,7 @@ class LotUpdate(BaseModel):
     scooter_lockers: Optional[str] = None
     bedrooms: Optional[int] = None
     is_townhouse: Optional[bool] = None
+    suspected_airbnb: Optional[bool] = None
     notes: Optional[str] = None
 
 
@@ -49,6 +50,7 @@ class LotOut(BaseModel):
     scooter_lockers: Optional[str]
     bedrooms: Optional[int]
     is_townhouse: Optional[bool]
+    suspected_airbnb: Optional[bool]
     notes: Optional[str]
     updated_at: datetime
     current_assignments: List[AssignmentDetail] = []
@@ -61,6 +63,7 @@ class LotListItem(BaseModel):
     strata_lot_number: int
     unit_number: Optional[str]
     square_feet: Optional[Decimal]
+    suspected_airbnb: Optional[bool]
     owners: List[str] = []       # full_name strings for quick display
     tenants: List[str] = []
 

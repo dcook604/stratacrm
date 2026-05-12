@@ -7,7 +7,7 @@ import {
   flexRender,
   createColumnHelper,
 } from "@tanstack/react-table";
-import { Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Eye, Home } from "lucide-react";
 import { lotsApi, type LotListItem } from "../lib/api";
 
 const col = createColumnHelper<LotListItem>();
@@ -15,8 +15,17 @@ const col = createColumnHelper<LotListItem>();
 const columns = [
   col.accessor("strata_lot_number", {
     header: "SL#",
-    cell: (info) => <span className="font-mono font-medium">SL{info.getValue()}</span>,
-    size: 80,
+    cell: (info) => (
+      <span className="font-mono font-medium flex items-center gap-1.5">
+        SL{info.getValue()}
+        {info.row.original.suspected_airbnb && (
+          <span title="Suspected Airbnb">
+            <Home className="w-3.5 h-3.5 text-orange-500" />
+          </span>
+        )}
+      </span>
+    ),
+    size: 90,
   }),
   col.accessor("unit_number", {
     header: "Unit",

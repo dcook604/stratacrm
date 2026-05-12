@@ -199,6 +199,7 @@ export interface Lot {
   scooter_lockers: string | null;
   bedrooms: number | null;
   is_townhouse: boolean | null;
+  suspected_airbnb: boolean | null;
   notes: string | null;
   updated_at: string;
   current_assignments: LotAssignmentDetail[];
@@ -209,6 +210,7 @@ export interface LotListItem {
   strata_lot_number: number;
   unit_number: string | null;
   square_feet: string | null;
+  suspected_airbnb: boolean | null;
   owners: string[];
   tenants: string[];
 }
