@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
@@ -946,7 +946,11 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             )}
           </div>
         </td>
-        <td className="px-4 py-3 text-sm text-slate-500">{locationLabel}</td>
+        <td className="px-4 py-3 text-sm text-slate-500">
+          {incident.lot
+            ? <Link to={`/lots/${incident.lot.id}`} className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{locationLabel}</Link>
+            : locationLabel}
+        </td>
         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
           <select
             value={incident.status}
