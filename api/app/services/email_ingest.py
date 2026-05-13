@@ -218,6 +218,37 @@ def parse_email_with_ai(subject: str, body: str, sender: str, config) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Sender allowlist
+# ---------------------------------------------------------------------------
+
+def _is_sender_allowed(reporter_email: str, allowed_senders: Optional[str]) -> bool:
+    """Return True if reporter_email matches the allowlist, or if no list is configured.
+
+    Each entry in the comma-separated list is matched as:
+    - exact email address:  alice@example.com
+    - domain with @-prefix: @example.com  (matches any address at that domain)
+    - bare domain:           example.com   (same as @example.com)
+    """
+    if not allowed_senders or not allowed_senders.strip():
+        return True
+    entries = [e.strip().lower() for e in allowed_senders.split(",") if e.strip()]
+    if not entries:
+        return True
+    email_lower = (reporter_email or "").lower()
+    for entry in entries:
+        if entry.startswith("@"):
+            if email_lower.endswith(entry):
+                return True
+        elif "@" not in entry:
+            if email_lower.endswith("@" + entry):
+                return True
+        else:
+            if email_lower == entry:
+                return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Lot lookup
 # ---------------------------------------------------------------------------
 
@@ -560,7 +591,7 @@ def poll_imap(db: Session) -> dict:
         return {"created": 0, "skipped": 0, "errors": 0, "pending": 0, "appended": 0,
                 "skipped_reason": "IMAP credentials incomplete"}
 
-    stats: dict = {"created": 0, "skipped": 0, "errors": 0, "pending": 0, "appended": 0, "error_details": []}
+    stats: dict = {"created": 0, "skipped": 0, "filtered": 0, "errors": 0, "pending": 0, "appended": 0, "error_details": []}
 
     try:
         conn = _get_imap_connection(config)
@@ -612,6 +643,12 @@ def poll_imap(db: Session) -> dict:
 
                 body = _extract_plain_text(msg)
                 _, reporter_email = _parse_sender(from_hint)
+
+                if not _is_sender_allowed(reporter_email, config.allowed_senders):
+                    stats["filtered"] += 1
+                    conn.store(uid, "+FLAGS", "\\Seen")
+                    log.info("email_filtered_sender", reporter=reporter_email)
+                    continue
 
                 # Check if this email belongs to an existing incident
                 existing_incident = _find_existing_incident(msg, db, subject_hint, reporter_email)

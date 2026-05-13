@@ -536,6 +536,7 @@ class EmailIngestConfig(Base):
     imap_use_ssl = Column(Boolean, nullable=False, default=True)
     imap_mailbox = Column(String(200), nullable=False, default="INBOX")
     poll_interval_minutes = Column(Integer, nullable=False, default=10)
+    allowed_senders = Column(Text, nullable=True)
     last_polled_at = Column(DateTime(timezone=True), nullable=True)
     last_poll_stats = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

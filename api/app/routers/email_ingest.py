@@ -32,6 +32,7 @@ class EmailIngestConfigOut(BaseModel):
     has_anthropic_key: bool
     has_deepseek_key: bool
     poll_interval_minutes: int
+    allowed_senders: Optional[str]
     imap_host: Optional[str]
     imap_port: Optional[int]
     imap_username: Optional[str]
@@ -49,6 +50,7 @@ class EmailIngestConfigUpdate(BaseModel):
     anthropic_api_key: Optional[str] = None
     deepseek_api_key: Optional[str] = None
     poll_interval_minutes: Optional[int] = None
+    allowed_senders: Optional[str] = None
     imap_host: Optional[str] = None
     imap_port: Optional[int] = None
     imap_username: Optional[str] = None
@@ -93,6 +95,7 @@ def _config_out(config: EmailIngestConfig, db: Session) -> EmailIngestConfigOut:
         imap_use_ssl=config.imap_use_ssl,
         imap_mailbox=config.imap_mailbox or "INBOX",
         has_imap_password=bool(config.imap_password),
+        allowed_senders=config.allowed_senders or None,
         imap_configured=bool(config.imap_host and config.imap_username and config.imap_password),
         last_polled_at=config.last_polled_at.isoformat() if config.last_polled_at else None,
         last_poll_stats=stats,
@@ -139,6 +142,8 @@ def update_config(
         config.imap_use_ssl = body.imap_use_ssl
     if body.imap_mailbox is not None:
         config.imap_mailbox = body.imap_mailbox or "INBOX"
+    if body.allowed_senders is not None:
+        config.allowed_senders = body.allowed_senders.strip() or None
 
     db.commit()
     db.refresh(config)

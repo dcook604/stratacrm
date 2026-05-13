@@ -108,6 +108,7 @@ export default function EmailIngestSettingsPage() {
   // Polling form state
   const [pollInterval, setPollInterval] = useState(10);
   const [enabled, setEnabled] = useState(false);
+  const [allowedSenders, setAllowedSenders] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
   useEffect(() => {
@@ -120,6 +121,7 @@ export default function EmailIngestSettingsPage() {
       setImapUsername(config.imap_username ?? "");
       setImapUseSsl(config.imap_use_ssl);
       setImapMailbox(config.imap_mailbox || "INBOX");
+      setAllowedSenders(config.allowed_senders ?? "");
     }
   }, [config]);
 
@@ -182,7 +184,11 @@ export default function EmailIngestSettingsPage() {
   }
 
   function savePollingSettings() {
-    updateMutation.mutate({ enabled, poll_interval_minutes: pollInterval });
+    updateMutation.mutate({
+      enabled,
+      poll_interval_minutes: pollInterval,
+      allowed_senders: allowedSenders.trim() || undefined,
+    });
   }
 
   if (!isAdmin) {
@@ -237,6 +243,7 @@ export default function EmailIngestSettingsPage() {
                   {stats.appended > 0 && ` · ${stats.appended} appended to existing`}
                   {stats.pending > 0 && ` · ${stats.pending} pending assignment`}
                   {" · "}{stats.skipped} skipped
+                  {(stats.filtered ?? 0) > 0 && ` · ${stats.filtered} filtered`}
                   {stats.errors > 0 && (
                     <button
                       onClick={() => setShowErrors((x) => !x)}
@@ -457,6 +464,25 @@ export default function EmailIngestSettingsPage() {
             />
             <span className="text-sm text-slate-500">minutes</span>
           </div>
+        </FieldRow>
+
+        <FieldRow
+          label="Sender allowlist"
+          hint="Only process emails from these addresses or domains. Leave blank to accept all senders."
+        >
+          <textarea
+            rows={3}
+            value={allowedSenders}
+            onChange={(e) => setAllowedSenders(e.target.value)}
+            placeholder={"resident@example.com, @spectrum4.ca, gmail.com"}
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono
+              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Comma-separated. Use <code className="bg-slate-100 px-1 rounded">@domain.com</code> to
+            match any address at a domain, or a bare email for an exact match. Filtered messages are
+            marked as read and counted in poll stats.
+          </p>
         </FieldRow>
 
         <FieldRow label="Enable automatic polling">

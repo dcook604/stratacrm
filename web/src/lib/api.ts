@@ -960,6 +960,7 @@ export interface EmailIngestConfig {
   has_anthropic_key: boolean;
   has_deepseek_key: boolean;
   poll_interval_minutes: number;
+  allowed_senders: string | null;
   imap_host: string | null;
   imap_port: number | null;
   imap_username: string | null;
@@ -971,6 +972,7 @@ export interface EmailIngestConfig {
   last_poll_stats: {
     created: number;
     skipped: number;
+    filtered: number;
     errors: number;
     pending: number;
     appended: number;
@@ -984,6 +986,7 @@ export interface EmailIngestConfigUpdate {
   anthropic_api_key?: string;
   deepseek_api_key?: string;
   poll_interval_minutes?: number;
+  allowed_senders?: string;
   imap_host?: string;
   imap_port?: number;
   imap_username?: string;
