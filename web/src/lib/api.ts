@@ -200,6 +200,9 @@ export interface Lot {
   bedrooms: number | null;
   is_townhouse: boolean | null;
   suspected_airbnb: boolean | null;
+  renting_locker: boolean | null;
+  locker_number: string | null;
+  locker_signup_date: string | null;
   notes: string | null;
   updated_at: string;
   current_assignments: LotAssignmentDetail[];

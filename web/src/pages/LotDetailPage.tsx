@@ -119,6 +119,9 @@ export default function LotDetailPage() {
       bedrooms: lot.bedrooms ?? undefined,
       is_townhouse: lot.is_townhouse ?? undefined,
       suspected_airbnb: lot.suspected_airbnb ?? false,
+      renting_locker: lot.renting_locker ?? false,
+      locker_number: lot.locker_number ?? "",
+      locker_signup_date: lot.locker_signup_date ?? "",
       notes: lot.notes ?? "",
     });
     setEditing(true);
@@ -298,6 +301,39 @@ export default function LotDetailPage() {
                 <span className="text-sm font-medium text-slate-700">Suspected Airbnb / short-term rental — flag for investigation</span>
               </label>
             </div>
+            <div className="col-span-1 sm:col-span-2 border-t border-slate-100 pt-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-400"
+                  checked={!!form.renting_locker}
+                  onChange={(e) => setForm((f) => ({ ...f, renting_locker: e.target.checked }))}
+                />
+                <span className="text-sm font-medium text-slate-700">Renting strata-owned locker — track for billing</span>
+              </label>
+              {form.renting_locker && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pl-7">
+                  <div>
+                    <label className="label">Locker Number</label>
+                    <input
+                      className="input"
+                      value={form.locker_number ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, locker_number: e.target.value }))}
+                      placeholder="e.g. L-042"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Sign-up Date</label>
+                    <input
+                      className="input"
+                      type="date"
+                      value={form.locker_signup_date ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, locker_signup_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="col-span-1 sm:col-span-2">
               <label className="label">Notes</label>
               <textarea
@@ -332,6 +368,19 @@ export default function LotDetailPage() {
               <dd className="mt-1">
                 {lot.suspected_airbnb
                   ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200"><Home className="w-3 h-3" />Flagged</span>
+                  : <span className="text-sm text-slate-400">—</span>
+                }
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-slate-500 uppercase tracking-wider">Locker Rental</dt>
+              <dd className="mt-1">
+                {lot.renting_locker
+                  ? <div className="text-sm text-slate-900 space-y-0.5">
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">Active</span>
+                      {lot.locker_number && <p className="mt-1">Locker {lot.locker_number}</p>}
+                      {lot.locker_signup_date && <p className="text-xs text-slate-500">Signed up {formatDate(lot.locker_signup_date)}</p>}
+                    </div>
                   : <span className="text-sm text-slate-400">—</span>
                 }
               </dd>

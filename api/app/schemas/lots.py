@@ -36,6 +36,9 @@ class LotUpdate(BaseModel):
     bedrooms: Optional[int] = None
     is_townhouse: Optional[bool] = None
     suspected_airbnb: Optional[bool] = None
+    renting_locker: Optional[bool] = None
+    locker_number: Optional[str] = None
+    locker_signup_date: Optional[date] = None
     notes: Optional[str] = None
 
 
@@ -51,6 +54,9 @@ class LotOut(BaseModel):
     bedrooms: Optional[int]
     is_townhouse: Optional[bool]
     suspected_airbnb: Optional[bool]
+    renting_locker: Optional[bool]
+    locker_number: Optional[str]
+    locker_signup_date: Optional[date]
     notes: Optional[str]
     updated_at: datetime
     current_assignments: List[AssignmentDetail] = []
