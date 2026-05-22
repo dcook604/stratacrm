@@ -21,6 +21,12 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
+/** Display label for a lot. strata_lot_number === 0 is the synthetic Common Area lot. */
+export function lotLabel(lot: { strata_lot_number: number; unit_number?: string | null }): string {
+  if (lot.strata_lot_number === 0) return "Common Area";
+  return `SL${lot.strata_lot_number}${lot.unit_number ? ` Unit ${lot.unit_number}` : ""}`;
+}
+
 export const ROLE_LABELS: Record<LotAssignmentRole, string> = {
   owner_occupant: "Owner-Occupant",
   owner_absentee: "Owner (Absentee)",

@@ -252,6 +252,15 @@ def _is_sender_allowed(reporter_email: str, allowed_senders: Optional[str]) -> b
 # Lot lookup
 # ---------------------------------------------------------------------------
 
+def _get_common_area_lot_id(db: Session) -> Optional[int]:
+    """Return the id of the synthetic Common Area lot (strata_lot_number=0), or None."""
+    from app.models import Lot
+    lot = db.execute(
+        select(Lot).where(Lot.strata_lot_number == 0)
+    ).scalar_one_or_none()
+    return lot.id if lot else None
+
+
 def _find_lot_id(db: Session, unit_hint: Optional[str]) -> Optional[int]:
     if not unit_hint:
         return None
@@ -687,6 +696,10 @@ def poll_imap(db: Session) -> dict:
                 else:
                     inc_status = IncidentStatus.open
                     raw_unit_hint = None
+                    # No unit identified — assign to the Common Area lot so the
+                    # incident is searchable by lot rather than left unlinked.
+                    if not lot_id:
+                        lot_id = _get_common_area_lot_id(db)
 
                 incident = Incident(
                     reference=generate_reference("TKT"),

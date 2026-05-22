@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Play, FileText, Loader2, AlertTriangle, Clock, X } from "lucide-react";
 import { shareApi, type SharedDoc } from "../lib/api";
 import { fmtDatetime } from "../lib/dates";
+import { lotLabel } from "../lib/utils";
 
 // ---------------------------------------------------------------------------
 // Lightbox for shared media
@@ -121,7 +122,7 @@ export default function ShareIncidentPage() {
   }
 
   const location = data.lot
-    ? `SL${data.lot.strata_lot_number}${data.lot.unit_number ? ` Unit ${data.lot.unit_number}` : ""}`
+    ? lotLabel(data.lot)
     : data.common_area_description ?? "Common area";
 
   const statusLabel = data.status.replace("_", " ");

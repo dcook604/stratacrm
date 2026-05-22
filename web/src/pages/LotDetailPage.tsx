@@ -7,7 +7,7 @@ import {
   type Lot, type InfractionListItem, type Issue, type PaginatedIncidents,
   type InfractionStatus, type IncidentStatus, type IssueStatus, type IssuePriority,
 } from "../lib/api";
-import { ROLE_LABELS, roleBadgeClass, formatDate } from "../lib/utils";
+import { ROLE_LABELS, roleBadgeClass, formatDate, lotLabel } from "../lib/utils";
 import { fmtDatetime } from "../lib/dates";
 
 // ---------------------------------------------------------------------------
@@ -158,10 +158,7 @@ export default function LotDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
-            SL{lot.strata_lot_number}
-            {lot.unit_number && (
-              <span className="ml-2 text-slate-500 font-mono text-lg">Unit {lot.unit_number}</span>
-            )}
+            {lotLabel(lot)}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
             Last updated {formatDate(lot.updated_at)}

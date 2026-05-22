@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
+import { lotLabel } from "../lib/utils";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document, type EntityNote } from "../lib/api";
 import { useToast } from "../lib/toast";
 import ImageEditor from "../components/ImageEditor";
@@ -228,8 +229,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
                 <option value="">— common area / no specific lot —</option>
                 {lotsData?.items.map((l) => (
                   <option key={l.id} value={l.id}>
-                    SL{l.strata_lot_number}
-                    {l.unit_number ? ` — Unit ${l.unit_number}` : ""}
+                    {lotLabel(l)}
                   </option>
                 ))}
               </select>
@@ -855,7 +855,7 @@ function QuickAssignLot({ incident }: { incident: Incident }) {
           <option value="">— select lot —</option>
           {lotsData?.items.map((l) => (
             <option key={l.id} value={l.id}>
-              SL{l.strata_lot_number}{l.unit_number ? ` — Unit ${l.unit_number}` : ""}
+              {lotLabel(l)}
             </option>
           ))}
         </select>
@@ -910,7 +910,7 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
   const isPending = incident.status === "pending_assignment";
 
   const locationLabel = incident.lot
-    ? `SL${incident.lot.strata_lot_number}${incident.lot.unit_number ? ` Unit ${incident.lot.unit_number}` : ""}`
+    ? lotLabel(incident.lot)
     : isPending && incident.raw_unit_hint
       ? `Unit hint: ${incident.raw_unit_hint}`
       : incident.common_area_description ?? "Common area";
@@ -1137,7 +1137,7 @@ function MergeDialog({
                   <p className="text-sm text-slate-600 mt-0.5 line-clamp-1">{inc.category}</p>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {inc.lot
-                      ? `SL${inc.lot.strata_lot_number}${inc.lot.unit_number ? ` Unit ${inc.lot.unit_number}` : ""}`
+                      ? lotLabel(inc.lot)
                       : inc.common_area_description || "Common area"}
                     {" · "}
                     {fmtDatetime(inc.incident_date)}
