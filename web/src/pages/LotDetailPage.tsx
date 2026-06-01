@@ -121,7 +121,7 @@ export default function LotDetailPage() {
       suspected_airbnb: lot.suspected_airbnb ?? false,
       renting_locker: lot.renting_locker ?? false,
       locker_number: lot.locker_number ?? "",
-      locker_signup_date: lot.locker_signup_date ?? "",
+      locker_signup_date: lot.locker_signup_date ?? undefined,
       notes: lot.notes ?? "",
     });
     setEditing(true);
@@ -325,7 +325,7 @@ export default function LotDetailPage() {
                       className="input"
                       type="date"
                       value={form.locker_signup_date ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, locker_signup_date: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, locker_signup_date: e.target.value || undefined }))}
                     />
                   </div>
                 </div>
