@@ -51,7 +51,11 @@ async function request<T>(
     let detail = `HTTP ${res.status}`;
     try {
       const json = await res.json();
-      detail = json.detail ?? JSON.stringify(json);
+      const d = json.detail;
+      if (typeof d === "string") detail = d;
+      else if (Array.isArray(d)) detail = d.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ");
+      else if (d !== undefined) detail = JSON.stringify(d);
+      else detail = JSON.stringify(json);
     } catch {}
     if (res.status === 401) {
       clearCsrfToken();
