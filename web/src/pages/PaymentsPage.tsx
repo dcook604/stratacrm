@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  DollarSign, Plus, Search, Filter, ChevronDown, X, Check,
-  Mail, AlertCircle, Calendar, Clock, Download,
+  DollarSign, Plus, Search, X, Check,
+  Mail, Calendar,
   Settings, List, Receipt,
 } from "lucide-react";
 import { cn, formatDate } from "../lib/utils";
-import api, { paymentsApi, type PaymentConfig, type PaymentRecord, type PaymentScheduleListItem, type PaymentSchedule, type PaymentStatus as PStatus, type LotMini, type PartyMini, type PaymentMethod } from "../lib/api";
+import api, { paymentsApi, type PaymentConfig, type PaymentRecord, type PaymentStatus as PStatus, type PaymentMethod } from "../lib/api";
 import { useToast } from "../lib/toast";
 
 type Tab = "payments" | "schedules" | "config";
@@ -29,7 +29,6 @@ const STATUS_CLASSES: Record<PStatus, string> = {
 
 export default function PaymentsPage() {
   const [tab, setTab] = useState<Tab>("payments");
-  const { toast } = useToast();
 
   return (
     <div className="space-y-6">
@@ -84,7 +83,7 @@ function PaymentsTab() {
   const [page, setPage] = useState(0);
   const [recordModal, setRecordModal] = useState<{ payment: PaymentRecord } | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const qc = useQueryClient();
   const pageSize = 50;
 
@@ -98,23 +97,23 @@ function PaymentsTab() {
   });
 
   const recordMutation = useMutation({
-    mutationFn: (body: { id: number; amount_paid: string; paid_date: string; payment_method?: string; reference_number?: string; notes?: string }) =>
-      paymentsApi.record(body.id, body),
+    mutationFn: (body: { id: number; amount_paid: string; paid_date: string; payment_method?: PaymentMethod; reference_number?: string; notes?: string }) =>
+      paymentsApi.record(body.id, body as any),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments"] });
       qc.invalidateQueries({ queryKey: ["payment-schedules"] });
-      toast("Payment recorded", "success");
+      addToast("success", "Payment recorded");
       setRecordModal(null);
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => addToast("error", err.message),
   });
 
   const notifyMutation = useMutation({
     mutationFn: (id: number) => paymentsApi.sendNotification(id),
     onSuccess: (data) => {
-      toast(`Notification sent to ${data.recipient_email}`, "success");
+      addToast("success", `Notification sent to ${data.recipient_email}`);
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => addToast("error", err.message),
   });
 
   const filtered = payments?.filter(p => {
@@ -358,7 +357,7 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const qc = useQueryClient();
 
   const { data: lots } = useQuery({
@@ -371,20 +370,25 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
     queryFn: () => api.get<{ id: number; full_name: string }[]>("/parties?limit=200").then((r: any) => r.items ?? []),
   });
 
+  const { data: schedules } = useQuery({
+    queryKey: ["schedules-brief"],
+    queryFn: () => paymentsApi.listSchedules({ active_only: true }),
+  });
+
   const createMutation = useMutation({
     mutationFn: (body: object) => paymentsApi.create(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments"] });
-      toast("Payment record created", "success");
+      addToast("success", "Payment record created");
       onClose();
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => addToast("error", err.message),
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     createMutation.mutate({
-      payment_schedule_id: parseInt(scheduleId) || 0,
+      payment_schedule_id: parseInt(scheduleId),
       lot_id: parseInt(lotId),
       party_id: parseInt(partyId),
       amount_due: amount,
@@ -412,6 +416,16 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
             <option value="">Select party...</option>
             {parties?.map((p: any) => (
               <option key={p.id} value={p.id}>{p.full_name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="label">Schedule</label>
+          <select className="input" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)} required>
+            <option value="">Select schedule...</option>
+            {schedules?.map((s: any) => (
+              <option key={s.id} value={s.id}>{s.description} — SL{s.lot.strata_lot_number}</option>
             ))}
           </select>
         </div>
@@ -452,7 +466,7 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
 function SchedulesTab() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const qc = useQueryClient();
 
   const { data: schedules, isLoading } = useQuery({
@@ -464,9 +478,9 @@ function SchedulesTab() {
     mutationFn: (id: number) => paymentsApi.deleteSchedule(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payment-schedules"] });
-      toast("Schedule deactivated", "success");
+      addToast("success", "Schedule deactivated");
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => addToast("error", err.message),
   });
 
   return (
@@ -570,7 +584,7 @@ function ScheduleFormModal({ scheduleId, onClose }: { scheduleId?: number; onClo
   const [billingDay, setBillingDay] = useState("1");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const qc = useQueryClient();
 
   // Load existing schedule for editing
@@ -608,10 +622,10 @@ function ScheduleFormModal({ scheduleId, onClose }: { scheduleId?: number; onClo
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payment-schedules"] });
       qc.invalidateQueries({ queryKey: ["payments"] });
-      toast(isEdit ? "Schedule updated" : "Schedule created", "success");
+      addToast("success", isEdit ? "Schedule updated" : "Schedule created");
       onClose();
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => addToast("error", err.message),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -708,7 +722,7 @@ function ScheduleFormModal({ scheduleId, onClose }: { scheduleId?: number; onClo
 // ---------------------------------------------------------------------------
 
 function ConfigTab() {
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const qc = useQueryClient();
 
   const { data: config, isLoading } = useQuery({
@@ -728,9 +742,9 @@ function ConfigTab() {
     mutationFn: (body: Partial<PaymentConfig>) => paymentsApi.updateConfig(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payment-config"] });
-      toast("Payment settings saved", "success");
+      addToast("success", "Payment settings saved");
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => addToast("error", err.message),
   });
 
   if (isLoading || !form) {
@@ -742,6 +756,7 @@ function ConfigTab() {
   }
 
   function handleSave() {
+    if (!form) return;
     updateMutation.mutate(form);
   }
 
