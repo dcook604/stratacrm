@@ -23,6 +23,7 @@ import EmailIngestSettingsPage from "./pages/EmailIngestSettingsPage";
 import CommunicationsPage from "./pages/CommunicationsPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReportDetailPage from "./pages/ReportDetailPage";
+import PaymentsPage from "./pages/PaymentsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useMe();
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="infractions/:id" element={<InfractionDetailPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="issues" element={<IssuesPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="reports/:id" element={<ReportDetailPage />} />
           <Route path="communications" element={<CommunicationsPage />} />

@@ -37,6 +37,7 @@ from app.routers import sync as sync_router
 from app.routers import share as share_router
 from app.routers import email_ingest as email_ingest_router
 from app.routers import dashboard as dashboard_router
+from app.routers import payments as payments_router
 from app.routers import reports as reports_router
 from app.routers import search as search_router
 from app.routers.auth import limiter
@@ -174,8 +175,9 @@ async def lifespan(app: FastAPI):
 
     from apscheduler.schedulers.background import BackgroundScheduler
     from app.services.email_ingest import scheduler_tick
+    from app.payments.scheduler import run_billing_sweep, run_notification_sweep
 
-    def _tick():
+    def _email_tick():
         db = SessionLocal()
         try:
             scheduler_tick(db)
@@ -184,10 +186,30 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
+    def _billing_sweep():
+        db = SessionLocal()
+        try:
+            run_billing_sweep(db)
+        except Exception:
+            log.exception("billing_sweep_failed")
+        finally:
+            db.close()
+
+    def _notification_sweep():
+        db = SessionLocal()
+        try:
+            run_notification_sweep(db)
+        except Exception:
+            log.exception("notification_sweep_failed")
+        finally:
+            db.close()
+
     scheduler = BackgroundScheduler()
-    scheduler.add_job(_tick, "interval", minutes=1, id="email_ingest_tick")
+    scheduler.add_job(_email_tick, "interval", minutes=1, id="email_ingest_tick")
+    scheduler.add_job(_billing_sweep, "cron", hour=2, minute=0, id="billing_sweep")
+    scheduler.add_job(_notification_sweep, "interval", minutes=5, id="notification_sweep")
     scheduler.start()
-    log.info("email_ingest_scheduler_started")
+    log.info("background_scheduler_started", jobs=["email_ingest", "billing_sweep", "notification_sweep"])
 
     yield
 
@@ -252,6 +274,7 @@ app.include_router(sync_router.router, prefix=API_PREFIX)
 app.include_router(share_router.router, prefix=API_PREFIX)
 app.include_router(email_ingest_router.router, prefix=API_PREFIX)
 app.include_router(dashboard_router.router, prefix=API_PREFIX)
+app.include_router(payments_router.router, prefix=API_PREFIX)
 app.include_router(search_router.router, prefix=API_PREFIX)
 app.include_router(reports_router.router, prefix=API_PREFIX)
 

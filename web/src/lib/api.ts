@@ -1011,4 +1011,145 @@ export const emailIngestApi = {
   triggerPoll: () => api.post<{ status: string }>("/email-ingest/poll"),
 };
 
+// ---------------------------------------------------------------------------
+// Payment types
+// ---------------------------------------------------------------------------
+
+export type PaymentFrequency = "monthly" | "quarterly" | "yearly";
+export type PaymentStatus = "pending" | "paid" | "overdue" | "partially_paid" | "cancelled";
+export type PaymentMethod = "cash" | "cheque" | "etransfer" | "direct_deposit" | "credit_card" | "other";
+export type PaymentNotificationType = "advance_notice" | "reminder" | "overdue_notice" | "manual";
+
+export interface LotMini {
+  id: number;
+  strata_lot_number: number;
+  unit_number: string | null;
+}
+
+export interface PaymentConfig {
+  advance_notice_days: number;
+  additional_reminder_days: number[];
+  past_due_notice_days: number[];
+  late_fee_amount: string | null;
+  grace_period_days: number;
+}
+
+export interface PaymentNotification {
+  id: number;
+  notification_type: PaymentNotificationType;
+  recipient_email: string;
+  sent_at: string;
+  status: string;
+}
+
+export interface PaymentSchedule {
+  id: number;
+  lot: LotMini;
+  party: PartyMini;
+  description: string;
+  amount: string;
+  frequency: PaymentFrequency;
+  billing_day: number;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  payments: PaymentMini[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentScheduleListItem {
+  id: number;
+  lot: LotMini;
+  party: PartyMini;
+  description: string;
+  amount: string;
+  frequency: PaymentFrequency;
+  billing_day: number;
+  is_active: boolean;
+  next_due_date: string | null;
+  outstanding_balance: string;
+}
+
+export interface PaymentMini {
+  id: number;
+  amount_due: string;
+  amount_paid: string;
+  due_date: string;
+  paid_date: string | null;
+  status: PaymentStatus;
+}
+
+export interface PaymentRecord {
+  id: number;
+  payment_schedule_id: number;
+  lot: LotMini;
+  party: PartyMini;
+  amount_due: string;
+  amount_paid: string;
+  due_date: string;
+  paid_date: string | null;
+  status: PaymentStatus;
+  payment_method: PaymentMethod | null;
+  reference_number: string | null;
+  notes: string | null;
+  notifications: PaymentNotification[];
+  created_at: string;
+  updated_at: string;
+}
+
+export const paymentsApi = {
+  getConfig: () => api.get<PaymentConfig>("/payments/config"),
+  updateConfig: (body: Partial<PaymentConfig>) =>
+    api.put<PaymentConfig>("/payments/config", body),
+  listSchedules: (params?: {
+    lot_id?: number;
+    party_id?: number;
+    active_only?: boolean;
+    skip?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
+    if (params?.party_id != null) qs.set("party_id", String(params.party_id));
+    if (params?.active_only) qs.set("active_only", "true");
+    if (params?.skip != null) qs.set("skip", String(params.skip));
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    return api.get<PaymentScheduleListItem[]>(`/payments/schedules?${qs}`);
+  },
+  getSchedule: (id: number) => api.get<PaymentSchedule>(`/payments/schedules/${id}`),
+  createSchedule: (body: object) =>
+    api.post<PaymentSchedule>("/payments/schedules", body),
+  updateSchedule: (id: number, body: object) =>
+    api.put<PaymentSchedule>(`/payments/schedules/${id}`, body),
+  deleteSchedule: (id: number) => api.delete(`/payments/schedules/${id}`),
+  list: (params?: {
+    status?: PaymentStatus;
+    lot_id?: number;
+    party_id?: number;
+    schedule_id?: number;
+    overdue_only?: boolean;
+    skip?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
+    if (params?.party_id != null) qs.set("party_id", String(params.party_id));
+    if (params?.schedule_id != null) qs.set("schedule_id", String(params.schedule_id));
+    if (params?.overdue_only) qs.set("overdue_only", "true");
+    if (params?.skip != null) qs.set("skip", String(params.skip));
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    return api.get<PaymentRecord[]>(`/payments?${qs}`);
+  },
+  get: (id: number) => api.get<PaymentRecord>(`/payments/${id}`),
+  create: (body: object) => api.post<PaymentRecord>("/payments", body),
+  update: (id: number, body: object) =>
+    api.patch<PaymentRecord>(`/payments/${id}`, body),
+  record: (id: number, body: { amount_paid: string; paid_date: string; payment_method?: PaymentMethod; reference_number?: string; notes?: string }) =>
+    api.post<PaymentRecord>(`/payments/${id}/record`, body),
+  sendNotification: (id: number) =>
+    api.post<{ sent: boolean; notification_type: string; recipient_email: string }>(`/payments/${id}/notify`),
+};
+
 
