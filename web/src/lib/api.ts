@@ -907,6 +907,43 @@ export const reportsApi = {
   pdfUrl: (id: number) => `/api/reports/lot-summary/${id}/pdf`,
 };
 
+export async function downloadIncidentEvidencePdf(params: {
+  lotId: number;
+  lotSlNumber: number;
+  fromDate?: string;
+  toDate?: string;
+  category?: string;
+  includeNotes?: boolean;
+  includeAttachments?: boolean;
+}): Promise<void> {
+  const qs = new URLSearchParams({ lot_id: String(params.lotId) });
+  if (params.fromDate) qs.set("from_date", params.fromDate);
+  if (params.toDate) qs.set("to_date", params.toDate);
+  if (params.category) qs.set("category", params.category);
+  if (params.includeNotes === false) qs.set("include_notes", "false");
+  if (params.includeAttachments === false) qs.set("include_attachments", "false");
+
+  const res = await fetch(`/api/incidents/evidence-export?${qs}`, { credentials: "same-origin" });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const json = await res.json();
+      if (typeof json.detail === "string") detail = json.detail;
+    } catch {}
+    throw new Error(detail);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  a.download = `incident_evidence_SL${params.lotSlNumber}_${dateStr}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ---------------------------------------------------------------------------
 // Sync API
 // ---------------------------------------------------------------------------

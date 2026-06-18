@@ -2,10 +2,11 @@
 
 import hashlib
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import func, select, update as sa_update
 from sqlalchemy.orm import Session, selectinload
@@ -15,7 +16,8 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.email import send_email
-from app.models import Document, Incident, IncidentNote, IncidentStatus, Issue, Lot, User
+from app.models import Document, Incident, IncidentNote, IncidentStatus, Issue, Lot, LotAssignment, StrataCorporation, User
+from app.reports.evidence import render_incident_evidence_pdf
 from app.schemas.incidents import IncidentCreate, IncidentMergeRequest, IncidentNoteCreate, IncidentNoteOut, IncidentOut, IncidentUpdate, PaginatedIncidents
 from app.utils.media import thumbnail_path_for
 from app.utils.reference import generate_reference
@@ -96,6 +98,144 @@ def create_incident(
     db.commit()
     db.refresh(inc)
     return _load(inc.id, db)
+
+
+@router.get("/evidence-export")
+def export_incident_evidence(
+    lot_id: int = Query(..., description="Lot ID to export incidents for"),
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    category: Optional[str] = Query(None),
+    include_notes: bool = Query(True),
+    include_attachments: bool = Query(True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a court/dispute-ready incident evidence PDF for a lot."""
+    lot = db.get(Lot, lot_id)
+    if not lot:
+        raise HTTPException(status_code=404, detail="Lot not found")
+
+    corp = db.execute(select(StrataCorporation).limit(1)).scalar_one_or_none()
+    if not corp:
+        raise HTTPException(status_code=500, detail="Strata corporation not configured.")
+
+    corp_address = ", ".join(filter(None, [corp.address, corp.city, corp.province, corp.postal_code]))
+
+    # Current party assignments
+    assignments = db.execute(
+        select(LotAssignment)
+        .where(LotAssignment.lot_id == lot_id)
+        .where(LotAssignment.is_current.is_(True))
+        .options(selectinload(LotAssignment.party))
+    ).scalars().all()
+    parties = [
+        {"full_name": a.party.full_name, "role": a.role.value}
+        for a in assignments if a.party
+    ]
+
+    # Fetch incidents
+    stmt = (
+        select(Incident)
+        .where(Incident.lot_id == lot_id)
+        .where(Incident.merged_into_id.is_(None))
+        .order_by(Incident.incident_date.desc())
+    )
+    if from_date:
+        stmt = stmt.where(Incident.incident_date >= datetime(from_date.year, from_date.month, from_date.day))
+    if to_date:
+        import datetime as dt_mod
+        stmt = stmt.where(Incident.incident_date < datetime(to_date.year, to_date.month, to_date.day) + dt_mod.timedelta(days=1))
+    if category:
+        stmt = stmt.where(Incident.category.ilike(f"%{category}%"))
+
+    incidents_raw = db.execute(stmt.limit(500)).scalars().all()
+
+    # Build location label once
+    location_label = f"SL{lot.strata_lot_number}"
+    if lot.unit_number:
+        location_label += f" / Unit {lot.unit_number}"
+
+    incidents: list[dict] = []
+    for inc in incidents_raw:
+        entry: dict = {
+            "reference": inc.reference,
+            "status": inc.status.value,
+            "incident_date": inc.incident_date,
+            "category": inc.category,
+            "location_label": location_label,
+            "reported_by": inc.reported_by,
+            "reporter_email": getattr(inc, "reporter_email", None),
+            "description": inc.description,
+            "resolution": inc.resolution,
+            "notes": [],
+            "documents": [],
+        }
+
+        if include_notes:
+            notes = db.execute(
+                select(IncidentNote)
+                .where(IncidentNote.incident_id == inc.id)
+                .order_by(IncidentNote.created_at.asc())
+            ).scalars().all()
+            entry["notes"] = [
+                {
+                    "source": n.source,
+                    "author_name": n.author_name,
+                    "author_email": n.author_email,
+                    "created_at": n.created_at,
+                    "content": n.content,
+                }
+                for n in notes
+            ]
+
+        if include_attachments:
+            docs = db.execute(
+                select(Document)
+                .where(Document.linked_entity_type == "incident")
+                .where(Document.linked_entity_id == inc.id)
+                .order_by(Document.uploaded_at.asc())
+            ).scalars().all()
+            entry["documents"] = [
+                {
+                    "storage_path": d.storage_path,
+                    "original_filename": d.original_filename,
+                    "mime_type": d.mime_type,
+                    "caption": d.caption,
+                    "tags": d.tags,
+                    "is_processing": d.is_processing,
+                    "uploaded_at": d.uploaded_at,
+                }
+                for d in docs
+            ]
+
+        incidents.append(entry)
+
+    pdf_bytes = render_incident_evidence_pdf(
+        corp_name=corp.name,
+        strata_plan=corp.strata_plan,
+        corp_address=corp_address,
+        strata_lot_number=lot.strata_lot_number,
+        unit_number=lot.unit_number,
+        parties=parties,
+        incidents=incidents,
+        generated_by_email=current_user.email,
+        from_date=from_date,
+        to_date=to_date,
+        category_filter=category,
+        include_notes=include_notes,
+        include_attachments=include_attachments,
+    )
+
+    sl = lot.strata_lot_number
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    filename = f"incident_evidence_SL{sl}_{date_str}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{incident_id}", response_model=IncidentOut)

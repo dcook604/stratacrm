@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge, Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import { lotLabel } from "../lib/utils";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document, type EntityNote } from "../lib/api";
@@ -9,6 +9,7 @@ import { useToast } from "../lib/toast";
 import ImageEditor from "../components/ImageEditor";
 import Lightbox from "../components/Lightbox";
 import SendIncidentEmailModal from "../components/SendIncidentEmailModal";
+import ExportEvidenceModal from "../components/ExportEvidenceModal";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1210,6 +1211,7 @@ export default function IncidentsPage() {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergePrimaryId, setMergePrimaryId] = useState<number | null>(null);
   const [openIdDismissed, setOpenIdDismissed] = useState(false);
+  const [showExportEvidence, setShowExportEvidence] = useState(false);
 
   const qc2 = useQueryClient();
   const { addToast } = useToast();
@@ -1294,6 +1296,14 @@ export default function IncidentsPage() {
               Merge {selectedIds.size} Selected
             </button>
           )}
+          <button
+            className="btn btn-secondary text-sm flex items-center gap-1.5"
+            onClick={() => setShowExportEvidence(true)}
+            title="Export incident evidence PDF for a lot"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Evidence PDF</span>
+          </button>
           <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
             <Plus className="w-4 h-4" /><span className="hidden sm:inline ml-1.5">Log Incident</span><span className="sm:hidden ml-1">New</span>
           </button>
@@ -1468,6 +1478,12 @@ export default function IncidentsPage() {
           }}
           onCancel={() => { setMergeOpen(false); setMergePrimaryId(null); }}
           isPending={mergeMut.isPending}
+        />
+      )}
+
+      {showExportEvidence && (
+        <ExportEvidenceModal
+          onClose={() => setShowExportEvidence(false)}
         />
       )}
     </div>
