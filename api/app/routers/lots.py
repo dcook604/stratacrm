@@ -43,7 +43,9 @@ def _load_lot(lot_id: int, db: Session) -> Lot:
 def list_lots(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-    search: Optional[str] = Query(None, description="Filter by unit number or SL#"),
+    search: Optional[str] = Query(
+        None, description="Filter by unit number, SL#, parking stall, or locker number"
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=1000),
 ):
@@ -56,13 +58,20 @@ def list_lots(
 
     if search:
         from sqlalchemy import or_
+
+        text_match = or_(
+            Lot.unit_number.ilike(f"%{search}%"),
+            Lot.parking_stalls.ilike(f"%{search}%"),
+            Lot.storage_lockers.ilike(f"%{search}%"),
+            Lot.bike_lockers.ilike(f"%{search}%"),
+            Lot.scooter_lockers.ilike(f"%{search}%"),
+            Lot.locker_number.ilike(f"%{search}%"),
+        )
         try:
             sl_num = int(search)
-            stmt = stmt.where(
-                or_(Lot.strata_lot_number == sl_num, Lot.unit_number.ilike(f"%{search}%"))
-            )
+            stmt = stmt.where(or_(Lot.strata_lot_number == sl_num, text_match))
         except ValueError:
-            stmt = stmt.where(Lot.unit_number.ilike(f"%{search}%"))
+            stmt = stmt.where(text_match)
 
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
 

@@ -126,7 +126,7 @@ export default function LotsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by unit or SL#…"
+            placeholder="Search by unit, SL#, parking stall, or locker…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="input pl-9"
