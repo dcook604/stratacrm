@@ -218,6 +218,11 @@ export interface LotListItem {
   unit_number: string | null;
   square_feet: string | null;
   suspected_airbnb: boolean | null;
+  parking_stalls: string | null;
+  storage_lockers: string | null;
+  bike_lockers: string | null;
+  scooter_lockers: string | null;
+  locker_number: string | null;
   owners: string[];
   tenants: string[];
 }

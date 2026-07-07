@@ -70,6 +70,11 @@ class LotListItem(BaseModel):
     unit_number: Optional[str]
     square_feet: Optional[Decimal]
     suspected_airbnb: Optional[bool]
+    parking_stalls: Optional[str]
+    storage_lockers: Optional[str]
+    bike_lockers: Optional[str]
+    scooter_lockers: Optional[str]
+    locker_number: Optional[str]
     owners: List[str] = []       # full_name strings for quick display
     tenants: List[str] = []
 

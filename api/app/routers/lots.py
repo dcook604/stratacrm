@@ -90,6 +90,11 @@ def list_lots(
             unit_number=lot.unit_number,
             square_feet=lot.square_feet,
             suspected_airbnb=lot.suspected_airbnb,
+            parking_stalls=lot.parking_stalls,
+            storage_lockers=lot.storage_lockers,
+            bike_lockers=lot.bike_lockers,
+            scooter_lockers=lot.scooter_lockers,
+            locker_number=lot.locker_number,
             owners=[a.party.full_name for a in current if a.role.value in owner_roles],
             tenants=[a.party.full_name for a in current if a.role.value in tenant_roles],
         ))

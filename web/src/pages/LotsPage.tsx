@@ -40,6 +40,22 @@ const columns = [
     },
     size: 90,
   }),
+  col.display({
+    id: "parkingLocker",
+    header: "Parking/Locker",
+    cell: (info) => {
+      const lot = info.row.original;
+      const parts = [
+        lot.parking_stalls,
+        lot.storage_lockers,
+        lot.bike_lockers,
+        lot.scooter_lockers,
+        lot.locker_number,
+      ].filter(Boolean);
+      if (!parts.length) return <span className="text-slate-400">—</span>;
+      return <span className="text-xs">{parts.join(", ")}</span>;
+    },
+  }),
   col.accessor("owners", {
     header: "Owner(s)",
     cell: (info) => {
