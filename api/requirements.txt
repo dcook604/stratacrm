@@ -1,4 +1,4 @@
-fastapi==0.115.5
+fastapi==0.142.2
 uvicorn[standard]==0.32.1
 sqlalchemy==2.0.36
 alembic==1.14.0
@@ -7,16 +7,14 @@ pydantic==2.10.3
 pydantic-settings==2.7.0
 email-validator==2.2.0
 bcrypt==4.2.1
-python-multipart==0.0.20
+python-multipart==0.0.32
 itsdangerous==2.2.0
-slowapi==0.1.9
+slowapi==0.1.10
 structlog==24.4.0
 httpx==0.28.1
-weasyprint==61.2
-pydyf==0.8.0
-pdfplumber==0.11.4
-Pillow==11.1.0
-pytest==8.3.4
+weasyprint==70.0
+pdfplumber==0.11.10
+Pillow==12.3.0
 # Email ingest
 google-api-python-client==2.154.0
 google-auth-httplib2==0.2.0
