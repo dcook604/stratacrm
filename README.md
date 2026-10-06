@@ -130,9 +130,9 @@ All variables go in Coolify's Environment UI (or a `.env` file for local dev).
 
 | Variable | Default | Required in prod | Description |
 |----------|---------|-----------------|-------------|
-| `DB_PASSWORD` | `changeme` | **Yes** | PostgreSQL password for `spectrum4` user |
+| `DB_PASSWORD` | _none — startup fails if unset_ | **Yes** | PostgreSQL password for `spectrum4` user |
 | `DATABASE_URL` | auto-built from `DB_PASSWORD` | No | Override full connection string (e.g. external DB) |
-| `SECRET_KEY` | dev placeholder | **Yes** | 32+ char random string for session signing |
+| `SECRET_KEY` | _none — startup fails if unset or a known default_ | **Yes** | 32+ char random string for session signing |
 | `DEBUG` | `false` | No | Enables `/api/docs`, `/api/redoc`. Keep `false` in prod |
 | `HTTPS_ONLY` | `false` | **Yes** (`true`) | Sets `Secure` flag on session cookie |
 | `SAME_SITE` | `lax` | **Yes** (`strict`) | SameSite session cookie policy |

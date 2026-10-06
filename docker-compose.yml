@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: spectrum4
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
       POSTGRES_DB: spectrum4_crm
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -36,8 +36,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://spectrum4:${DB_PASSWORD:-changeme}@db:5432/spectrum4_crm
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production-min-32-chars}
+      DATABASE_URL: postgresql://spectrum4:${DB_PASSWORD:?DB_PASSWORD must be set}@db:5432/spectrum4_crm
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set}
       DEBUG: ${DEBUG:-false}
       HTTPS_ONLY: ${HTTPS_ONLY:-false}
       SAME_SITE: ${SAME_SITE:-lax}

@@ -1,6 +1,8 @@
 from functools import lru_cache
 
-from pydantic import field_validator, ValidationInfo
+from urllib.parse import urlparse
+
+from pydantic import field_validator, model_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +14,14 @@ _WEAK_SECRETS: set[str] = {
     "secret",
     "admin",
 }
+
+# Placeholder prefixes copied from .env.example that must never reach production
+_PLACEHOLDER_PREFIXES: tuple[str, ...] = ("replace-this", "dev-secret-key")
+
+
+def _is_weak_secret(value: str) -> bool:
+    v = value.lower()
+    return v in _WEAK_SECRETS or v.startswith(_PLACEHOLDER_PREFIXES)
 
 
 class Settings(BaseSettings):
@@ -47,6 +57,31 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------
+
+    @model_validator(mode="after")
+    def reject_default_secrets_in_production(self) -> "Settings":
+        """Fail startup when DEBUG is off and a core secret is a known default.
+
+        Field validators don't run on default values, so this runs on the
+        assembled model and also catches values that were never set at all.
+        """
+        if self.debug:
+            return self
+
+        problems: list[str] = []
+        if _is_weak_secret(self.secret_key):
+            problems.append("SECRET_KEY is a known default/placeholder")
+        db_password = urlparse(self.database_url).password or ""
+        if not db_password or _is_weak_secret(db_password):
+            problems.append("DATABASE_URL has an empty or default password (set DB_PASSWORD)")
+
+        if problems:
+            raise ValueError(
+                "Refusing to start with insecure configuration: "
+                + "; ".join(problems)
+                + ". Generate values with: python3 -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+        return self
 
     @field_validator("debug", mode="before")
     @classmethod
