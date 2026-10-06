@@ -8,11 +8,17 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
-from app.dependencies import get_current_user, require_write
+from app.dependencies import get_current_user, require_csrf, require_write
 from app.models import EmailIngestConfig, User
 from app.services.email_ingest import poll_imap, test_imap_connection
 
-router = APIRouter(prefix="/email-ingest", tags=["email-ingest"])
+# require_csrf only checks POST/PUT/PATCH/DELETE, so applying it router-wide means
+# any mutating route added here later is protected by default.
+router = APIRouter(
+    prefix="/email-ingest",
+    tags=["email-ingest"],
+    dependencies=[Depends(require_csrf)],
+)
 
 
 def _get_config(db: Session) -> EmailIngestConfig:

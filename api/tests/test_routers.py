@@ -42,3 +42,31 @@ class TestProtectedEndpoints:
     def test_unauthenticated_returns_401(self, client, path):
         r = client.get(path)
         assert r.status_code == 401, f"{path} returned {r.status_code}, expected 401"
+
+
+class TestEmailIngestCsrf:
+    """Mutating email-ingest routes must reject requests without a CSRF token."""
+
+    @pytest.mark.parametrize(
+        "method,path",
+        [
+            ("patch", "/api/email-ingest/config"),
+            ("delete", "/api/email-ingest/config/imap"),
+            ("post", "/api/email-ingest/test"),
+            ("post", "/api/email-ingest/poll"),
+        ],
+    )
+    def test_missing_csrf_returns_403(self, client, method, path):
+        r = getattr(client, method)(path)
+        assert r.status_code == 403, f"{method.upper()} {path} returned {r.status_code}, expected 403"
+
+
+class TestResetLink:
+    """Reset links must come from APP_BASE_URL, never from request headers."""
+
+    def test_link_uses_configured_base_url(self, monkeypatch):
+        from app.config import settings
+        from app.routers.auth import _build_reset_link
+
+        monkeypatch.setattr(settings, "app_base_url", "https://crm.example.test/")
+        assert _build_reset_link("tok123") == "https://crm.example.test/reset-password?token=tok123"

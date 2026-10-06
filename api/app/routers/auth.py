@@ -1,6 +1,7 @@
 """Authentication router: login, logout, me, change-password, forgot/reset password, admin user management."""
 
 import hashlib
+import html
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -53,6 +54,15 @@ limiter = Limiter(key_func=get_remote_address)
 # Brute-force lockout constants
 _MAX_FAILED_ATTEMPTS = 5
 _LOCKOUT_DURATION = timedelta(minutes=15)
+
+
+def _build_reset_link(raw_token: str) -> str:
+    """Build the reset URL from configured APP_BASE_URL, never from request headers.
+
+    request.base_url is derived from the Host / X-Forwarded-Host headers, which an
+    attacker controls, so using it would let them point reset emails at their own domain.
+    """
+    return f"{settings.app_base_url.rstrip('/')}/reset-password?token={raw_token}"
 
 
 def _check_account_locked(user: User) -> None:
@@ -221,7 +231,7 @@ def forgot_password(
         db.commit()
 
         # Build reset link
-        reset_link = f"{request.base_url}reset-password?token={raw_token}"
+        reset_link = _build_reset_link(raw_token)
 
         # Send email (best-effort — log failure but don't expose it)
         send_email(
@@ -236,7 +246,7 @@ def forgot_password(
                 f"— Spectrum 4 Strata Council"
             ),
             body_html=(
-                f"<p>Hello {user.full_name},</p>"
+                f"<p>Hello {html.escape(user.full_name)},</p>"
                 f"<p>A password reset was requested for your Spectrum 4 Strata CRM account.</p>"
                 f"<p><a href=\"{reset_link}\">Click here to reset your password</a></p>"
                 f"<p>This link expires in 1 hour.</p>"
@@ -523,7 +533,7 @@ def admin_send_reset_email(
     )
     db.commit()
 
-    reset_link = f"{request.base_url}reset-password?token={raw_token}"
+    reset_link = _build_reset_link(raw_token)
     send_email(
         to_address=user.email,
         subject="Password Reset — Spectrum 4 Strata CRM",
@@ -536,7 +546,7 @@ def admin_send_reset_email(
             f"— Spectrum 4 Strata Council"
         ),
         body_html=(
-            f"<p>Hello {user.full_name},</p>"
+            f"<p>Hello {html.escape(user.full_name)},</p>"
             f"<p>A password reset has been initiated for your Spectrum 4 Strata CRM account by an administrator.</p>"
             f"<p><a href=\"{reset_link}\">Click here to set your new password</a></p>"
             f"<p>This link expires in 24 hours.</p>"
