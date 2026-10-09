@@ -484,12 +484,13 @@ def generate_notice(
     db.add(doc)
     db.flush()
 
-    # Create Notice record
+    # Create Notice record. delivered_at is set below only once delivery is
+    # actually confirmed (see the email block).
     notice = Notice(
         infraction_id=infraction_id,
         document_id=doc.id,
         delivery_method=body.delivery_method,
-        delivered_at=datetime.now(timezone.utc) if body.delivery_method == DeliveryMethod.email else None,
+        delivered_at=None,
     )
     db.add(notice)
     db.flush()
@@ -510,6 +511,12 @@ def generate_notice(
     )
     db.add(event)
 
+    # Persist the notice record *before* attempting any email. If the send ran
+    # first and this commit then failed, the owner would be holding a legal
+    # s.135 Notice of Bylaw Contravention while the council has no Notice /
+    # InfractionEvent row to show for it — an unauditable compliance action.
+    db.commit()
+
     # Send email if requested
     email_sent = False
     if body.delivery_method == DeliveryMethod.email and body.send_email:
@@ -518,7 +525,8 @@ def generate_notice(
             .where(ContactMethod.party_id == party.id)
             .where(ContactMethod.method_type == ContactMethodType.email)
             .where(ContactMethod.is_primary.is_(True))
-        ).scalar_one_or_none()
+            .limit(1)
+        ).scalars().first()
 
         if not primary_email:
             # Fall back to any email
@@ -526,7 +534,9 @@ def generate_notice(
                 select(ContactMethod)
                 .where(ContactMethod.party_id == party.id)
                 .where(ContactMethod.method_type == ContactMethodType.email)
-            ).scalar_one_or_none()
+                .order_by(ContactMethod.id)
+                .limit(1)
+            ).scalars().first()
 
         if primary_email:
             subject = (
@@ -551,6 +561,10 @@ def generate_notice(
                 attachment_bytes=pdf_bytes,
                 attachment_filename=filename,
             )
+
+            # Record delivery only when the send actually succeeded.
+            if email_sent:
+                notice.delivered_at = datetime.now(timezone.utc)
 
             # Log to communications_log
             comm = CommunicationsLog(
