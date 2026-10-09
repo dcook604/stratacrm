@@ -5,6 +5,7 @@ import os
 from datetime import date, datetime, timezone
 from typing import Optional
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr
@@ -22,6 +23,8 @@ from app.schemas.incidents import IncidentCreate, IncidentMergeRequest, Incident
 from app.utils.media import thumbnail_path_for
 from app.utils.reference import generate_reference
 from app.utils.share_token import create_share_token
+
+log = structlog.get_logger()
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -354,20 +357,15 @@ def merge_incidents(
 
     # Deduplicate documents — keep the oldest copy, remove extras
     duplicate_count = 0
+    # Files are unlinked only *after* the transaction commits: if the commit
+    # fails and rolls back, the DB rows survive, so deleting the files first
+    # would strand those rows pointing at files that no longer exist.
+    files_to_remove: list[tuple[str, Optional[str]]] = []
 
     def _remove_doc(doc: Document) -> None:
-        """Delete doc's files from disk and mark the ORM object for deletion."""
-        if doc.storage_path and os.path.exists(doc.storage_path):
-            try:
-                os.remove(doc.storage_path)
-            except OSError:
-                pass
-        thumb_path = thumbnail_path_for(doc.storage_path) if doc.storage_path else None
-        if thumb_path and os.path.exists(thumb_path):
-            try:
-                os.remove(thumb_path)
-            except OSError:
-                pass
+        """Mark doc's ORM object for deletion and queue its files for removal."""
+        if doc.storage_path:
+            files_to_remove.append((doc.storage_path, thumbnail_path_for(doc.storage_path)))
         db.delete(doc)
 
     # Pass 1: backfill file_hash for any docs that are missing it so the hash
@@ -456,6 +454,15 @@ def merge_incidents(
                changes={"merged_ids": body.merge_ids, "merged_references": refs},
                actor_id=current_user.id, actor_email=current_user.email, request=request)
     db.commit()
+
+    # Deletions are now durable — it's safe to unlink the orphaned files.
+    for storage_path, thumb_path in files_to_remove:
+        for path in (storage_path, thumb_path):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    log.warning("merge_orphan_file_unlink_failed", path=path)
 
     return _load(incident_id, db)
 
