@@ -174,40 +174,45 @@ async def lifespan(app: FastAPI):
     _seed_database()
 
     from apscheduler.schedulers.background import BackgroundScheduler
+    from app.scheduler_lock import single_runner_lock
     from app.services.email_ingest import scheduler_tick
     from app.payments.scheduler import run_billing_sweep, run_notification_sweep
 
-    def _email_tick():
+    def _run_job(job_name: str, job_fn, failure_event: str) -> None:
+        """Run a scheduled job under a cross-process advisory lock.
+
+        `uvicorn --workers N` starts one scheduler per worker, so without this
+        every job would run N times concurrently.
+        """
         db = SessionLocal()
         try:
-            scheduler_tick(db)
+            with single_runner_lock(db, job_name) as is_leader:
+                if not is_leader:
+                    return
+                job_fn(db)
         except Exception:
-            log.exception("email_ingest_scheduler_tick_failed")
+            log.exception(failure_event)
         finally:
             db.close()
+
+    def _email_tick():
+        _run_job("email_ingest_tick", scheduler_tick, "email_ingest_scheduler_tick_failed")
 
     def _billing_sweep():
-        db = SessionLocal()
-        try:
-            run_billing_sweep(db)
-        except Exception:
-            log.exception("billing_sweep_failed")
-        finally:
-            db.close()
+        _run_job("billing_sweep", run_billing_sweep, "billing_sweep_failed")
 
     def _notification_sweep():
-        db = SessionLocal()
-        try:
-            run_notification_sweep(db)
-        except Exception:
-            log.exception("notification_sweep_failed")
-        finally:
-            db.close()
+        _run_job("notification_sweep", run_notification_sweep, "notification_sweep_failed")
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(_email_tick, "interval", minutes=1, id="email_ingest_tick")
-    scheduler.add_job(_billing_sweep, "cron", hour=2, minute=0, id="billing_sweep")
-    scheduler.add_job(_notification_sweep, "interval", minutes=5, id="notification_sweep")
+    # max_instances=1 / coalesce guard against overlap *within* one process; the
+    # advisory lock in _run_job guards against overlap across workers/replicas.
+    scheduler.add_job(_email_tick, "interval", minutes=1, id="email_ingest_tick",
+                      max_instances=1, coalesce=True)
+    scheduler.add_job(_billing_sweep, "cron", hour=2, minute=0, id="billing_sweep",
+                      max_instances=1, coalesce=True)
+    scheduler.add_job(_notification_sweep, "interval", minutes=5, id="notification_sweep",
+                      max_instances=1, coalesce=True)
     scheduler.start()
     log.info("background_scheduler_started", jobs=["email_ingest", "billing_sweep", "notification_sweep"])
 

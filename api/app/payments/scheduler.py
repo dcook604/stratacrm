@@ -217,7 +217,8 @@ def _already_notified_today(
         .where(PaymentNotification.payment_id == payment_id)
         .where(PaymentNotification.notification_type == ntype)
         .where(PaymentNotification.sent_at >= today_start)
-    ).scalar_one_or_none()
+        .limit(1)
+    ).scalars().first()
     return existing is not None
 
 
