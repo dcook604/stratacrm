@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle, ChevronLeft, FileText, Send, CheckCircle,
+  AlertTriangle, FileText, Send, CheckCircle,
   XCircle, Clock, Mail, MessageSquare, Gavel, DollarSign, Plus,
 } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
+import BackLink from "../components/ui/BackLink";
 import {
   infractionsApi,
   type InfractionDetail,
@@ -315,13 +316,7 @@ export default function InfractionDetailPage() {
     <div className="p-6 space-y-6 max-w-4xl">
       {/* Breadcrumb */}
       <div>
-        <Link
-          to="/infractions"
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-3"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back to Infractions
-        </Link>
+        <BackLink fallback="/infractions" label="Back to Infractions" className="mb-3" />
 
         <div className="flex items-start justify-between">
           <div>

@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
+import { useListParams } from "../hooks/useListParams";
+import SearchInput from "../components/ui/SearchInput";
+import Pagination from "../components/ui/Pagination";
+import ActiveFilters from "../components/ui/ActiveFilters";
+import { SortButton } from "../components/ui/SortHeader";
+import { LotPicker, PartyPicker } from "../components/ui/EntityPicker";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  DollarSign, Plus, Search, X, Check,
+  DollarSign, Plus, X, Check,
   Mail, Calendar,
   Settings, List, Receipt,
 } from "lucide-react";
 import { cn, formatDate } from "../lib/utils";
-import api, { paymentsApi, type PaymentConfig, type PaymentRecord, type PaymentStatus as PStatus, type PaymentMethod } from "../lib/api";
+import { paymentsApi, type PaymentConfig, type PaymentRecord, type PaymentStatus as PStatus, type PaymentMethod } from "../lib/api";
 import { useToast } from "../lib/toast";
 
 type Tab = "payments" | "schedules" | "config";
@@ -27,8 +34,14 @@ const STATUS_CLASSES: Record<PStatus, string> = {
   cancelled: "badge badge-slate",
 };
 
+const TABS: Tab[] = ["payments", "schedules", "config"];
+
 export default function PaymentsPage() {
-  const [tab, setTab] = useState<Tab>("payments");
+  const [sp, setSp] = useSearchParams();
+  const tabParam = sp.get("tab") as Tab | null;
+  const tab: Tab = tabParam && TABS.includes(tabParam) ? tabParam : "payments";
+  // Switching tabs drops the other tab's filters; push so Back returns to the previous tab.
+  const setTab = (t: Tab) => setSp(t === "payments" ? {} : { tab: t });
 
   return (
     <div className="space-y-6">
@@ -77,24 +90,31 @@ export default function PaymentsPage() {
 // Payments Tab
 // ---------------------------------------------------------------------------
 
+const PAYMENT_STATUSES = ["pending", "overdue", "paid", "partially_paid", "cancelled"] as const;
+
 function PaymentsTab() {
-  const [statusFilter, setStatusFilter] = useState<PStatus | "">("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(0);
+  const { values, page, setPage, update, clearAll } = useListParams({ q: "", status: "", sort: "due:desc", size: "50" });
+  const statusFilter = values.status as PStatus | "";
+  const searchQuery = values.q;
+  const sort = values.sort;
+  const pageSize = Number(values.size) || 50;
   const [recordModal, setRecordModal] = useState<{ payment: PaymentRecord } | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const { addToast } = useToast();
   const qc = useQueryClient();
-  const pageSize = 50;
 
-  const { data: payments, isLoading } = useQuery({
-    queryKey: ["payments", statusFilter, page],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["payments", { statusFilter, searchQuery, sort, page, pageSize }],
     queryFn: () => paymentsApi.list({
       status: statusFilter || undefined,
+      search: searchQuery || undefined,
+      sort,
       skip: page * pageSize,
       limit: pageSize,
     }),
+    placeholderData: (prev) => prev,
   });
+  const filtered = data?.items;
 
   const recordMutation = useMutation({
     mutationFn: (body: { id: number; amount_paid: string; paid_date: string; payment_method?: PaymentMethod; reference_number?: string; notes?: string }) =>
@@ -116,51 +136,45 @@ function PaymentsTab() {
     onError: (err: Error) => addToast("error", err.message),
   });
 
-  const filtered = payments?.filter(p => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.lot.unit_number?.toLowerCase().includes(q) ||
-      `sl${p.lot.strata_lot_number}`.includes(q) ||
-      p.party.full_name.toLowerCase().includes(q)
-    );
-  });
-
   return (
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            className="input pl-9"
-            placeholder="Search by lot, unit, or party..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search by lot, unit, or party…"
+          className="flex-1 min-w-[200px] max-w-md"
+        />
 
         <select
           className="input w-auto min-w-[140px]"
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value as PStatus | ""); setPage(0); }}
+          onChange={(e) => update({ status: e.target.value })}
+          aria-label="Filter by status"
         >
           <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="overdue">Overdue</option>
-          <option value="paid">Paid</option>
-          <option value="partially_paid">Partially Paid</option>
-          <option value="cancelled">Cancelled</option>
+          {PAYMENT_STATUSES.map((st) => (
+            <option key={st} value={st}>{STATUS_LABELS[st]}</option>
+          ))}
         </select>
 
         <button
           onClick={() => setCreateModalOpen(true)}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary flex items-center gap-2 ml-auto"
         >
           <Plus className="w-4 h-4" />
           Record Payment
         </button>
       </div>
+
+      <ActiveFilters
+        chips={[
+          ...(searchQuery ? [{ label: `Search: “${searchQuery}”`, onRemove: () => update({ q: "" }) }] : []),
+          ...(statusFilter ? [{ label: `Status: ${STATUS_LABELS[statusFilter]}`, onRemove: () => update({ status: "" }) }] : []),
+        ]}
+        onClearAll={clearAll}
+      />
 
       {/* Table */}
       <div className="card overflow-hidden">
@@ -169,10 +183,10 @@ function PaymentsTab() {
             <tr className="border-b border-slate-200 bg-slate-50">
               <Th>Lot</Th>
               <Th>Party</Th>
-              <Th>Amount Due</Th>
+              <Th><SortButton label="Amount Due" sortKey="amount" sort={sort} onSort={(v) => update({ sort: v })} firstDir="desc" /></Th>
               <Th>Paid</Th>
-              <Th>Due Date</Th>
-              <Th>Status</Th>
+              <Th><SortButton label="Due Date" sortKey="due" sort={sort} onSort={(v) => update({ sort: v })} firstDir="desc" /></Th>
+              <Th><SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} /></Th>
               <Th>Actions</Th>
             </tr>
           </thead>
@@ -180,7 +194,9 @@ function PaymentsTab() {
             {isLoading ? (
               <tr><td colSpan={7} className="p-8 text-center text-slate-400 text-sm">Loading...</td></tr>
             ) : filtered?.length === 0 ? (
-              <tr><td colSpan={7} className="p-8 text-center text-slate-400 text-sm">No payments found</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-slate-400 text-sm">
+                {error ? "Failed to load payments." : searchQuery || statusFilter ? <>No payments match these filters. <button className="underline" onClick={clearAll}>Clear all</button></> : "No payments found"}
+              </td></tr>
             ) : (
               filtered?.map((p) => (
                 <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
@@ -236,6 +252,13 @@ function PaymentsTab() {
             )}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPage={setPage}
+          onPageSize={(n) => update({ size: String(n) })}
+        />
       </div>
 
       {/* Record Payment Modal */}
@@ -360,20 +383,11 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
   const { addToast } = useToast();
   const qc = useQueryClient();
 
-  const { data: lots } = useQuery({
-    queryKey: ["lots-brief"],
-    queryFn: () => api.get<{ id: number; strata_lot_number: number; unit_number: string | null }[]>("/lots?limit=200").then((r: any) => r.items ?? []),
+  const { data: schedulesPage } = useQuery({
+    queryKey: ["schedules-brief", lotId],
+    queryFn: () => paymentsApi.listSchedules({ active_only: true, limit: 200, lot_id: lotId ? Number(lotId) : undefined }),
   });
-
-  const { data: parties } = useQuery({
-    queryKey: ["parties-brief"],
-    queryFn: () => api.get<{ id: number; full_name: string }[]>("/parties?limit=200").then((r: any) => r.items ?? []),
-  });
-
-  const { data: schedules } = useQuery({
-    queryKey: ["schedules-brief"],
-    queryFn: () => paymentsApi.listSchedules({ active_only: true }),
-  });
+  const schedules = schedulesPage?.items;
 
   const createMutation = useMutation({
     mutationFn: (body: object) => paymentsApi.create(body),
@@ -402,28 +416,18 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="label">Lot</label>
-          <select className="input" value={lotId} onChange={(e) => setLotId(e.target.value)} required>
-            <option value="">Select lot...</option>
-            {lots?.map((l: any) => (
-              <option key={l.id} value={l.id}>SL{l.strata_lot_number}{l.unit_number ? ` (${l.unit_number})` : ""}</option>
-            ))}
-          </select>
+          <LotPicker value={lotId} onChange={(id) => { setLotId(id); setScheduleId(""); }} required />
         </div>
 
         <div>
           <label className="label">Party</label>
-          <select className="input" value={partyId} onChange={(e) => setPartyId(e.target.value)} required>
-            <option value="">Select party...</option>
-            {parties?.map((p: any) => (
-              <option key={p.id} value={p.id}>{p.full_name}</option>
-            ))}
-          </select>
+          <PartyPicker value={partyId} onChange={(id) => setPartyId(id)} required />
         </div>
 
         <div>
           <label className="label">Schedule</label>
           <select className="input" value={scheduleId} onChange={(e) => setScheduleId(e.target.value)} required>
-            <option value="">Select schedule...</option>
+            <option value="">{lotId ? "Select schedule..." : "Select a lot first..."}</option>
             {schedules?.map((s: any) => (
               <option key={s.id} value={s.id}>{s.description} — SL{s.lot.strata_lot_number}</option>
             ))}
@@ -464,15 +468,26 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 function SchedulesTab() {
+  const { values, page, setPage, update } = useListParams({ q: "", size: "20" });
+  const search = values.q;
+  const pageSize = Number(values.size) || 20;
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const { addToast } = useToast();
   const qc = useQueryClient();
 
-  const { data: schedules, isLoading } = useQuery({
-    queryKey: ["payment-schedules"],
-    queryFn: () => paymentsApi.listSchedules({ active_only: true }),
+  const { data: schedulesPage, isLoading } = useQuery({
+    queryKey: ["payment-schedules", { search, page, pageSize }],
+    queryFn: () => paymentsApi.listSchedules({
+      active_only: true,
+      search: search || undefined,
+      skip: page * pageSize,
+      limit: pageSize,
+    }),
+    placeholderData: (prev) => prev,
   });
+  const schedules = schedulesPage?.items;
+  const scheduleTotal = schedulesPage?.total ?? 0;
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => paymentsApi.deleteSchedule(id),
@@ -485,9 +500,15 @@ function SchedulesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SearchInput
+          value={search}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search schedules, lots, or parties…"
+          className="flex-1 min-w-[200px] max-w-md"
+        />
         <p className="text-sm text-slate-500">
-          {schedules?.length ?? 0} active schedule{schedules?.length !== 1 ? "s" : ""}
+          {scheduleTotal} active schedule{scheduleTotal !== 1 ? "s" : ""}
         </p>
         <button onClick={() => setCreateOpen(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
@@ -560,6 +581,17 @@ function SchedulesTab() {
         )}
       </div>
 
+      <div className="card">
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={scheduleTotal}
+          onPage={setPage}
+          onPageSize={(n) => update({ size: String(n) })}
+          pageSizes={[10, 20, 50]}
+        />
+      </div>
+
       {createOpen && (
         <ScheduleFormModal onClose={() => setCreateOpen(false)} />
       )}
@@ -606,16 +638,6 @@ function ScheduleFormModal({ scheduleId, onClose }: { scheduleId?: number; onClo
     setEndDate(existing.end_date || "");
   }
 
-  const { data: lots } = useQuery({
-    queryKey: ["lots-brief"],
-    queryFn: () => api.get<{ id: number; strata_lot_number: number; unit_number: string | null }[]>("/lots?limit=200").then((r: any) => r.items ?? []),
-  });
-
-  const { data: parties } = useQuery({
-    queryKey: ["parties-brief"],
-    queryFn: () => api.get<{ id: number; full_name: string }[]>("/parties?limit=200").then((r: any) => r.items ?? []),
-  });
-
   const createMutation = useMutation({
     mutationFn: (body: object) =>
       isEdit ? paymentsApi.updateSchedule(scheduleId, body) : paymentsApi.createSchedule(body),
@@ -654,21 +676,16 @@ function ScheduleFormModal({ scheduleId, onClose }: { scheduleId?: number; onClo
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Lot</label>
-            <select className="input" value={lotId} onChange={(e) => setLotId(e.target.value)} required>
-              <option value="">Select...</option>
-              {lots?.map((l: any) => (
-                <option key={l.id} value={l.id}>SL{l.strata_lot_number}{l.unit_number ? ` (${l.unit_number})` : ""}</option>
-              ))}
-            </select>
+            <LotPicker
+              value={lotId}
+              label={existing ? `SL${existing.lot.strata_lot_number}${existing.lot.unit_number ? ` (${existing.lot.unit_number})` : ""}` : undefined}
+              onChange={(id) => setLotId(id)}
+              required
+            />
           </div>
           <div>
             <label className="label">Party (Renter)</label>
-            <select className="input" value={partyId} onChange={(e) => setPartyId(e.target.value)} required>
-              <option value="">Select...</option>
-              {parties?.map((p: any) => (
-                <option key={p.id} value={p.id}>{p.full_name}</option>
-              ))}
-            </select>
+            <PartyPicker value={partyId} label={existing?.party.full_name} onChange={(id) => setPartyId(id)} required />
           </div>
         </div>
 

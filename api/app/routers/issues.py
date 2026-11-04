@@ -4,14 +4,14 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.audit import log_action
 from app.database import get_db
 from app.dependencies import get_current_user, require_csrf, require_write
 from app.models import Incident, Issue, IssueNote, IssuePriority, IssueStatus, Lot, User
-from app.schemas.issues import IssueCreate, IssueNoteCreate, IssueNoteOut, IssueOut, IssueUpdate
+from app.schemas.issues import IssueCreate, IssueNoteCreate, IssueNoteOut, IssueOut, IssueUpdate, PaginatedIssues
 
 router = APIRouter(prefix="/issues", tags=["issues"])
 
@@ -31,7 +31,7 @@ def _load(issue_id: int, db: Session) -> Issue:
     return issue
 
 
-@router.get("", response_model=list[IssueOut])
+@router.get("", response_model=PaginatedIssues)
 def list_issues(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -41,8 +41,10 @@ def list_issues(
     lot_id: Optional[int] = Query(None),
     open_only: bool = Query(False),
     overdue_only: bool = Query(False),
+    search: Optional[str] = Query(None, max_length=200),
+    sort: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=500),
 ):
     stmt = (
         select(Issue)
@@ -71,8 +73,32 @@ def list_issues(
         stmt = stmt.where(Issue.assignee_id == assignee_id)
     if lot_id:
         stmt = stmt.where(Issue.related_lot_id == lot_id)
-    stmt = stmt.offset(skip).limit(limit)
-    return db.execute(stmt).scalars().all()
+    if search:
+        term = f"%{search}%"
+        stmt = stmt.where(or_(Issue.title.ilike(term), Issue.description.ilike(term)))
+
+    total = db.execute(
+        select(func.count()).select_from(stmt.order_by(None).subquery())
+    ).scalar() or 0
+
+    if sort:
+        key, _sep, direction = sort.partition(":")
+        sort_cols = {
+            "priority": Issue.priority,
+            "due": Issue.due_date,
+            "status": Issue.status,
+            "title": Issue.title,
+            "created": Issue.id,
+        }
+        if key in sort_cols:
+            col = sort_cols[key]
+            stmt = stmt.order_by(None).order_by(
+                col.asc().nullslast() if direction == "asc" else col.desc().nullslast(),
+                Issue.id.desc(),
+            )
+
+    items = db.execute(stmt.offset(skip).limit(limit)).scalars().all()
+    return PaginatedIssues(items=list(items), total=total, skip=skip, limit=limit)
 
 
 @router.post("", response_model=IssueOut, status_code=status.HTTP_201_CREATED,

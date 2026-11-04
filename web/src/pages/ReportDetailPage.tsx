@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import BackLink from "../components/ui/BackLink";
 import {
-  ArrowLeft,
   Download,
   AlertTriangle,
   FileText as IncidentIcon,
@@ -148,10 +148,7 @@ export default function ReportDetailPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/reports" className="btn btn-secondary text-sm">
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </Link>
+          <BackLink fallback="/reports" label="Back" className="btn btn-secondary text-sm" />
           <a
             href={reportsApi.pdfUrl(lotId)}
             className="btn btn-primary text-sm"

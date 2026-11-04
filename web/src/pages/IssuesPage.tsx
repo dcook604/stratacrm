@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useListParams } from "../hooks/useListParams";
+import SearchInput from "../components/ui/SearchInput";
+import Pagination from "../components/ui/Pagination";
+import ActiveFilters from "../components/ui/ActiveFilters";
+import { SortButton } from "../components/ui/SortHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, Wrench, ChevronDown, ChevronUp, Pencil, AlertCircle, Trash2, MessageSquare, Send } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
@@ -493,8 +498,10 @@ const PRIORITY_FILTERS: { value: IssuePriority | ""; label: string }[] = [
   { value: "low", label: "Low" },
 ];
 
-const STATUS_FILTERS: { value: IssueStatus | ""; label: string }[] = [
+const STATUS_FILTERS: { value: IssueStatus | "" | "active" | "overdue"; label: string }[] = [
   { value: "", label: "All statuses" },
+  { value: "active", label: "Active (open + in progress)" },
+  { value: "overdue", label: "Overdue" },
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
   { value: "resolved", label: "Resolved" },
@@ -504,30 +511,55 @@ const STATUS_FILTERS: { value: IssueStatus | ""; label: string }[] = [
 export default function IssuesPage() {
   const [searchParams] = useSearchParams();
   const openId = searchParams.get("open") ? Number(searchParams.get("open")) : null;
-  const [statusFilter, setStatusFilter] = useState<IssueStatus | "">("");
-  const [priorityFilter, setPriorityFilter] = useState<IssuePriority | "">("");
-  const [openOnly, setOpenOnly] = useState(false);
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  const { values, page, setPage, update, clearAll } = useListParams({ q: "", status: "", priority: "", sort: "", size: "25" });
+  const search = values.q;
+  const statusFilter = values.status;
+  const priorityFilter = values.priority as IssuePriority | "";
+  const sort = values.sort;
+  const pageSize = Number(values.size) || 25;
+  const openOnly = statusFilter === "active";
+  const overdueOnly = statusFilter === "overdue";
   const [showCreate, setShowCreate] = useState(false);
   const [editIssue, setEditIssue] = useState<Issue | null>(null);
 
-  const { data: issues, isLoading } = useQuery({
-    queryKey: ["issues", { statusFilter, priorityFilter, openOnly, overdueOnly }],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["issues", { search, statusFilter, priorityFilter, sort, page, pageSize }],
     queryFn: () =>
       issuesApi.list({
-        status: statusFilter || undefined,
+        status: statusFilter && !openOnly && !overdueOnly ? (statusFilter as IssueStatus) : undefined,
         priority: priorityFilter || undefined,
         open_only: openOnly,
         overdue_only: overdueOnly,
-        limit: 200,
+        search: search || undefined,
+        sort: sort || undefined,
+        skip: page * pageSize,
+        limit: pageSize,
       }),
+    placeholderData: (prev) => prev,
   });
 
-  const activeCount = issues?.filter((i) =>
-    i.status === "open" || i.status === "in_progress"
-  ).length ?? 0;
+  // Deep-linked issue (?open=ID) may not be on the current page; fetch it so it is always visible.
+  const { data: linkedIssue } = useQuery({
+    queryKey: ["issue", openId],
+    queryFn: () => issuesApi.get(openId!),
+    enabled: !!openId,
+  });
+  const pageItems = data?.items;
+  const issues = linkedIssue && pageItems && !pageItems.some((i) => i.id === linkedIssue.id)
+    ? [linkedIssue, ...pageItems]
+    : pageItems;
 
-  const overdueCount = issues?.filter(isOverdue).length ?? 0;
+  // Real totals for the stats strip (the list itself only holds one page).
+  const { data: activeStat } = useQuery({
+    queryKey: ["issues", "stat", "active"],
+    queryFn: () => issuesApi.list({ open_only: true, limit: 1 }),
+  });
+  const { data: overdueStat } = useQuery({
+    queryKey: ["issues", "stat", "overdue"],
+    queryFn: () => issuesApi.list({ overdue_only: true, limit: 1 }),
+  });
+  const activeCount = activeStat?.total ?? 0;
+  const overdueCount = overdueStat?.total ?? 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
@@ -546,33 +578,43 @@ export default function IssuesPage() {
         </button>
       </div>
 
-      {issues && (
-        <div className="flex gap-2 md:gap-4 flex-wrap">
-          <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
-            <p className="text-2xl font-bold text-amber-600">{activeCount}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Active</p>
-          </div>
-          {overdueCount > 0 && (
-            <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] border-red-200">
-              <p className="text-2xl font-bold text-red-600">{overdueCount}</p>
-              <p className="text-xs text-slate-500 mt-0.5">Overdue</p>
-            </div>
-          )}
-          <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
-            <p className="text-2xl font-bold text-slate-600">{issues.length}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Showing</p>
-          </div>
+      <div className="flex gap-2 md:gap-4 flex-wrap">
+        <button
+          type="button"
+          onClick={() => update({ status: "active" })}
+          className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] hover:bg-slate-50"
+        >
+          <p className="text-2xl font-bold text-amber-600">{activeStat ? activeCount : "–"}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Active</p>
+        </button>
+        {overdueCount > 0 && (
+          <button
+            type="button"
+            onClick={() => update({ status: "overdue" })}
+            className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] border-red-200 hover:bg-red-50"
+          >
+            <p className="text-2xl font-bold text-red-600">{overdueCount}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Overdue</p>
+          </button>
+        )}
+        <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
+          <p className="text-2xl font-bold text-slate-600">{data?.total ?? "–"}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Matching</p>
         </div>
-      )}
+      </div>
 
       <div className="flex gap-3 flex-wrap items-center">
+        <SearchInput
+          value={search}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search title or description…"
+          className="flex-1 min-w-[220px] max-w-md"
+        />
         <select
-          className="input w-44"
+          className="input w-52"
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as IssueStatus | "");
-            if (e.target.value) setOpenOnly(false);
-          }}
+          onChange={(e) => update({ status: e.target.value })}
+          aria-label="Filter by status"
         >
           {STATUS_FILTERS.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
@@ -581,47 +623,50 @@ export default function IssuesPage() {
         <select
           className="input w-40"
           value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value as IssuePriority | "")}
+          onChange={(e) => update({ priority: e.target.value })}
+          aria-label="Filter by priority"
         >
           {PRIORITY_FILTERS.map((p) => (
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="rounded border-slate-300"
-            checked={openOnly}
-            onChange={(e) => {
-              setOpenOnly(e.target.checked);
-              if (e.target.checked) { setStatusFilter(""); setOverdueOnly(false); }
-            }}
-          />
-          Active only
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="rounded border-slate-300"
-            checked={overdueOnly}
-            onChange={(e) => {
-              setOverdueOnly(e.target.checked);
-              if (e.target.checked) { setOpenOnly(false); setStatusFilter(""); }
-            }}
-          />
-          Overdue only
-        </label>
       </div>
+      <ActiveFilters
+        chips={[
+          ...(search ? [{ label: `Search: “${search}”`, onRemove: () => update({ q: "" }) }] : []),
+          ...(statusFilter
+            ? [{
+                label: `Status: ${STATUS_FILTERS.find((f) => f.value === statusFilter)?.label ?? statusFilter}`,
+                onRemove: () => update({ status: "" }),
+              }]
+            : []),
+          ...(priorityFilter
+            ? [{
+                label: `Priority: ${PRIORITY_FILTERS.find((f) => f.value === priorityFilter)?.label ?? priorityFilter}`,
+                onRemove: () => update({ priority: "" }),
+              }]
+            : []),
+        ]}
+        onClearAll={clearAll}
+      />
 
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
         <div className="overflow-x-auto">
         <table className="w-full min-w-[600px]">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Title</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-24">Priority</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Due</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <SortButton label="Title" sortKey="title" sort={sort} onSort={(v) => update({ sort: v })} />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-24">
+                <SortButton label="Priority" sortKey="priority" sort={sort || "priority:desc"} onSort={(v) => update({ sort: v })} firstDir="desc" />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">
+                <SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">
+                <SortButton label="Due" sortKey="due" sort={sort} onSort={(v) => update({ sort: v })} />
+              </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">Assignee</th>
               <th className="w-20" />
             </tr>
@@ -635,7 +680,9 @@ export default function IssuesPage() {
             {!isLoading && (!issues || issues.length === 0) && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
-                  No issues found.
+                  {error ? "Failed to load issues." : search || statusFilter || priorityFilter ? (
+                    <>No issues match these filters. <button className="underline" onClick={clearAll}>Clear all</button></>
+                  ) : "No issues found."}
                 </td>
               </tr>
             )}
@@ -650,6 +697,13 @@ export default function IssuesPage() {
           </tbody>
         </table>
         </div>
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPage={setPage}
+          onPageSize={(n) => update({ size: String(n) })}
+        />
       </div>
 
       {showCreate && (

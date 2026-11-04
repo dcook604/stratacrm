@@ -81,6 +81,13 @@ class InfractionListItem(BaseModel):
     created_at: datetime
 
 
+class PaginatedInfractions(BaseModel):
+    items: list[InfractionListItem]
+    total: int
+    skip: int
+    limit: int
+
+
 # ---------------------------------------------------------------------------
 # Infraction events
 # ---------------------------------------------------------------------------

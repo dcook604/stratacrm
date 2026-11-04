@@ -46,6 +46,7 @@ def list_parties(
     _: User = Depends(get_current_user),
     search: Optional[str] = Query(None),
     party_type: Optional[str] = Query(None),
+    sort: str = Query("name:asc"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
@@ -65,7 +66,10 @@ def list_parties(
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
 
     parties = db.execute(
-        stmt.order_by(Party.full_name).offset(skip).limit(limit)
+        stmt.order_by(
+            Party.full_name.desc() if sort == "name:desc" else Party.full_name.asc(),
+            Party.id,
+        ).offset(skip).limit(limit)
     ).scalars().all()
 
     items = []

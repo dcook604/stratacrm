@@ -1,11 +1,13 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Building2, Users, BookOpen, AlertTriangle,
-  Wrench, FileText, LogOut, Shield, X, Mail, BarChart3, DollarSign,
+  Wrench, FileText, LogOut, Shield, X, Mail, BarChart3, DollarSign, ScrollText,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
 import { useSidebar } from "../../hooks/useSidebar";
+import { SearchTrigger } from "../GlobalSearch";
 
 interface NavItem {
   to: string;
@@ -26,8 +28,43 @@ const NAV: NavItem[] = [
   { to: "/payments", icon: DollarSign, label: "Payments" },
   { to: "/reports", icon: BarChart3, label: "Reports" },
   { to: "/users", icon: Shield, label: "Users", adminOnly: true },
+  { to: "/audit-log", icon: ScrollText, label: "Audit Log", adminOnly: true },
   { to: "/settings/email-ingest", icon: Mail, label: "Email Ingest", adminOnly: true },
 ];
+
+const MEMORY_KEY = "nav-list-state";
+
+function readMemory(): Record<string, string> {
+  try {
+    return JSON.parse(sessionStorage.getItem(MEMORY_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+/** Remembers each section's last query string so sidebar links return to the same search/filters/page. */
+function useRememberedSearch() {
+  const location = useLocation();
+  const [memory, setMemory] = useState<Record<string, string>>(readMemory);
+
+  useEffect(() => {
+    const section = "/" + location.pathname.split("/")[1];
+    const isTopLevelList = location.pathname === section;
+    if (!isTopLevelList || !NAV.some((n) => n.to === section)) return;
+    // `open` is a transient deep link, not a list filter
+    const sp = new URLSearchParams(location.search);
+    sp.delete("open");
+    const qs = sp.toString() ? `?${sp}` : "";
+    setMemory((prev) => {
+      if ((prev[section] ?? "") === qs) return prev;
+      const next = { ...prev, [section]: qs };
+      try { sessionStorage.setItem(MEMORY_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [location.pathname, location.search]);
+
+  return memory;
+}
 
 export default function Sidebar() {
   const { data: meData } = useMe();
@@ -35,6 +72,7 @@ export default function Sidebar() {
   const logout = useLogout();
   const navigate = useNavigate();
   const { open, setOpen } = useSidebar();
+  const remembered = useRememberedSearch();
 
   async function handleLogout() {
     try {
@@ -87,6 +125,10 @@ export default function Sidebar() {
           </button>
         </div>
 
+        <div className="px-3 pt-3">
+          <SearchTrigger className="w-full" />
+        </div>
+
         {/* Navigation */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
           {NAV
@@ -95,7 +137,7 @@ export default function Sidebar() {
             available ? (
               <NavLink
                 key={to}
-                to={to}
+                to={`${to}${remembered[to] ?? ""}`}
                 onClick={handleNavClick}
                 className={({ isActive }) =>
                   cn(

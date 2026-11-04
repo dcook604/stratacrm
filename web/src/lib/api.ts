@@ -295,8 +295,9 @@ export const authApi = {
 };
 
 export const lotsApi = {
-  list: (params: { skip?: number; limit?: number; search?: string }) => {
+  list: (params: { skip?: number; limit?: number; search?: string; sort?: string }) => {
     const qs = new URLSearchParams();
+    if (params.sort) qs.set("sort", params.sort);
     if (params.skip != null) qs.set("skip", String(params.skip));
     if (params.limit != null) qs.set("limit", String(params.limit));
     if (params.search) qs.set("search", params.search);
@@ -313,8 +314,9 @@ export const lotsApi = {
 };
 
 export const partiesApi = {
-  list: (params: { skip?: number; limit?: number; search?: string }) => {
+  list: (params: { skip?: number; limit?: number; search?: string; sort?: string }) => {
     const qs = new URLSearchParams();
+    if (params.sort) qs.set("sort", params.sort);
     if (params.skip != null) qs.set("skip", String(params.skip));
     if (params.limit != null) qs.set("limit", String(params.limit));
     if (params.search) qs.set("search", params.search);
@@ -517,23 +519,34 @@ export const bylawsApi = {
   bulk: (body: BylawBulkRequest) => api.post<BylawBulkResult>("/bylaws/bulk", body),
 };
 
+export interface PaginatedInfractions {
+  items: InfractionListItem[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 export const infractionsApi = {
   list: (params?: {
     status?: InfractionStatus;
     lot_id?: number;
     bylaw_id?: number;
     open_only?: boolean;
+    search?: string;
+    sort?: string;
     skip?: number;
     limit?: number;
   }) => {
     const qs = new URLSearchParams();
+    if (params?.search) qs.set("search", params.search);
+    if (params?.sort) qs.set("sort", params.sort);
     if (params?.status) qs.set("status", params.status);
     if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
     if (params?.bylaw_id != null) qs.set("bylaw_id", String(params.bylaw_id));
     if (params?.open_only) qs.set("open_only", "true");
     if (params?.skip != null) qs.set("skip", String(params.skip));
     if (params?.limit != null) qs.set("limit", String(params.limit));
-    return api.get<InfractionListItem[]>(`/infractions?${qs}`);
+    return api.get<PaginatedInfractions>(`/infractions?${qs}`);
   },
   get: (id: number) => api.get<InfractionDetail>(`/infractions/${id}`),
   create: (body: object) => api.post<InfractionDetail>("/infractions", body),
@@ -604,10 +617,12 @@ export const incidentsApi = {
     category?: string;
     open_only?: boolean;
     search?: string;
+    sort?: string;
     skip?: number;
     limit?: number;
   }) => {
     const qs = new URLSearchParams();
+    if (params?.sort) qs.set("sort", params.sort);
     if (params?.status) qs.set("status", params.status);
     if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
     if (params?.category) qs.set("category", params.category);
@@ -713,6 +728,13 @@ export interface Issue {
   updated_at: string;
 }
 
+export interface PaginatedIssues {
+  items: Issue[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 export const issuesApi = {
   list: (params?: {
     status?: IssueStatus;
@@ -721,10 +743,14 @@ export const issuesApi = {
     lot_id?: number;
     open_only?: boolean;
     overdue_only?: boolean;
+    search?: string;
+    sort?: string;
     skip?: number;
     limit?: number;
   }) => {
     const qs = new URLSearchParams();
+    if (params?.search) qs.set("search", params.search);
+    if (params?.sort) qs.set("sort", params.sort);
     if (params?.status) qs.set("status", params.status);
     if (params?.priority) qs.set("priority", params.priority);
     if (params?.assignee_id != null) qs.set("assignee_id", String(params.assignee_id));
@@ -733,7 +759,7 @@ export const issuesApi = {
     if (params?.overdue_only) qs.set("overdue_only", "true");
     if (params?.skip != null) qs.set("skip", String(params.skip));
     if (params?.limit != null) qs.set("limit", String(params.limit));
-    return api.get<Issue[]>(`/issues?${qs}`);
+    return api.get<PaginatedIssues>(`/issues?${qs}`);
   },
   get: (id: number) => api.get<Issue>(`/issues/${id}`),
   create: (body: object) => api.post<Issue>("/issues", body),
@@ -1140,6 +1166,13 @@ export interface PaymentRecord {
   updated_at: string;
 }
 
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 export const paymentsApi = {
   getConfig: () => api.get<PaymentConfig>("/payments/config"),
   updateConfig: (body: Partial<PaymentConfig>) =>
@@ -1148,16 +1181,18 @@ export const paymentsApi = {
     lot_id?: number;
     party_id?: number;
     active_only?: boolean;
+    search?: string;
     skip?: number;
     limit?: number;
   }) => {
     const qs = new URLSearchParams();
+    if (params?.search) qs.set("search", params.search);
     if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
     if (params?.party_id != null) qs.set("party_id", String(params.party_id));
     if (params?.active_only) qs.set("active_only", "true");
     if (params?.skip != null) qs.set("skip", String(params.skip));
     if (params?.limit != null) qs.set("limit", String(params.limit));
-    return api.get<PaymentScheduleListItem[]>(`/payments/schedules?${qs}`);
+    return api.get<Paginated<PaymentScheduleListItem>>(`/payments/schedules?${qs}`);
   },
   getSchedule: (id: number) => api.get<PaymentSchedule>(`/payments/schedules/${id}`),
   createSchedule: (body: object) =>
@@ -1171,10 +1206,14 @@ export const paymentsApi = {
     party_id?: number;
     schedule_id?: number;
     overdue_only?: boolean;
+    search?: string;
+    sort?: string;
     skip?: number;
     limit?: number;
   }) => {
     const qs = new URLSearchParams();
+    if (params?.search) qs.set("search", params.search);
+    if (params?.sort) qs.set("sort", params.sort);
     if (params?.status) qs.set("status", params.status);
     if (params?.lot_id != null) qs.set("lot_id", String(params.lot_id));
     if (params?.party_id != null) qs.set("party_id", String(params.party_id));
@@ -1182,7 +1221,7 @@ export const paymentsApi = {
     if (params?.overdue_only) qs.set("overdue_only", "true");
     if (params?.skip != null) qs.set("skip", String(params.skip));
     if (params?.limit != null) qs.set("limit", String(params.limit));
-    return api.get<PaymentRecord[]>(`/payments?${qs}`);
+    return api.get<Paginated<PaymentRecord>>(`/payments?${qs}`);
   },
   get: (id: number) => api.get<PaymentRecord>(`/payments/${id}`),
   create: (body: object) => api.post<PaymentRecord>("/payments", body),
@@ -1195,3 +1234,31 @@ export const paymentsApi = {
 };
 
 
+
+// ---------------------------------------------------------------------------
+// Global search
+// ---------------------------------------------------------------------------
+
+export interface GlobalSearchResults {
+  parties: { id: number; full_name: string; party_type: string; email: string | null }[];
+  lots: { id: number; strata_lot_number: number; unit_number: string | null }[];
+  infractions: {
+    id: number;
+    lot_number: number | null;
+    unit_number: string | null;
+    party_name: string | null;
+    bylaw_description: string | null;
+    status: string;
+  }[];
+  incidents: {
+    id: number;
+    reference: string | null;
+    description: string | null;
+    [k: string]: unknown;
+  }[];
+  issues: { id: number; title: string; status: string; [k: string]: unknown }[];
+}
+
+export const searchApi = {
+  search: (q: string) => api.get<GlobalSearchResults>(`/search?q=${encodeURIComponent(q)}`),
+};

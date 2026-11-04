@@ -1,16 +1,25 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { SidebarProvider, useSidebar } from "../../hooks/useSidebar";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
+import { GlobalSearchProvider, useGlobalSearch } from "../GlobalSearch";
 
 function MobileHeader() {
   const { open, toggle } = useSidebar();
+  const search = useGlobalSearch();
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between bg-slate-900 text-white px-4 py-3 lg:hidden">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Strata Plan</p>
         <h1 className="text-white font-bold text-base leading-tight">BCS2611</h1>
       </div>
+      <button
+        onClick={search.open}
+        className="ml-auto mr-1 p-2 rounded-md hover:bg-slate-800 transition-colors"
+        aria-label="Search"
+      >
+        <Search className="w-5 h-5" />
+      </button>
       <button
         onClick={toggle}
         className="p-2 rounded-md hover:bg-slate-800 transition-colors"
@@ -39,7 +48,9 @@ function LayoutInner() {
 export default function Layout() {
   return (
     <SidebarProvider>
-      <LayoutInner />
+      <GlobalSearchProvider>
+        <LayoutInner />
+      </GlobalSearchProvider>
     </SidebarProvider>
   );
 }

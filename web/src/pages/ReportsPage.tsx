@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   useReactTable,
@@ -7,8 +6,13 @@ import {
   flexRender,
   createColumnHelper,
 } from "@tanstack/react-table";
-import { Search, ChevronLeft, ChevronRight, FileText, Building2 } from "lucide-react";
+import { FileText, Building2 } from "lucide-react";
 import { reportsApi, type LotReportSummary } from "../lib/api";
+
+import { useListParams } from "../hooks/useListParams";
+import SearchInput from "../components/ui/SearchInput";
+import Pagination from "../components/ui/Pagination";
+import { rowNav } from "../lib/rowNav";
 
 const col = createColumnHelper<LotReportSummary>();
 
@@ -114,29 +118,16 @@ const columns = [
   }),
 ];
 
-const PAGE_SIZE = 50;
-
 export default function ReportsPage() {
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      if (searchInput !== search) {
-        setSearch(searchInput);
-        setPage(0);
-      }
-    }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
+  const navigate = useNavigate();
+  const { values, page, setPage, update } = useListParams({ q: "", size: "50" });
+  const search = values.q;
+  const pageSize = Number(values.size) || 50;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["reports", page, search],
+    queryKey: ["reports", { page, search, pageSize }],
     queryFn: () =>
-      reportsApi.list({ skip: page * PAGE_SIZE, limit: PAGE_SIZE, search: search || undefined }),
+      reportsApi.list({ skip: page * pageSize, limit: pageSize, search: search || undefined }),
     placeholderData: (prev) => prev,
   });
 
@@ -148,7 +139,6 @@ export default function ReportsPage() {
     rowCount: data?.total ?? 0,
   });
 
-  const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -164,18 +154,13 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <div className="relative flex-1 max-w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by unit or SL#…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="input pl-9"
-          />
-        </div>
+      <div className="mb-4">
+        <SearchInput
+          value={search}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search by unit or SL#…"
+          className="max-w-full sm:max-w-sm"
+        />
       </div>
 
       {/* Table */}
@@ -224,7 +209,11 @@ export default function ReportsPage() {
                 </tr>
               ) : (
                 table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={row.id}
+                    className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                    {...rowNav(navigate, `/reports/${row.original.id}`)}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} className="px-3 py-2.5 text-sm text-slate-700">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -237,33 +226,13 @@ export default function ReportsPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        {data && data.total > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-3 py-3 border-t border-slate-200 bg-slate-50">
-            <span className="text-sm text-slate-600">
-              {data.total} total
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="btn btn-secondary !px-2 !py-1 disabled:opacity-40"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-sm text-slate-600 min-w-[80px] text-center">
-                Page {page + 1} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="btn btn-secondary !px-2 !py-1 disabled:opacity-40"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPage={setPage}
+          onPageSize={(n) => update({ size: String(n) })}
+        />
       </div>
     </div>
   );

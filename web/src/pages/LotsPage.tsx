@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   useReactTable,
@@ -7,8 +6,15 @@ import {
   flexRender,
   createColumnHelper,
 } from "@tanstack/react-table";
-import { Search, ChevronLeft, ChevronRight, Eye, Home } from "lucide-react";
+import { Search, Eye, Home } from "lucide-react";
 import { lotsApi, type LotListItem } from "../lib/api";
+
+import { useListParams } from "../hooks/useListParams";
+import SearchInput from "../components/ui/SearchInput";
+import Pagination from "../components/ui/Pagination";
+import ActiveFilters from "../components/ui/ActiveFilters";
+import { SortButton } from "../components/ui/SortHeader";
+import { rowNav } from "../lib/rowNav";
 
 const col = createColumnHelper<LotListItem>();
 
@@ -88,30 +94,20 @@ const columns = [
   }),
 ];
 
-const PAGE_SIZE = 50;
+const SORT_KEYS: Record<string, string> = { strata_lot_number: "lot", unit_number: "unit", square_feet: "sqft" };
 
 export default function LotsPage() {
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const navigate = useNavigate();
+  const { values, page, setPage, update, clearAll } = useListParams({ q: "", sort: "lot:asc", size: "50" });
+  const search = values.q;
+  const sort = values.sort;
+  const pageSize = Number(values.size) || 50;
 
-  // Debounced search: auto-search 300ms after user stops typing
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      if (searchInput !== search) {
-        setSearch(searchInput);
-        setPage(0);
-      }
-    }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["lots", page, search],
+    queryKey: ["lots", { page, search, sort, pageSize }],
     queryFn: () =>
-      lotsApi.list({ skip: page * PAGE_SIZE, limit: PAGE_SIZE, search: search || undefined }),
+      lotsApi.list({ skip: page * pageSize, limit: pageSize, search: search || undefined, sort }),
     placeholderData: (prev) => prev,
   });
 
@@ -123,7 +119,6 @@ export default function LotsPage() {
     rowCount: data?.total ?? 0,
   });
 
-  const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -136,30 +131,19 @@ export default function LotsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <div className="relative flex-1 max-w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by unit, SL#, parking stall, or locker…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="input pl-9"
-          />
-        </div>
-        {search && (
-          <button
-            type="button"
-            onClick={() => { setSearch(""); setSearchInput(""); setPage(0); }}
-            className="btn-secondary"
-          >
-            Clear
-          </button>
-        )}
+      <div className="flex flex-col gap-2 mb-4">
+        <SearchInput
+          value={search}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search by unit, SL#, parking stall, or locker…"
+          className="flex-1 max-w-full sm:max-w-sm"
+        />
+        <ActiveFilters
+          chips={search ? [{ label: `Search: “${search}”`, onRemove: () => update({ q: "" }) }] : []}
+          onClearAll={clearAll}
+        />
       </div>
 
-      {/* Table */}
       <div className="card overflow-hidden -mx-4 sm:mx-0">
         {error ? (
           <div className="px-6 py-8 text-center text-red-600 text-sm">Failed to load lots.</div>
@@ -175,7 +159,16 @@ export default function LotsPage() {
                         className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider"
                         style={{ width: header.getSize() }}
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {SORT_KEYS[header.column.id] ? (
+                          <SortButton
+                            label={String(header.column.columnDef.header)}
+                            sortKey={SORT_KEYS[header.column.id]}
+                            sort={sort}
+                            onSort={(v) => update({ sort: v })}
+                          />
+                        ) : (
+                          flexRender(header.column.columnDef.header, header.getContext())
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -193,7 +186,11 @@ export default function LotsPage() {
                       </tr>
                     ))
                   : table.getRowModel().rows.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                      <tr
+                        key={row.id}
+                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                        {...rowNav(navigate, `/lots/${row.original.id}`)}
+                      >
                         {row.getVisibleCells().map((cell) => (
                           <td key={cell.id} className="px-4 py-3 text-slate-700">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -207,7 +204,9 @@ export default function LotsPage() {
                       <div className="flex flex-col items-center gap-2">
                         <Search className="w-8 h-8 text-slate-300" />
                         <p className="text-slate-500 font-medium">No lots found.</p>
-                        <p className="text-slate-400 text-xs">Try adjusting your search or clear the filter.</p>
+                        <p className="text-slate-400 text-xs">
+                          {search ? <>No matches for “{search}”. <button className="underline" onClick={clearAll}>Clear search</button></> : "Try adjusting your search."}
+                        </p>
                       </div>
                     </td>
                   </tr>
@@ -218,33 +217,13 @@ export default function LotsPage() {
         )}
 
         {/* Pagination */}
-        {(data?.total ?? 0) > PAGE_SIZE && (
-          <div className="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between text-sm gap-2">
-            <span className="text-slate-500">
-              Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, data?.total ?? 0)} of{" "}
-              {data?.total}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page === 0}
-                className="btn-secondary px-2 py-1.5"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="px-3 text-slate-600">
-                {page + 1} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= totalPages - 1}
-                className="btn-secondary px-2 py-1.5"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPage={setPage}
+          onPageSize={(n) => update({ size: String(n) })}
+        />
       </div>
     </div>
   );

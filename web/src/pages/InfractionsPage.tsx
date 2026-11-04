@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, AlertTriangle } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
@@ -14,6 +14,12 @@ import {
   type LotAssignmentDetail,
 } from "../lib/api";
 import { useToast } from "../lib/toast";
+import { useListParams } from "../hooks/useListParams";
+import SearchInput from "../components/ui/SearchInput";
+import Pagination from "../components/ui/Pagination";
+import ActiveFilters from "../components/ui/ActiveFilters";
+import { SortButton } from "../components/ui/SortHeader";
+import { rowNav } from "../lib/rowNav";
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -309,8 +315,12 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
 // ---------------------------------------------------------------------------
 
 function InfractionRow({ inf }: { inf: InfractionListItem }) {
+  const navigate = useNavigate();
   return (
-    <tr className="border-b border-slate-100 hover:bg-slate-50">
+    <tr
+      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+      {...rowNav(navigate, `/infractions/${inf.id}`)}
+    >
       <td className="px-4 py-3 font-mono text-sm text-slate-600">INF-{inf.id}</td>
       <td className="px-4 py-3 text-sm">
         <span className="font-medium">SL{inf.lot.strata_lot_number}</span>
@@ -348,8 +358,9 @@ function InfractionRow({ inf }: { inf: InfractionListItem }) {
 // Main page
 // ---------------------------------------------------------------------------
 
-const STATUS_FILTERS: { value: InfractionStatus | ""; label: string }[] = [
+const STATUS_FILTERS: { value: InfractionStatus | "" | "active"; label: string }[] = [
   { value: "", label: "All statuses" },
+  { value: "active", label: "Active (open → hearing)" },
   { value: "open", label: "Open" },
   { value: "notice_sent", label: "Notice Sent" },
   { value: "response_received", label: "Response Received" },
@@ -360,29 +371,44 @@ const STATUS_FILTERS: { value: InfractionStatus | ""; label: string }[] = [
 ];
 
 export default function InfractionsPage() {
-  const [statusFilter, setStatusFilter] = useState<InfractionStatus | "">("");
-  const [openOnly, setOpenOnly] = useState(false);
+  const navigate = useNavigate();
+  const { values, page, setPage, update, clearAll } = useListParams({ q: "", status: "", sort: "date:desc", size: "25" });
+  const search = values.q;
+  const sort = values.sort;
+  const statusFilter = values.status;
+  const pageSize = Number(values.size) || 25;
+  const openOnly = statusFilter === "active";
   const [showCreate, setShowCreate] = useState(false);
 
-  // useNavigate for post-create redirect (inline to avoid import at top for now)
-  const { data: infractions, isLoading } = useQuery({
-    queryKey: ["infractions", { statusFilter, openOnly }],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["infractions", { search, statusFilter, sort, page, pageSize }],
     queryFn: () =>
       infractionsApi.list({
-        status: statusFilter || undefined,
+        status: statusFilter && !openOnly ? (statusFilter as InfractionStatus) : undefined,
         open_only: openOnly,
-        limit: 200,
+        search: search || undefined,
+        sort,
+        skip: page * pageSize,
+        limit: pageSize,
       }),
+    placeholderData: (prev) => prev,
+  });
+  const infractions = data?.items;
+
+  // Real totals for the stats strip (the list itself only holds one page).
+  const { data: activeStat } = useQuery({
+    queryKey: ["infractions", "stat", "active"],
+    queryFn: () => infractionsApi.list({ open_only: true, limit: 1 }),
+  });
+  const { data: finedStat } = useQuery({
+    queryKey: ["infractions", "stat", "fined"],
+    queryFn: () => infractionsApi.list({ status: "fined", limit: 1 }),
   });
 
   function handleCreated(id: number) {
     setShowCreate(false);
-    window.location.href = `/infractions/${id}`;
+    navigate(`/infractions/${id}`);
   }
-
-  const openCount = infractions?.filter((i) =>
-    ["open", "notice_sent", "response_received", "hearing_scheduled"].includes(i.status)
-  ).length ?? 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
@@ -403,52 +429,60 @@ export default function InfractionsPage() {
       </div>
 
       {/* Stats strip */}
-      {infractions && (
-        <div className="flex gap-2 md:gap-4">
-          <div className="card px-4 py-3 text-center min-w-[80px]">
-            <p className="text-2xl font-bold text-amber-600">{openCount}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Active</p>
-          </div>
-          <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
-            <p className="text-2xl font-bold text-red-600">
-              {infractions.filter((i) => i.status === "fined").length}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">Fined</p>
-          </div>
-          <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
-            <p className="text-2xl font-bold text-slate-600">{infractions.length}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Showing</p>
-          </div>
+      <div className="flex gap-2 md:gap-4">
+        <button
+          type="button"
+          onClick={() => update({ status: "active" })}
+          className="card px-4 py-3 text-center min-w-[80px] hover:bg-slate-50"
+        >
+          <p className="text-2xl font-bold text-amber-600">{activeStat?.total ?? "–"}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Active</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => update({ status: "fined" })}
+          className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px] hover:bg-slate-50"
+        >
+          <p className="text-2xl font-bold text-red-600">{finedStat?.total ?? "–"}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Fined</p>
+        </button>
+        <div className="card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px]">
+          <p className="text-2xl font-bold text-slate-600">{data?.total ?? "–"}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Matching</p>
         </div>
-      )}
+      </div>
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap items-center">
+        <SearchInput
+          value={search}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search description, lot, party, or bylaw…"
+          className="flex-1 min-w-[220px] max-w-md"
+        />
         <select
           className="input w-52"
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as InfractionStatus | "");
-            if (e.target.value) setOpenOnly(false);
-          }}
+          onChange={(e) => update({ status: e.target.value })}
+          aria-label="Filter by status"
         >
           {STATUS_FILTERS.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="rounded border-slate-300"
-            checked={openOnly}
-            onChange={(e) => {
-              setOpenOnly(e.target.checked);
-              if (e.target.checked) setStatusFilter("");
-            }}
-          />
-          Active only (open → hearing)
-        </label>
       </div>
+      <ActiveFilters
+        chips={[
+          ...(search ? [{ label: `Search: “${search}”`, onRemove: () => update({ q: "" }) }] : []),
+          ...(statusFilter
+            ? [{
+                label: `Status: ${STATUS_FILTERS.find((f) => f.value === statusFilter)?.label ?? statusFilter}`,
+                onRemove: () => update({ status: "" }),
+              }]
+            : []),
+        ]}
+        onClearAll={clearAll}
+      />
 
       {/* Table */}
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
@@ -460,9 +494,15 @@ export default function InfractionsPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Lot</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Party</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Bylaw</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">Complaint Date</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-24">Fine</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">
+                <SortButton label="Complaint Date" sortKey="date" sort={sort} onSort={(v) => update({ sort: v })} firstDir="desc" />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">
+                <SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-24">
+                <SortButton label="Fine" sortKey="fine" sort={sort} onSort={(v) => update({ sort: v })} firstDir="desc" />
+              </th>
               <th className="w-16" />
             </tr>
           </thead>
@@ -475,7 +515,9 @@ export default function InfractionsPage() {
             {!isLoading && (!infractions || infractions.length === 0) && (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-400">
-                  No infractions found.
+                  {error ? "Failed to load infractions." : search || statusFilter ? (
+                    <>No infractions match these filters. <button className="underline" onClick={clearAll}>Clear all</button></>
+                  ) : "No infractions found."}
                 </td>
               </tr>
             )}
@@ -485,6 +527,13 @@ export default function InfractionsPage() {
           </tbody>
         </table>
         </div>
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={data?.total ?? 0}
+          onPage={setPage}
+          onPageSize={(n) => update({ size: String(n) })}
+        />
       </div>
 
       {showCreate && (

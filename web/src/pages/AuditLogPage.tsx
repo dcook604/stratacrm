@@ -1,8 +1,9 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { auditLogApi, type AuditLogResponse } from "../lib/api";
 import { formatDateTime } from "../lib/utils";
-import { ChevronLeft, ChevronRight, Filter, ClipboardList } from "lucide-react";
+import { Filter, ClipboardList } from "lucide-react";
+import { useListParams } from "../hooks/useListParams";
+import Pagination from "../components/ui/Pagination";
 
 // ---------------------------------------------------------------------------
 // Changes display helpers
@@ -86,19 +87,18 @@ const ACTION_COLORS: Record<string, string> = {
 // Main page
 // ---------------------------------------------------------------------------
 
-const PAGE_SIZE = 50;
-
 export default function AuditLogPage() {
-  const [page, setPage] = useState(0);
-  const [actionFilter, setActionFilter] = useState<string>("");
-  const [entityFilter, setEntityFilter] = useState<string>("");
+  const { values, page, setPage, update, clearAll } = useListParams({ action: "", entity: "", size: "50" });
+  const actionFilter = values.action;
+  const entityFilter = values.entity;
+  const pageSize = Number(values.size) || 50;
 
   const { data, isLoading, error } = useQuery<AuditLogResponse>({
-    queryKey: ["audit-log", page, actionFilter, entityFilter],
+    queryKey: ["audit-log", { page, actionFilter, entityFilter, pageSize }],
     queryFn: () =>
       auditLogApi.list({
-        skip: page * PAGE_SIZE,
-        limit: PAGE_SIZE,
+        skip: page * pageSize,
+        limit: pageSize,
         action: actionFilter || undefined,
         entity_type: entityFilter || undefined,
       }),
@@ -107,7 +107,6 @@ export default function AuditLogPage() {
 
   const entries = data?.items ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
@@ -130,7 +129,7 @@ export default function AuditLogPage() {
 
         <select
           value={actionFilter}
-          onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
+          onChange={(e) => { update({ action: e.target.value }); }}
           className="input text-sm py-1.5 w-auto min-w-[140px]"
         >
           <option value="">All actions</option>
@@ -145,7 +144,7 @@ export default function AuditLogPage() {
 
         <select
           value={entityFilter}
-          onChange={(e) => { setEntityFilter(e.target.value); setPage(0); }}
+          onChange={(e) => { update({ entity: e.target.value }); }}
           className="input text-sm py-1.5 w-auto min-w-[160px]"
         >
           <option value="">All entity types</option>
@@ -161,7 +160,7 @@ export default function AuditLogPage() {
 
         {(actionFilter || entityFilter) && (
           <button
-            onClick={() => { setActionFilter(""); setEntityFilter(""); setPage(0); }}
+            onClick={clearAll}
             className="text-xs text-red-600 hover:text-red-700 font-medium"
           >
             Clear filters
@@ -247,33 +246,15 @@ export default function AuditLogPage() {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <p className="text-sm text-slate-500">
-            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total} entries
-          </p>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="btn-secondary text-sm px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </button>
-            <span className="text-sm text-slate-500 px-2">
-              Page {page + 1} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="btn-secondary text-sm px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+      {total > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPage={setPage}
+            onPageSize={(n) => update({ size: String(n) })}
+          />
         </div>
       )}
     </div>

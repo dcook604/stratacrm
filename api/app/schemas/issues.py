@@ -78,3 +78,10 @@ class IssueNoteOut(BaseModel):
     author_email: Optional[str]
     author_name: Optional[str]
     created_at: datetime
+
+
+class PaginatedIssues(BaseModel):
+    items: list[IssueOut]
+    total: int
+    skip: int
+    limit: int

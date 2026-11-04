@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronUp, Home } from "lucide-react";
+import { Edit2, Check, X, Trash2, AlertTriangle, FileText, Wrench, ChevronUp, Home } from "lucide-react";
 import {
   lotsApi, infractionsApi, incidentsApi, issuesApi,
-  type Lot, type InfractionListItem, type Issue, type PaginatedIncidents,
+  type Lot, type PaginatedInfractions, type PaginatedIssues, type PaginatedIncidents,
   type InfractionStatus, type IncidentStatus, type IssueStatus, type IssuePriority,
 } from "../lib/api";
 import { ROLE_LABELS, roleBadgeClass, formatDate, lotLabel } from "../lib/utils";
 import { fmtDatetime } from "../lib/dates";
+import BackLink from "../components/ui/BackLink";
 
 // ---------------------------------------------------------------------------
 // Badge helpers
@@ -79,11 +80,12 @@ export default function LotDetailPage() {
 
   const [expandedSection, setExpandedSection] = useState<"infractions" | "incidents" | "issues" | null>(null);
 
-  const { data: infractions } = useQuery<InfractionListItem[]>({
+  const { data: infractionsData } = useQuery<PaginatedInfractions>({
     queryKey: ["infractions", { lot_id: lotId }],
     queryFn: () => infractionsApi.list({ lot_id: lotId, limit: 200 }),
     enabled: !!lotId,
   });
+  const infractions = infractionsData?.items;
 
   const { data: incidentsData } = useQuery<PaginatedIncidents>({
     queryKey: ["incidents", { lot_id: lotId }],
@@ -92,11 +94,12 @@ export default function LotDetailPage() {
   });
   const incidents = incidentsData?.items;
 
-  const { data: issues } = useQuery<Issue[]>({
+  const { data: issuesData } = useQuery<PaginatedIssues>({
     queryKey: ["issues", { lot_id: lotId }],
     queryFn: () => issuesApi.list({ lot_id: lotId, limit: 200 }),
     enabled: !!lotId,
   });
+  const issues = issuesData?.items;
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const deleteAssignmentMut = useMutation({
@@ -141,9 +144,7 @@ export default function LotDetailPage() {
   if (error || !lot) {
     return (
       <div className="p-4 sm:p-8">
-        <Link to="/lots" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-4">
-          <ArrowLeft className="w-4 h-4" /> Back to Lots
-        </Link>
+        <BackLink fallback="/lots" label="Back to Lots" className="mb-4" />
         <p className="text-red-600">Lot not found.</p>
       </div>
     );
@@ -151,9 +152,7 @@ export default function LotDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
-      <Link to="/lots" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-6">
-        <ArrowLeft className="w-4 h-4" /> Back to Lots
-      </Link>
+      <BackLink fallback="/lots" label="Back to Lots" className="mb-6" />
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
@@ -400,7 +399,7 @@ export default function LotDetailPage() {
               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">Infractions</span>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{infractions?.length ?? "—"}</p>
+            <p className="text-2xl font-bold text-slate-800">{infractionsData?.total ?? "—"}</p>
             {infractions && infractions.filter(i => i.status !== "dismissed" && i.status !== "fined").length > 0 && (
               <p className="text-xs text-amber-600 mt-0.5">
                 {infractions.filter(i => i.status !== "dismissed" && i.status !== "fined").length} active
@@ -415,7 +414,7 @@ export default function LotDetailPage() {
               <FileText className="w-4 h-4 text-blue-500 shrink-0" />
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">Incidents</span>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{incidents?.length ?? "—"}</p>
+            <p className="text-2xl font-bold text-slate-800">{incidentsData?.total ?? "—"}</p>
             {incidents && incidents.filter(i => i.status === "open" || i.status === "in_progress").length > 0 && (
               <p className="text-xs text-blue-600 mt-0.5">
                 {incidents.filter(i => i.status === "open" || i.status === "in_progress").length} active
@@ -430,7 +429,7 @@ export default function LotDetailPage() {
               <Wrench className="w-4 h-4 text-purple-500 shrink-0" />
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">Issues</span>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{issues?.length ?? "—"}</p>
+            <p className="text-2xl font-bold text-slate-800">{issuesData?.total ?? "—"}</p>
             {issues && issues.filter(i => i.status === "open" || i.status === "in_progress").length > 0 && (
               <p className="text-xs text-purple-600 mt-0.5">
                 {issues.filter(i => i.status === "open" || i.status === "in_progress").length} active
