@@ -26,3 +26,20 @@ export function fmtDatetime(iso: string | null | undefined): string {
   });
   return `${dateStr} ${timeStr}`;
 }
+
+/** "just now", "5 min ago", "3 h ago", "2 days ago"; falls back to a date after a week. */
+export function timeAgo(iso: string | null | undefined, now: number = Date.now()): string {
+  if (!iso) return "—";
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return iso;
+  const sec = Math.round((now - t) / 1000);
+  if (sec < 0) return fmtDatetime(iso);
+  if (sec < 45) return "just now";
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr} h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 7) return `${day} day${day === 1 ? "" : "s"} ago`;
+  return fmtDatetime(iso);
+}

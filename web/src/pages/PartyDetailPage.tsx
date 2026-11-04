@@ -1,7 +1,10 @@
+import { useUnsavedWarning } from "../hooks/useUnsavedWarning";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import BackLink from "../components/ui/BackLink";
+import Breadcrumbs from "../components/ui/Breadcrumbs";
+import { listPath } from "../lib/listMemory";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Edit2, Check, X, Trash2 } from "lucide-react";
 import { partiesApi, type Party, type ContactMethodType } from "../lib/api";
@@ -76,6 +79,9 @@ export default function PartyDetailPage() {
     setEditing(true);
   }
 
+  useDocumentTitle(party?.full_name);
+  useUnsavedWarning(editing);
+
   if (isLoading) {
     return (
       <div className="p-4 sm:p-8">
@@ -90,7 +96,7 @@ export default function PartyDetailPage() {
   if (error || !party) {
     return (
       <div className="p-4 sm:p-8">
-        <BackLink fallback="/parties" label="Back to Parties" className="mb-4" />
+        <Breadcrumbs className="mb-4" items={[{ label: "Parties", to: listPath("/parties") }, { label: "Not found" }]} />
         <p className="text-red-600">Party not found.</p>
       </div>
     );
@@ -98,7 +104,7 @@ export default function PartyDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
-      <BackLink fallback="/parties" label="Back to Parties" className="mb-6" />
+      <Breadcrumbs className="mb-4" items={[{ label: "Parties", to: listPath("/parties") }, { label: party.full_name }]} />
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
@@ -151,7 +157,7 @@ export default function PartyDetailPage() {
       </div>
 
       {(updateMut.error || deleteMut.error) && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {((updateMut.error || deleteMut.error) as Error).message}
         </div>
       )}

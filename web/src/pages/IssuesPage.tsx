@@ -1,3 +1,4 @@
+import { useOpenCreate } from "../hooks/useOpenCreate";
 import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useDialog } from "../hooks/useDialog";
@@ -143,14 +144,14 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Issue" : "Create Issue"}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+            <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
           )}
 
           <div>
@@ -321,6 +322,14 @@ function IssueRow({ issue, onEdit, initialExpanded }: { issue: Issue; onEdit: ()
         ref={rowRef}
         className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${overdue ? "bg-red-50/30" : ""}`}
         onClick={() => setExpanded((x) => !x)}
+        tabIndex={0}
+        aria-expanded={expanded}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            setExpanded((x) => !x);
+          }
+        }}
       >
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
@@ -346,12 +355,12 @@ function IssueRow({ issue, onEdit, initialExpanded }: { issue: Issue; onEdit: ()
             {STATUS_LABELS[issue.status]}
           </span>
         </td>
-        <td className="px-4 py-3 text-sm text-slate-500">
+        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500">
           {issue.due_date ? (
             <span className={overdue ? "text-red-600 font-medium" : ""}>{fmtDatetime(issue.due_date)}</span>
           ) : "—"}
         </td>
-        <td className="px-4 py-3 text-sm text-slate-500">
+        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500">
           {issue.assignee ? issue.assignee.full_name : "—"}
         </td>
         <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
@@ -529,6 +538,7 @@ export default function IssuesPage() {
   const openOnly = statusFilter === "active";
   const overdueOnly = statusFilter === "overdue";
   const [showCreate, setShowCreate] = useState(false);
+  useOpenCreate(() => setShowCreate(true));
   const [editIssue, setEditIssue] = useState<Issue | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -661,7 +671,7 @@ export default function IssuesPage() {
 
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px]">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -673,10 +683,10 @@ export default function IssuesPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">
                 <SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">
                 <SortButton label="Due" sortKey="due" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">Assignee</th>
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">Assignee</th>
               <th className="w-20" />
             </tr>
           </thead>

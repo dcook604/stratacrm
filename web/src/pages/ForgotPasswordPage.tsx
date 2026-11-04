@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
               </div>
 
               {error && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
+                <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
                   <p className="text-sm text-red-700">{error}</p>
                 </div>
               )}

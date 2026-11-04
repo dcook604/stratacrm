@@ -1,3 +1,4 @@
+import { useUnsavedWarning } from "../hooks/useUnsavedWarning";
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,9 @@ import {
 } from "../lib/api";
 import { ROLE_LABELS, roleBadgeClass, formatDate, lotLabel } from "../lib/utils";
 import { fmtDatetime } from "../lib/dates";
-import BackLink from "../components/ui/BackLink";
+import Breadcrumbs from "../components/ui/Breadcrumbs";
+import { listPath } from "../lib/listMemory";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 // ---------------------------------------------------------------------------
 // Badge helpers
@@ -130,6 +133,9 @@ export default function LotDetailPage() {
     setEditing(true);
   }
 
+  useDocumentTitle(lot ? lotLabel(lot) : undefined);
+  useUnsavedWarning(editing);
+
   if (isLoading) {
     return (
       <div className="p-4 sm:p-8">
@@ -144,7 +150,7 @@ export default function LotDetailPage() {
   if (error || !lot) {
     return (
       <div className="p-4 sm:p-8">
-        <BackLink fallback="/lots" label="Back to Lots" className="mb-4" />
+        <Breadcrumbs className="mb-4" items={[{ label: "Lots", to: listPath("/lots") }, { label: "Not found" }]} />
         <p className="text-red-600">Lot not found.</p>
       </div>
     );
@@ -152,7 +158,7 @@ export default function LotDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
-      <BackLink fallback="/lots" label="Back to Lots" className="mb-6" />
+      <Breadcrumbs className="mb-4" items={[{ label: "Lots", to: listPath("/lots") }, { label: lotLabel(lot) }]} />
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
@@ -192,7 +198,7 @@ export default function LotDetailPage() {
       )}
 
       {updateMut.error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {(updateMut.error as Error).message}
         </div>
       )}
@@ -394,6 +400,7 @@ export default function LotDetailPage() {
           <button
             className={`card p-3 sm:p-4 text-left hover:border-amber-300 transition-colors ${expandedSection === "infractions" ? "border-amber-400 bg-amber-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "infractions" ? null : "infractions")}
+            aria-expanded={expandedSection === "infractions"}
           >
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
@@ -409,6 +416,7 @@ export default function LotDetailPage() {
           <button
             className={`card p-3 sm:p-4 text-left hover:border-blue-300 transition-colors ${expandedSection === "incidents" ? "border-blue-400 bg-blue-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "incidents" ? null : "incidents")}
+            aria-expanded={expandedSection === "incidents"}
           >
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <FileText className="w-4 h-4 text-blue-500 shrink-0" />
@@ -424,6 +432,7 @@ export default function LotDetailPage() {
           <button
             className={`card p-3 sm:p-4 text-left hover:border-purple-300 transition-colors ${expandedSection === "issues" ? "border-purple-400 bg-purple-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "issues" ? null : "issues")}
+            aria-expanded={expandedSection === "issues"}
           >
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <Wrench className="w-4 h-4 text-purple-500 shrink-0" />

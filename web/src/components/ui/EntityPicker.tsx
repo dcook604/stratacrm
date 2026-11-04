@@ -59,7 +59,14 @@ export function EntityPicker({ value, label, onChange, search, queryKey, placeho
   return (
     <div ref={wrapRef} className="relative">
       {value && !open ? (
-        <div className="input flex items-center justify-between gap-2 cursor-pointer" onClick={() => setOpen(true)}>
+        <div
+          className="input flex items-center justify-between gap-2 cursor-pointer"
+          role="button"
+          tabIndex={0}
+          aria-label={`Selected: ${selectedLabel || value}. Press Enter to change`}
+          onClick={() => setOpen(true)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }}
+        >
           <span className="truncate">{selectedLabel || `#${value}`}</span>
           <button
             type="button"

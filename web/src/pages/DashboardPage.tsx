@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2, Users, AlertTriangle, FileText, Wrench,
-  Activity, Clock,
+  Activity, Clock, Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { dashboardApi, type DashboardStats } from "../lib/api";
 import { formatDateTime } from "../lib/utils";
-import { fmtDatetime } from "../lib/dates";
+import { fmtDatetime, timeAgo } from "../lib/dates";
+import { ErrorState } from "../components/ui/States";
 
 // ---------------------------------------------------------------------------
 // Stat card
@@ -136,7 +137,7 @@ const ACTION_META: Record<string, { label: string; className: string }> = {
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
-  const { data, isLoading, error } = useQuery<DashboardStats>({
+  const { data, isLoading, error, refetch } = useQuery<DashboardStats>({
     queryKey: ["dashboard-stats"],
     queryFn: dashboardApi.stats,
     refetchInterval: 60_000,
@@ -144,9 +145,16 @@ export default function DashboardPage() {
 
   return (
     <div className="page">
-      <div>
-        <h1 className="page-title">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Spectrum 4 — Strata Plan BCS2611</p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="text-slate-500 text-sm mt-1">Spectrum 4 — Strata Plan BCS2611</p>
+        </div>
+        <div className="flex flex-wrap gap-2" aria-label="Quick actions" role="group">
+          <Link to="/incidents?new=1" className="btn-secondary text-sm"><Plus className="w-4 h-4" /> Log incident</Link>
+          <Link to="/infractions?new=1" className="btn-secondary text-sm"><Plus className="w-4 h-4" /> Record infraction</Link>
+          <Link to="/issues?new=1" className="btn-secondary text-sm"><Plus className="w-4 h-4" /> Create issue</Link>
+        </div>
       </div>
 
       {/* Stats */}
@@ -163,8 +171,11 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {error instanceof Error ? error.message : "Failed to load dashboard stats."}
+        <div className="card p-6">
+          <ErrorState
+            message={error instanceof Error ? error.message : "Failed to load dashboard stats."}
+            onRetry={() => refetch()}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -244,7 +255,7 @@ export default function DashboardPage() {
                     {entry.actor_email && (
                       <span className="truncate max-w-[160px]">{entry.actor_email}</span>
                     )}
-                    <span className="whitespace-nowrap">{formatDateTime(entry.occurred_at)}</span>
+                    <time className="whitespace-nowrap" dateTime={entry.occurred_at} title={formatDateTime(entry.occurred_at)}>{timeAgo(entry.occurred_at)}</time>
                   </span>
                 </li>
               );

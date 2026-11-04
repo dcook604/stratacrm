@@ -1,3 +1,4 @@
+import { useOpenCreate } from "../hooks/useOpenCreate";
 import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
 import { useDialog } from "../hooks/useDialog";
 import { useState, useEffect } from "react";
@@ -158,14 +159,14 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Record New Infraction</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+            <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
           )}
 
           {/* Lot */}
@@ -324,15 +325,18 @@ function InfractionRow({ inf }: { inf: InfractionListItem }) {
       className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
       {...rowNav(navigate, `/infractions/${inf.id}`)}
     >
-      <td className="px-4 py-3 font-mono text-sm text-slate-600">INF-{inf.id}</td>
+      <td className="hidden md:table-cell px-4 py-3 font-mono text-sm text-slate-600">INF-{inf.id}</td>
       <td className="px-4 py-3 text-sm">
         <span className="font-medium">SL{inf.lot.strata_lot_number}</span>
         {inf.lot.unit_number && (
           <span className="text-slate-500 ml-1">Unit {inf.lot.unit_number}</span>
         )}
       </td>
-      <td className="px-4 py-3 text-sm">{inf.primary_party.full_name}</td>
-      <td className="px-4 py-3 text-sm text-slate-600">
+      <td className="px-4 py-3 text-sm">
+        {inf.primary_party.full_name}
+        <p className="md:hidden text-xs text-slate-500 truncate max-w-[180px]">{inf.bylaw.bylaw_number} · {inf.bylaw.title}</p>
+      </td>
+      <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">
         <p className="font-medium">{inf.bylaw.bylaw_number}</p>
         <p className="text-xs text-slate-500 truncate max-w-[200px]">{inf.bylaw.title}</p>
       </td>
@@ -342,7 +346,7 @@ function InfractionRow({ inf }: { inf: InfractionListItem }) {
           {STATUS_LABELS[inf.status]}
         </span>
       </td>
-      <td className="px-4 py-3 text-sm text-slate-500">
+      <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500">
         {inf.assessed_fine_amount ? `$${Number(inf.assessed_fine_amount).toFixed(2)}` : "—"}
       </td>
       <td className="px-4 py-3 text-right">
@@ -382,6 +386,7 @@ export default function InfractionsPage() {
   const pageSize = Number(values.size) || 25;
   const openOnly = statusFilter === "active";
   const [showCreate, setShowCreate] = useState(false);
+  useOpenCreate(() => setShowCreate(true));
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["infractions", { search, statusFilter, sort, page, pageSize }],
@@ -490,20 +495,20 @@ export default function InfractionsPage() {
       {/* Table */}
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px]">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">Ref</th>
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">Ref</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Lot</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Party</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Bylaw</th>
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Bylaw</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">
                 <SortButton label="Complaint Date" sortKey="date" sort={sort} onSort={(v) => update({ sort: v })} firstDir="desc" />
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">
                 <SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-24">
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-24">
                 <SortButton label="Fine" sortKey="fine" sort={sort} onSort={(v) => update({ sort: v })} firstDir="desc" />
               </th>
               <th className="w-16" />

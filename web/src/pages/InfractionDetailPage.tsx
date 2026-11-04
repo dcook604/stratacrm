@@ -6,7 +6,9 @@ import {
   XCircle, Clock, Mail, MessageSquare, Gavel, DollarSign, Plus,
 } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
-import BackLink from "../components/ui/BackLink";
+import Breadcrumbs from "../components/ui/Breadcrumbs";
+import { listPath } from "../lib/listMemory";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import {
   infractionsApi,
   type InfractionDetail,
@@ -118,7 +120,7 @@ function AddEventForm({ infractionId, currentStatus, onDone }: AddEventProps) {
   return (
     <div className="space-y-3">
       {error && (
-        <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
       )}
       <div>
         <label className="label">Event Type</label>
@@ -194,7 +196,7 @@ function GenerateNoticePanel({ inf, onDone }: NoticeGenProps) {
   return (
     <div className="space-y-3">
       {error && (
-        <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
       )}
       <p className="text-sm text-slate-600">
         Generates a s.135 notice PDF (WeasyPrint) and advances status to <strong>Notice Sent</strong>.
@@ -295,6 +297,8 @@ export default function InfractionDetailPage() {
     enabled: !!infractionId,
   });
 
+  useDocumentTitle(inf ? `INF-${inf.id}` : undefined);
+
   if (isLoading) {
     return (
       <div className="p-6 text-sm text-slate-500">Loading…</div>
@@ -304,7 +308,7 @@ export default function InfractionDetailPage() {
   if (error || !inf) {
     return (
       <div className="p-6 text-sm text-red-600">
-        Could not load infraction. <Link to="/infractions" className="text-blue-600 underline">Back to list</Link>
+        Could not load infraction. <Link to={listPath("/infractions")} className="text-blue-600 underline">Back to list</Link>
       </div>
     );
   }
@@ -316,12 +320,12 @@ export default function InfractionDetailPage() {
     <div className="p-6 space-y-6 max-w-4xl">
       {/* Breadcrumb */}
       <div>
-        <BackLink fallback="/infractions" label="Back to Infractions" className="mb-3" />
+        <Breadcrumbs className="mb-3" items={[{ label: "Infractions", to: listPath("/infractions") }, { label: `INF-${inf.id}` }]} />
 
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-slate-900">
+              <h1 className="page-title">
                 INF-{inf.id}
               </h1>
               <span className={`badge ${STATUS_COLOURS[inf.status]}`}>

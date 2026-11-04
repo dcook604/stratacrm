@@ -1,3 +1,4 @@
+import { useOpenCreate } from "../hooks/useOpenCreate";
 import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
 import { useDialog } from "../hooks/useDialog";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -157,14 +158,14 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Incident" : "Log New Incident"}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+            <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -933,6 +934,14 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
           if ((e.target as HTMLElement).closest("input[type=checkbox]")) return;
           setExpanded((x) => !x);
         }}
+        tabIndex={0}
+        aria-expanded={expanded}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            setExpanded((x) => !x);
+          }
+        }}
       >
         <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
           <input
@@ -942,9 +951,10 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             onChange={onToggleSelect}
           />
         </td>
-        <td className="px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
+        <td className="hidden md:table-cell px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
         <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDatetime(incident.incident_date)}</td>
         <td className="px-4 py-3 text-sm font-medium">
+          <span className="md:hidden block text-xs font-mono font-normal text-slate-500">{incident.reference}</span>
           <div className="flex items-center gap-1.5">
             {incident.category}
             {incident.source === "email" && (
@@ -955,7 +965,7 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             )}
           </div>
         </td>
-        <td className="px-4 py-3 text-sm text-slate-500">
+        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500">
           {incident.lot
             ? <Link to={`/lots/${incident.lot.id}`} className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{locationLabel}</Link>
             : locationLabel}
@@ -1009,11 +1019,16 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             </>
           )}
           {!confirmDelete && (
-            <span onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }} className="cursor-pointer">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }}
+              className="cursor-pointer"
+              aria-label={expanded ? "Collapse details" : "Expand details"}
+            >
               {expanded
                 ? <ChevronUp className="w-4 h-4 text-slate-500" />
                 : <ChevronDown className="w-4 h-4 text-slate-500" />}
-            </span>
+            </button>
           )}
         </td>
       </tr>
@@ -1112,7 +1127,7 @@ function MergeDialog({
             <GitMerge className="w-5 h-5 text-slate-500" />
             Merge {selected.length} Incidents
           </h2>
-          <button onClick={onCancel} className="text-slate-500 hover:text-slate-600 p-1">
+          <button onClick={onCancel} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1215,6 +1230,7 @@ export default function IncidentsPage() {
   const pageSize = Number(values.size) || 25;
 
   const [showCreate, setShowCreate] = useState(false);
+  useOpenCreate(() => setShowCreate(true));
   const [editIncident, setEditIncident] = useState<Incident | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -1358,7 +1374,7 @@ export default function IncidentsPage() {
 
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px]">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-2 py-3 w-10">
@@ -1375,7 +1391,7 @@ export default function IncidentsPage() {
                   }}
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">
                 <SortButton label="Ref" sortKey="reference" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">
@@ -1384,7 +1400,7 @@ export default function IncidentsPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <SortButton label="Category" sortKey="category" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Location</th>
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Location</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">
                 <SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>

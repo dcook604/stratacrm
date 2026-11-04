@@ -185,7 +185,7 @@ export default function AuditLogPage() {
           </div>
         ) : error ? (
           <div className="p-8 text-center">
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
               <p className="text-sm text-red-700">Failed to load activity log: {error.message}</p>
             </div>
           </div>

@@ -201,7 +201,7 @@ export default function AddPartyModal({ onClose }: Props) {
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Add Party</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -352,7 +352,7 @@ export default function AddPartyModal({ onClose }: Props) {
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}

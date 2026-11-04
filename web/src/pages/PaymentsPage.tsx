@@ -1,3 +1,4 @@
+import MoneyInput from "../components/ui/MoneyInput";
 import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
 import { useDialog } from "../hooks/useDialog";
 import { useState, useEffect } from "react";
@@ -343,10 +344,7 @@ function RecordPaymentModal({ payment, onClose, onRecord, loading }: {
 
         <div>
           <label className="label">Amount Paid</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-            <input className="input pl-7" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          </div>
+          <MoneyInput value={amount} onChange={setAmount} required />
         </div>
 
         <div>
@@ -455,10 +453,7 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
 
         <div>
           <label className="label">Amount Due</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-            <input className="input pl-7" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          </div>
+          <MoneyInput value={amount} onChange={setAmount} required />
         </div>
 
         <div>
@@ -711,10 +706,7 @@ function ScheduleFormModal({ scheduleId, onClose }: { scheduleId?: number; onClo
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="label">Amount</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-              <input className="input pl-7" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-            </div>
+            <MoneyInput value={amount} onChange={setAmount} required />
           </div>
           <div>
             <label className="label">Frequency</label>
@@ -954,7 +946,7 @@ function Modal({ onClose, title, children }: { onClose: () => void; title: strin
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-slate-100 text-slate-500">
+          <button onClick={onClose} className="p-1 rounded hover:bg-slate-100 text-slate-500" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>

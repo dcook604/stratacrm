@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Building2, Users, AlertTriangle, FileText, Wrench, Loader2 } from "lucide-react";
 import { searchApi } from "../lib/api";
+import { listPath } from "../lib/listMemory";
 
 interface Ctx {
   open: () => void;
@@ -27,8 +28,26 @@ function isTyping(el: EventTarget | null) {
 export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
+    // "g" then a letter jumps to a section (g d = Dashboard, g l = Lots, …), like GitHub/Gmail.
+    let pendingG = 0;
+    const GO: Record<string, string> = {
+      d: "/dashboard", l: "/lots", p: "/parties", b: "/bylaws", i: "/incidents",
+      f: "/infractions", s: "/issues", m: "/payments", r: "/reports",
+    };
     function onKey(e: KeyboardEvent) {
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && !isTyping(e.target) && !document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+        const k = e.key.toLowerCase();
+        if (pendingG && Date.now() - pendingG < 1200 && GO[k]) {
+          pendingG = 0;
+          e.preventDefault();
+          navigate(listPath(GO[k]));
+          return;
+        }
+        pendingG = k === "g" ? Date.now() : 0;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsOpen((o) => !o);
@@ -39,7 +58,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [navigate]);
 
   const value = useMemo(() => ({ open: () => setIsOpen(true) }), []);
 
@@ -158,6 +177,16 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
           {q.length < 2 && (
             <p className="px-4 py-6 text-sm text-slate-500 text-center">
               Type at least 2 characters. Supports "exact phrases", OR and -exclude.
+              <span className="block mt-2 text-xs">
+                Shortcuts: <kbd className="border border-slate-200 rounded px-1">g</kbd> then{" "}
+                <kbd className="border border-slate-200 rounded px-1">d</kbd> Dashboard ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">l</kbd> Lots ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">p</kbd> Parties ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">i</kbd> Incidents ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">f</kbd> Infractions ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">s</kbd> Issues ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">m</kbd> Payments
+              </span>
             </p>
           )}
           {error && <p className="px-4 py-6 text-sm text-red-600 text-center">Search failed. Try again.</p>}

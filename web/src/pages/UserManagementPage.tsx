@@ -63,7 +63,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Add User</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -145,7 +145,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
@@ -221,7 +221,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Edit User</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -302,7 +302,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
@@ -385,7 +385,7 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
           <h2 className="text-lg font-semibold text-slate-900">
             {isTemp ? "Assign Temporary Password" : "Reset Password"}
           </h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -476,7 +476,7 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
               </div>
 
               {error && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
+                <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
                   <p className="text-sm text-red-700">{error}</p>
                 </div>
               )}
@@ -585,7 +585,7 @@ export default function UserManagementPage() {
           </div>
         ) : error ? (
           <div className="p-8 text-center">
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
               <p className="text-sm text-red-700">Failed to load users: {error.message}</p>
             </div>
           </div>

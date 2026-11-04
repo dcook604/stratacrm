@@ -8,6 +8,7 @@ import { cn } from "../../lib/utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
 import { useSidebar } from "../../hooks/useSidebar";
 import { SearchTrigger } from "../GlobalSearch";
+import { readListMemory, writeListMemory } from "../../lib/listMemory";
 
 interface NavItem {
   to: string;
@@ -31,20 +32,10 @@ const NAV: NavItem[] = [
   { to: "/settings/email-ingest", icon: Mail, label: "Email Ingest", adminOnly: true },
 ];
 
-const MEMORY_KEY = "nav-list-state";
-
-function readMemory(): Record<string, string> {
-  try {
-    return JSON.parse(sessionStorage.getItem(MEMORY_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
-
 /** Remembers each section's last query string so sidebar links return to the same search/filters/page. */
 function useRememberedSearch() {
   const location = useLocation();
-  const [memory, setMemory] = useState<Record<string, string>>(readMemory);
+  const [memory, setMemory] = useState<Record<string, string>>(readListMemory);
 
   useEffect(() => {
     const section = "/" + location.pathname.split("/")[1];
@@ -57,7 +48,7 @@ function useRememberedSearch() {
     setMemory((prev) => {
       if ((prev[section] ?? "") === qs) return prev;
       const next = { ...prev, [section]: qs };
-      try { sessionStorage.setItem(MEMORY_KEY, JSON.stringify(next)); } catch {}
+      writeListMemory(next);
       return next;
     });
   }, [location.pathname, location.search]);

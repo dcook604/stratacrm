@@ -50,7 +50,7 @@ export default function Lightbox({
       <button
         className="absolute top-4 right-4 z-10 text-white/70 hover:text-white p-1"
         onClick={onClose}
-      >
+       aria-label="Close">
         <X className="w-6 h-6" />
       </button>
 

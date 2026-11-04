@@ -43,7 +43,7 @@ export default function SendIncidentEmailModal({ incident, onClose }: Props) {
             <Mail className="w-4 h-4 text-blue-600" />
             <h2 className="font-semibold text-slate-900 text-sm">Email Incident Report</h2>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>
