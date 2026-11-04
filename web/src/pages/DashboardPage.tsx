@@ -96,7 +96,7 @@ function AttentionSection({ data }: { data: DashboardStats }) {
                 <li key={issue.id} className="text-sm flex items-center justify-between">
                   <span className="text-slate-700">
                     <span className="font-medium">{issue.title}</span>
-                    <span className="text-slate-400 ml-2 capitalize">
+                    <span className="text-slate-500 ml-2 capitalize">
                       [{issue.priority}] due {fmtDatetime(issue.due_date)}
                       {issue.assignee_email ? ` · ${issue.assignee_email}` : ""}
                     </span>
@@ -143,9 +143,9 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8">
+    <div className="page">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <h1 className="page-title">Dashboard</h1>
         <p className="text-slate-500 text-sm mt-1">Spectrum 4 — Strata Plan BCS2611</p>
       </div>
 
@@ -224,7 +224,7 @@ export default function DashboardPage() {
           </Link>
         </div>
         {!data?.recent_audit?.length ? (
-          <div className="px-4 md:px-6 py-8 text-center text-slate-400 text-sm">No activity yet.</div>
+          <div className="px-4 md:px-6 py-8 text-center text-slate-500 text-sm">No activity yet.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {data.recent_audit.map((entry) => {
@@ -240,7 +240,7 @@ export default function DashboardPage() {
                   <span className="text-slate-700 flex-1 min-w-0 truncate capitalize">
                     {entry.entity_name ?? entity}{entry.entity_id != null && !entry.entity_name ? ` #${entry.entity_id}` : ""}
                   </span>
-                  <span className="text-slate-400 text-xs shrink-0 hidden sm:flex items-center gap-2">
+                  <span className="text-slate-500 text-xs shrink-0 hidden sm:flex items-center gap-2">
                     {entry.actor_email && (
                       <span className="truncate max-w-[160px]">{entry.actor_email}</span>
                     )}

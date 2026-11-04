@@ -1,3 +1,4 @@
+import { useDialog } from "../hooks/useDialog";
 import { useState } from "react";
 import { Mail, X, Send, Loader2 } from "lucide-react";
 import { incidentsApi, type Incident } from "../lib/api";
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function SendIncidentEmailModal({ incident, onClose }: Props) {
+  const dialogRef = useDialog(onClose);
   const { addToast } = useToast();
   const [to, setTo] = useState("");
   const [message, setMessage] = useState("");
@@ -33,7 +35,7 @@ export default function SendIncidentEmailModal({ incident, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
@@ -41,7 +43,7 @@ export default function SendIncidentEmailModal({ incident, onClose }: Props) {
             <Mail className="w-4 h-4 text-blue-600" />
             <h2 className="font-semibold text-slate-900 text-sm">Email Incident Report</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -68,7 +70,7 @@ export default function SendIncidentEmailModal({ incident, onClose }: Props) {
 
           <div>
             <label className="label text-xs">
-              Personal note <span className="text-slate-400 font-normal">(optional — included in email)</span>
+              Personal note <span className="text-slate-500 font-normal">(optional — included in email)</span>
             </label>
             <textarea
               className="input text-sm resize-none"
@@ -79,7 +81,7 @@ export default function SendIncidentEmailModal({ incident, onClose }: Props) {
             />
           </div>
 
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             The email will include incident details, photo thumbnails, and a secure link to view all media (including videos). The link expires in 14 days.
           </p>
         </div>

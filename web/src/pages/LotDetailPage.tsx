@@ -50,7 +50,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <dt className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-900">{value || <span className="text-slate-400">—</span>}</dd>
+      <dd className="mt-1 text-sm text-slate-900">{value || <span className="text-slate-500">—</span>}</dd>
     </div>
   );
 }
@@ -156,7 +156,7 @@ export default function LotDetailPage() {
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="page-title">
             {lotLabel(lot)}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -364,7 +364,7 @@ export default function LotDetailPage() {
               <dd className="mt-1">
                 {lot.suspected_airbnb
                   ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200"><Home className="w-3 h-3" />Flagged</span>
-                  : <span className="text-sm text-slate-400">—</span>
+                  : <span className="text-sm text-slate-500">—</span>
                 }
               </dd>
             </div>
@@ -377,7 +377,7 @@ export default function LotDetailPage() {
                       {lot.locker_number && <p className="mt-1">Locker {lot.locker_number}</p>}
                       {lot.locker_signup_date && <p className="text-xs text-slate-500">Signed up {formatDate(lot.locker_signup_date)}</p>}
                     </div>
-                  : <span className="text-sm text-slate-400">—</span>
+                  : <span className="text-sm text-slate-500">—</span>
                 }
               </dd>
             </div>
@@ -447,12 +447,12 @@ export default function LotDetailPage() {
               <AlertTriangle className="w-4 h-4 text-amber-500" />
               Infractions
             </h2>
-            <button onClick={() => setExpandedSection(null)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setExpandedSection(null)} className="text-slate-500 hover:text-slate-600">
               <ChevronUp className="w-4 h-4" />
             </button>
           </div>
           {!infractions || infractions.length === 0 ? (
-            <p className="px-6 py-6 text-sm text-slate-400 text-center">No infractions recorded for this lot.</p>
+            <p className="px-6 py-6 text-sm text-slate-500 text-center">No infractions recorded for this lot.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[500px] text-sm">
@@ -472,7 +472,7 @@ export default function LotDetailPage() {
                       <td className="px-4 py-3 font-mono text-slate-500">{inf.id}</td>
                       <td className="px-4 py-3 text-slate-700">
                         <span className="font-medium">{inf.bylaw.bylaw_number}</span>
-                        <span className="text-slate-400 ml-1 text-xs">{inf.bylaw.title}</span>
+                        <span className="text-slate-500 ml-1 text-xs">{inf.bylaw.title}</span>
                       </td>
                       <td className="px-4 py-3 text-slate-600">#{inf.occurrence_number}</td>
                       <td className="px-4 py-3">
@@ -503,12 +503,12 @@ export default function LotDetailPage() {
               <FileText className="w-4 h-4 text-blue-500" />
               Incidents
             </h2>
-            <button onClick={() => setExpandedSection(null)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setExpandedSection(null)} className="text-slate-500 hover:text-slate-600">
               <ChevronUp className="w-4 h-4" />
             </button>
           </div>
           {!incidents || incidents.length === 0 ? (
-            <p className="px-6 py-6 text-sm text-slate-400 text-center">No incidents recorded for this lot.</p>
+            <p className="px-6 py-6 text-sm text-slate-500 text-center">No incidents recorded for this lot.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] text-sm">
@@ -559,12 +559,12 @@ export default function LotDetailPage() {
               <Wrench className="w-4 h-4 text-purple-500" />
               Issues
             </h2>
-            <button onClick={() => setExpandedSection(null)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setExpandedSection(null)} className="text-slate-500 hover:text-slate-600">
               <ChevronUp className="w-4 h-4" />
             </button>
           </div>
           {!issues || issues.length === 0 ? (
-            <p className="px-6 py-6 text-sm text-slate-400 text-center">No issues linked to this lot.</p>
+            <p className="px-6 py-6 text-sm text-slate-500 text-center">No issues linked to this lot.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] text-sm">
@@ -621,7 +621,7 @@ export default function LotDetailPage() {
           <h2 className="text-sm font-semibold text-slate-700">Current Assignments</h2>
         </div>
         {lot.current_assignments.length === 0 ? (
-          <div className="px-6 py-8 text-center text-slate-400 text-sm">
+          <div className="px-6 py-8 text-center text-slate-500 text-sm">
             No current assignments. Import the owner list to populate this lot.
           </div>
         ) : (
@@ -663,7 +663,7 @@ export default function LotDetailPage() {
                   ) : (
                     <button
                       onClick={() => setConfirmDeleteId(a.id)}
-                      className="text-slate-400 hover:text-red-500 transition-colors"
+                      className="text-slate-500 hover:text-red-500 transition-colors"
                       title="Remove assignment"
                     >
                       <Trash2 className="w-4 h-4" />

@@ -13,7 +13,6 @@ interface NavItem {
   to: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  available?: boolean;
   adminOnly?: boolean;
 }
 
@@ -130,11 +129,10 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
+        <nav aria-label="Main" className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
           {NAV
             .filter(({ adminOnly }) => !adminOnly || user?.role === "admin")
-            .map(({ to, icon: Icon, label, available = true }) =>
-            available ? (
+            .map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={`${to}${remembered[to] ?? ""}`}
@@ -148,21 +146,10 @@ export default function Sidebar() {
                   )
                 }
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className="w-4 h-4 shrink-0" aria-hidden />
                 {label}
               </NavLink>
-            ) : (
-              <div
-                key={to}
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 cursor-not-allowed select-none"
-                title="Coming in a future session"
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                {label}
-                <span className="ml-auto text-xs bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">Soon</span>
-              </div>
-            )
-          )}
+            ))}
         </nav>
 
         {/* User footer */}

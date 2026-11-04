@@ -1,3 +1,6 @@
+import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
+import { useConfirm } from "../components/ConfirmDialog";
+import { useDialog } from "../hooks/useDialog";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useListParams } from "../hooks/useListParams";
@@ -67,6 +70,7 @@ interface IssueFormProps {
 }
 
 function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
+  const dialogRef = useDialog(onClose);
   const qc = useQueryClient();
   const { addToast } = useToast();
   const initialDueRaw = initial?.due_date ?? "";
@@ -135,11 +139,11 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Issue" : "Create Issue"}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -160,7 +164,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
           </div>
 
           <div>
-            <label className="label">Description <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label">Description <span className="text-slate-500 font-normal">(optional)</span></label>
             <textarea
               className="input min-h-[80px] resize-y"
               value={form.description}
@@ -182,7 +186,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
               </select>
             </div>
             <div>
-              <label className="label">Due Date <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="label">Due Date <span className="text-slate-500 font-normal">(optional)</span></label>
               <input
                 type="date"
                 className="input"
@@ -191,7 +195,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
               />
             </div>
             <div>
-              <label className="label">Time <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="label">Time <span className="text-slate-500 font-normal">(optional)</span></label>
               <input
                 type="time"
                 className="input"
@@ -218,7 +222,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
 
           {/* Related lot */}
           <div>
-            <label className="label">Related Lot <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label">Related Lot <span className="text-slate-500 font-normal">(optional)</span></label>
             <input
               type="search"
               placeholder="Search lot…"
@@ -242,7 +246,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
 
           {/* Related incident */}
           <div>
-            <label className="label">Related Incident <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label">Related Incident <span className="text-slate-500 font-normal">(optional)</span></label>
             <select
               className="input"
               value={form.related_incident_id}
@@ -278,6 +282,7 @@ function IssueFormModal({ initial, onClose, onSaved }: IssueFormProps) {
 // ---------------------------------------------------------------------------
 
 function IssueRow({ issue, onEdit, initialExpanded }: { issue: Issue; onEdit: () => void; initialExpanded?: boolean }) {
+  const confirm = useConfirm();
   const [expanded, setExpanded] = useState(initialExpanded ?? false);
   const rowRef = useRef<HTMLTableRowElement>(null);
   useEffect(() => {
@@ -297,11 +302,15 @@ function IssueRow({ issue, onEdit, initialExpanded }: { issue: Issue; onEdit: ()
     onSuccess: () => qc.invalidateQueries({ queryKey: ["issues"] }),
   });
 
-  function handleDelete(e: React.MouseEvent) {
+  async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
-    if (confirm(`Delete "${issue.title}"? This cannot be undone.`)) {
-      deleteMutation.mutate();
-    }
+    const ok = await confirm({
+      title: `Delete "${issue.title}"?`,
+      message: "The issue and its notes will be permanently removed.",
+      confirmLabel: "Delete issue",
+      danger: true,
+    });
+    if (ok) deleteMutation.mutate();
   }
 
   const overdue = isOverdue(issue);
@@ -321,7 +330,7 @@ function IssueRow({ issue, onEdit, initialExpanded }: { issue: Issue; onEdit: ()
             )}
           </div>
           {issue.related_lot && (
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               SL{issue.related_lot.strata_lot_number}
               {issue.related_lot.unit_number ? ` Unit ${issue.related_lot.unit_number}` : ""}
             </p>
@@ -348,21 +357,21 @@ function IssueRow({ issue, onEdit, initialExpanded }: { issue: Issue; onEdit: ()
         <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="text-slate-400 hover:text-blue-600"
+            className="text-slate-500 hover:text-blue-600"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
-            className="text-slate-400 hover:text-red-600 disabled:opacity-40"
+            className="text-slate-500 hover:text-red-600 disabled:opacity-40"
             title="Delete issue"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           {expanded
-            ? <ChevronUp className="w-4 h-4 text-slate-400" />
-            : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            ? <ChevronUp className="w-4 h-4 text-slate-500" />
+            : <ChevronDown className="w-4 h-4 text-slate-500" />}
         </td>
       </tr>
       {expanded && (
@@ -444,7 +453,7 @@ function IssueNotesPanel({ issueId }: { issueId: number }) {
                 <span className="text-xs text-slate-500 font-medium">
                   {note.author_name || note.author_email || "Unknown"}
                 </span>
-                <span className="text-xs text-slate-400">{fmtDatetime(note.created_at)}</span>
+                <span className="text-xs text-slate-500">{fmtDatetime(note.created_at)}</span>
                 <button
                   className="ml-auto text-slate-300 hover:text-red-500 transition-colors"
                   title="Delete note"
@@ -522,7 +531,7 @@ export default function IssuesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editIssue, setEditIssue] = useState<Issue | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["issues", { search, statusFilter, priorityFilter, sort, page, pageSize }],
     queryFn: () =>
       issuesApi.list({
@@ -562,10 +571,10 @@ export default function IssuesPage() {
   const overdueCount = overdueStat?.total ?? 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+    <div className="page">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg md:text-xl font-semibold text-slate-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Wrench className="w-5 h-5 text-slate-500" />
             Issues
           </h1>
@@ -672,19 +681,29 @@ export default function IssuesPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">Loading…</td>
-              </tr>
+            {isLoading && <TableSkeleton columns={6} />}
+            {!isLoading && error && (
+              <TableMessage columns={6}>
+                <ErrorState message="Failed to load issues." onRetry={() => refetch()} />
+              </TableMessage>
             )}
-            {!isLoading && (!issues || issues.length === 0) && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-400">
-                  {error ? "Failed to load issues." : search || statusFilter || priorityFilter ? (
-                    <>No issues match these filters. <button className="underline" onClick={clearAll}>Clear all</button></>
-                  ) : "No issues found."}
-                </td>
-              </tr>
+            {!isLoading && !error && (!issues || issues.length === 0) && (
+              <TableMessage columns={6}>
+                {search || statusFilter || priorityFilter ? (
+                  <EmptyState
+                    icon={Wrench}
+                    title="No issues match these filters"
+                    action={<button className="btn-secondary text-xs px-3 py-1.5" onClick={clearAll}>Clear all filters</button>}
+                  />
+                ) : (
+                  <EmptyState
+                    icon={Wrench}
+                    title="No issues yet"
+                    hint="Track maintenance and council action items here."
+                    action={<button className="btn-primary text-xs px-3 py-1.5" onClick={() => setShowCreate(true)}><Plus className="w-3.5 h-3.5" /> Create Issue</button>}
+                  />
+                )}
+              </TableMessage>
             )}
             {issues?.map((issue) => (
               <IssueRow

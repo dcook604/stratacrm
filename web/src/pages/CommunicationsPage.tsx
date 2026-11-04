@@ -2,10 +2,10 @@ import { Mail } from "lucide-react";
 
 export default function CommunicationsPage() {
   return (
-    <div className="space-y-6">
+    <div className="page">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Communications</h1>
+          <h1 className="page-title">Communications</h1>
           <p className="text-slate-500 text-sm mt-1">
             Compose and send emails to owner segments via Listmonk
           </p>

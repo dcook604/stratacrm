@@ -65,7 +65,7 @@ export function EntityPicker({ value, label, onChange, search, queryKey, placeho
             type="button"
             aria-label="Clear selection"
             onClick={(e) => { e.stopPropagation(); setSelectedLabel(""); onChange("", ""); }}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-slate-500 hover:text-slate-600"
           >
             <X className="w-4 h-4" />
           </button>
@@ -84,9 +84,9 @@ export function EntityPicker({ value, label, onChange, search, queryKey, placeho
             }}
           />
           {isFetching ? (
-            <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+            <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 animate-spin" />
           ) : (
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
           )}
         </div>
       )}
@@ -102,7 +102,7 @@ export function EntityPicker({ value, label, onChange, search, queryKey, placeho
       )}
       {open && (
         <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-md shadow-lg text-sm">
-          {options?.length === 0 && !isFetching && <li className="px-3 py-2 text-slate-400">No matches</li>}
+          {options?.length === 0 && !isFetching && <li className="px-3 py-2 text-slate-500">No matches</li>}
           {options?.map((o) => (
             <li key={o.id}>
               <button type="button" className="w-full text-left px-3 py-2 hover:bg-blue-50" onClick={() => pick(o)}>

@@ -63,7 +63,7 @@ export function SearchTrigger({ className = "" }: { className?: string }) {
     >
       <Search className="w-4 h-4" />
       <span className="flex-1 text-left">Search…</span>
-      <kbd className="hidden lg:inline text-[10px] text-slate-400 border border-slate-600 rounded px-1">
+      <kbd className="hidden lg:inline text-[10px] text-slate-500 border border-slate-600 rounded px-1">
         {isMac ? "⌘K" : "Ctrl K"}
       </kbd>
     </button>
@@ -143,7 +143,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-xl bg-white rounded-xl shadow-2xl overflow-hidden" onKeyDown={onKeyDown}>
         <div className="flex items-center gap-2 px-4 border-b border-slate-200">
-          <Search className="w-4 h-4 text-slate-400" />
+          <Search className="w-4 h-4 text-slate-500" />
           <input
             autoFocus
             value={text}
@@ -151,12 +151,12 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             placeholder="Search lots, people, infractions, incidents, issues…"
             className="flex-1 py-3.5 text-sm outline-none bg-transparent"
           />
-          {isFetching && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-          <kbd className="text-[10px] text-slate-400 border border-slate-200 rounded px-1">Esc</kbd>
+          {isFetching && <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />}
+          <kbd className="text-[10px] text-slate-500 border border-slate-200 rounded px-1">Esc</kbd>
         </div>
         <div ref={listRef} className="max-h-[60vh] overflow-y-auto py-1">
           {q.length < 2 && (
-            <p className="px-4 py-6 text-sm text-slate-400 text-center">
+            <p className="px-4 py-6 text-sm text-slate-500 text-center">
               Type at least 2 characters. Supports "exact phrases", OR and -exclude.
             </p>
           )}
@@ -171,7 +171,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             return (
               <div key={h.key}>
                 {header && (
-                  <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{h.group}</p>
+                  <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{h.group}</p>
                 )}
                 <button
                   type="button"
@@ -180,7 +180,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                   onClick={() => go(h)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left ${idx === active ? "bg-blue-50" : ""}`}
                 >
-                  <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+                  <Icon className="w-4 h-4 text-slate-500 shrink-0" />
                   <span className="min-w-0">
                     <span className="block text-sm text-slate-900 truncate">{h.title}</span>
                     {h.subtitle && <span className="block text-xs text-slate-500 truncate">{h.subtitle}</span>}

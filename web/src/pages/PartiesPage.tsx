@@ -1,3 +1,4 @@
+import { ErrorState } from "../components/ui/States";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -28,7 +29,7 @@ const columns = [
       info.getValue() === "corporation" ? (
         <Building className="w-4 h-4 text-slate-500" aria-label="Corporation" />
       ) : (
-        <User className="w-4 h-4 text-slate-400" aria-label="Individual" />
+        <User className="w-4 h-4 text-slate-500" aria-label="Individual" />
       ),
     size: 50,
   }),
@@ -46,12 +47,12 @@ const columns = [
           {info.getValue()}
         </a>
       ) : (
-        <span className="text-slate-400">—</span>
+        <span className="text-slate-500">—</span>
       ),
   }),
   col.accessor("primary_phone", {
     header: "Phone",
-    cell: (info) => info.getValue() ?? <span className="text-slate-400">—</span>,
+    cell: (info) => info.getValue() ?? <span className="text-slate-500">—</span>,
     size: 140,
   }),
   col.accessor("lot_count", {
@@ -61,7 +62,7 @@ const columns = [
       return n > 0 ? (
         <span className="badge-blue">{n}</span>
       ) : (
-        <span className="text-slate-400">—</span>
+        <span className="text-slate-500">—</span>
       );
     },
     size: 70,
@@ -101,7 +102,7 @@ export default function PartiesPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["parties", { page, search, sort, pageSize }],
     queryFn: () =>
       partiesApi.list({ skip: page * pageSize, limit: pageSize, search: search || undefined, sort }),
@@ -121,7 +122,7 @@ export default function PartiesPage() {
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-2">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Parties</h1>
+          <h1 className="page-title">Parties</h1>
           <p className="text-slate-500 text-sm mt-1">
             {data ? `${data.total} parties` : "Loading…"}
           </p>
@@ -151,7 +152,7 @@ export default function PartiesPage() {
 
       <div className="card overflow-hidden -mx-4 sm:mx-0">
         {error ? (
-          <div className="px-6 py-8 text-center text-red-600 text-sm">Failed to load parties.</div>
+          <div className="px-6 py-8"><ErrorState message="Failed to load parties." onRetry={() => refetch()} /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -205,11 +206,11 @@ export default function PartiesPage() {
                     ))}
                 {!isLoading && !data?.items.length && (
                   <tr>
-                    <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-500">
                       <div className="flex flex-col items-center gap-2">
                         <User className="w-8 h-8 text-slate-300" />
                         <p className="text-slate-500 font-medium">No parties found.</p>
-                        <p className="text-slate-400 text-xs">Add a party using the button above.</p>
+                        <p className="text-slate-500 text-xs">Add a party using the button above.</p>
                       </div>
                     </td>
                   </tr>

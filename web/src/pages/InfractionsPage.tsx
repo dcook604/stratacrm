@@ -1,3 +1,5 @@
+import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
+import { useDialog } from "../hooks/useDialog";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -68,6 +70,7 @@ interface CreateModalProps {
 }
 
 function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
+  const dialogRef = useDialog(onClose);
   const qc = useQueryClient();
   const { addToast } = useToast();
   const [form, setForm] = useState({
@@ -151,11 +154,11 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
     form.complaint_received_date && form.description.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Record New Infraction</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -262,7 +265,7 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
             </div>
             {/* Complaint time (optional) */}
             <div>
-              <label className="label">Time <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="label">Time <span className="text-slate-500 font-normal">(optional)</span></label>
               <input
                 type="time"
                 className="input"
@@ -272,7 +275,7 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
             </div>
             {/* Source (confidential) */}
             <div>
-              <label className="label">Complaint Source <span className="text-slate-400 font-normal">(confidential)</span></label>
+              <label className="label">Complaint Source <span className="text-slate-500 font-normal">(confidential)</span></label>
               <input
                 type="text"
                 className="input"
@@ -325,13 +328,13 @@ function InfractionRow({ inf }: { inf: InfractionListItem }) {
       <td className="px-4 py-3 text-sm">
         <span className="font-medium">SL{inf.lot.strata_lot_number}</span>
         {inf.lot.unit_number && (
-          <span className="text-slate-400 ml-1">Unit {inf.lot.unit_number}</span>
+          <span className="text-slate-500 ml-1">Unit {inf.lot.unit_number}</span>
         )}
       </td>
       <td className="px-4 py-3 text-sm">{inf.primary_party.full_name}</td>
       <td className="px-4 py-3 text-sm text-slate-600">
         <p className="font-medium">{inf.bylaw.bylaw_number}</p>
-        <p className="text-xs text-slate-400 truncate max-w-[200px]">{inf.bylaw.title}</p>
+        <p className="text-xs text-slate-500 truncate max-w-[200px]">{inf.bylaw.title}</p>
       </td>
       <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{fmtDatetime(inf.complaint_received_date)}</td>
       <td className="px-4 py-3">
@@ -380,7 +383,7 @@ export default function InfractionsPage() {
   const openOnly = statusFilter === "active";
   const [showCreate, setShowCreate] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["infractions", { search, statusFilter, sort, page, pageSize }],
     queryFn: () =>
       infractionsApi.list({
@@ -411,11 +414,11 @@ export default function InfractionsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+    <div className="page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg md:text-xl font-semibold text-slate-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
             Infractions
           </h1>
@@ -507,19 +510,29 @@ export default function InfractionsPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-400">Loading…</td>
-              </tr>
+            {isLoading && <TableSkeleton columns={8} />}
+            {!isLoading && error && (
+              <TableMessage columns={8}>
+                <ErrorState message="Failed to load infractions." onRetry={() => refetch()} />
+              </TableMessage>
             )}
-            {!isLoading && (!infractions || infractions.length === 0) && (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-400">
-                  {error ? "Failed to load infractions." : search || statusFilter ? (
-                    <>No infractions match these filters. <button className="underline" onClick={clearAll}>Clear all</button></>
-                  ) : "No infractions found."}
-                </td>
-              </tr>
+            {!isLoading && !error && (!infractions || infractions.length === 0) && (
+              <TableMessage columns={8}>
+                {search || statusFilter ? (
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="No infractions match these filters"
+                    action={<button className="btn-secondary text-xs px-3 py-1.5" onClick={clearAll}>Clear all filters</button>}
+                  />
+                ) : (
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="No infractions recorded yet"
+                    hint="Record a bylaw contravention to start the s.135 process."
+                    action={<button className="btn-primary text-xs px-3 py-1.5" onClick={() => setShowCreate(true)}><Plus className="w-3.5 h-3.5" /> Record Infraction</button>}
+                  />
+                )}
+              </TableMessage>
             )}
             {infractions?.map((inf) => (
               <InfractionRow key={inf.id} inf={inf} />

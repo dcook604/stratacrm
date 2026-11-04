@@ -28,14 +28,14 @@ const columns = [
   }),
   col.accessor("unit_number", {
     header: "Unit",
-    cell: (info) => info.getValue() ?? <span className="text-slate-400">—</span>,
+    cell: (info) => info.getValue() ?? <span className="text-slate-500">—</span>,
     size: 80,
   }),
   col.accessor("owners", {
     header: "Owner(s)",
     cell: (info) => {
       const v = info.getValue();
-      if (!v.length) return <span className="text-slate-400">—</span>;
+      if (!v.length) return <span className="text-slate-500">—</span>;
       return <span className="text-xs">{v.join(", ")}</span>;
     },
   }),
@@ -43,7 +43,7 @@ const columns = [
     header: "Tenant(s)",
     cell: (info) => {
       const v = info.getValue();
-      if (!v.length) return <span className="text-slate-400">—</span>;
+      if (!v.length) return <span className="text-slate-500">—</span>;
       return <span className="text-xs">{v.join(", ")}</span>;
     },
   }),
@@ -53,7 +53,7 @@ const columns = [
       const v = info.getValue();
       return v > 0
         ? <span className="font-semibold text-red-600">{v}</span>
-        : <span className="text-slate-400">{v}</span>;
+        : <span className="text-slate-500">{v}</span>;
     },
     size: 85,
   }),
@@ -68,7 +68,7 @@ const columns = [
       const v = info.getValue();
       return v > 0
         ? <span className="font-semibold text-amber-600">{v}</span>
-        : <span className="text-slate-400">{v}</span>;
+        : <span className="text-slate-500">{v}</span>;
     },
     size: 85,
   }),
@@ -83,7 +83,7 @@ const columns = [
       const v = info.getValue();
       return v > 0
         ? <span className="font-semibold text-orange-600">{v}</span>
-        : <span className="text-slate-400">{v}</span>;
+        : <span className="text-slate-500">{v}</span>;
     },
     size: 85,
   }),
@@ -144,7 +144,7 @@ export default function ReportsPage() {
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-2">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Building2 className="w-6 h-6 text-blue-600" />
             Lot Reports
           </h1>

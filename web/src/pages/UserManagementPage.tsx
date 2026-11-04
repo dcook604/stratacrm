@@ -1,3 +1,4 @@
+import { useDialog } from "../hooks/useDialog";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi, type User } from "../lib/api";
@@ -10,6 +11,7 @@ import { useToast } from "../lib/toast";
 // ---------------------------------------------------------------------------
 
 function AddUserModal({ onClose }: { onClose: () => void }) {
+  const dialogRef = useDialog(onClose);
   const qc = useQueryClient();
   const { addToast } = useToast();
   const [email, setEmail] = useState("");
@@ -57,11 +59,11 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Add User</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -125,7 +127,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="p-1 text-slate-400 hover:text-slate-600"
+                  className="p-1 text-slate-500 hover:text-slate-600"
                   title={showPassword ? "Hide" : "Show"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -171,6 +173,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
+  const dialogRef2 = useDialog(onClose);
   const qc = useQueryClient();
   const { addToast } = useToast();
   const currentUser = useMeUser();
@@ -214,11 +217,11 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
   const isSelf = currentUser?.id === user.id;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+    <div ref={dialogRef2} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Edit User</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -327,6 +330,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
+  const dialogRef3 = useDialog(onClose);
   const qc = useQueryClient();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -375,13 +379,13 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+    <div ref={dialogRef3} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">
             {isTemp ? "Assign Temporary Password" : "Reset Password"}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -443,7 +447,7 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="p-1 text-slate-400 hover:text-slate-600"
+                      className="p-1 text-slate-500 hover:text-slate-600"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -546,11 +550,11 @@ export default function UserManagementPage() {
   const users = data?.items ?? [];
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
+    <div className="page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">User Management</h1>
+          <h1 className="page-title">User Management</h1>
           <p className="text-sm text-slate-500 mt-1">
             Manage user accounts, roles, and passwords
           </p>
@@ -589,7 +593,7 @@ export default function UserManagementPage() {
           <div className="p-12 text-center">
             <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-500 font-medium">No users found.</p>
-            <p className="text-xs text-slate-400 mt-1">Add a user using the button above.</p>
+            <p className="text-xs text-slate-500 mt-1">Add a user using the button above.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -680,7 +684,7 @@ export default function UserManagementPage() {
                             </button>
                             <button
                               onClick={() => setSendingResetFor(null)}
-                              className="text-slate-400 hover:text-slate-600"
+                              className="text-slate-500 hover:text-slate-600"
                             >
                               ✕
                             </button>

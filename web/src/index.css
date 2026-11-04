@@ -43,6 +43,32 @@
   .badge-amber  { @apply badge bg-amber-100 text-amber-800; }
   .badge-red    { @apply badge bg-red-100 text-red-800; }
   .badge-slate  { @apply badge bg-slate-100 text-slate-700; }
+
+  /* Page scaffolding: every page uses these so spacing and headings stay consistent. */
+  .page {
+    @apply p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6;
+  }
+  .page-title {
+    @apply text-xl md:text-2xl font-bold text-slate-900;
+  }
+  .page-subtitle {
+    @apply text-sm text-slate-500 mt-1;
+  }
+  .th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600;
+  }
+  .stat-tile {
+    @apply card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px];
+  }
+}
+
+@layer base {
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-1;
+  }
+  input:focus-visible, select:focus-visible, textarea:focus-visible {
+    @apply ring-0;
+  }
 }
 
 @layer utilities {

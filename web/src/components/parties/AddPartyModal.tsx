@@ -1,3 +1,4 @@
+import { useDialog } from "../../hooks/useDialog";
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Plus, Trash2, ChevronDown } from "lucide-react";
@@ -88,7 +89,7 @@ function LotCombobox({ lots, isLoading, selectedId, onSelect }: LotComboboxProps
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); handleClear(); }}
-              className="text-slate-400 hover:text-slate-600 shrink-0"
+              className="text-slate-500 hover:text-slate-600 shrink-0"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -102,7 +103,7 @@ function LotCombobox({ lots, isLoading, selectedId, onSelect }: LotComboboxProps
               onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
               onClick={(e) => { e.stopPropagation(); setOpen(true); }}
             />
-            <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+            <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
           </>
         )}
       </div>
@@ -110,9 +111,9 @@ function LotCombobox({ lots, isLoading, selectedId, onSelect }: LotComboboxProps
       {open && !selectedLot && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-52 overflow-y-auto">
           {isLoading ? (
-            <div className="px-3 py-2 text-sm text-slate-400">Loading…</div>
+            <div className="px-3 py-2 text-sm text-slate-500">Loading…</div>
           ) : filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-slate-400">No lots found</div>
+            <div className="px-3 py-2 text-sm text-slate-500">No lots found</div>
           ) : (
             filtered.map((lot) => (
               <button
@@ -136,6 +137,7 @@ function LotCombobox({ lots, isLoading, selectedId, onSelect }: LotComboboxProps
 // ---------------------------------------------------------------------------
 
 export default function AddPartyModal({ onClose }: Props) {
+  const dialogRef = useDialog(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     full_name: "",
@@ -195,11 +197,11 @@ export default function AddPartyModal({ onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Add Party</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -306,7 +308,7 @@ export default function AddPartyModal({ onClose }: Props) {
                     Primary
                   </label>
                   {contactMethods.length > 1 && (
-                    <button onClick={() => removeCm(i)} className="text-slate-400 hover:text-red-500">
+                    <button onClick={() => removeCm(i)} className="text-slate-500 hover:text-red-500">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -327,7 +329,7 @@ export default function AddPartyModal({ onClose }: Props) {
 
           <div className="border-t border-slate-200 pt-4">
             <label className="label">
-              Assign to Lot <span className="text-slate-400 font-normal">(optional)</span>
+              Assign to Lot <span className="text-slate-500 font-normal">(optional)</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
               <LotCombobox

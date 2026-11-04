@@ -1,3 +1,5 @@
+import { useConfirm } from "../components/ConfirmDialog";
+import { useDialog } from "../hooks/useDialog";
 import { useState } from "react";
 import { useListParams } from "../hooks/useListParams";
 import SearchInput from "../components/ui/SearchInput";
@@ -55,6 +57,7 @@ interface BylawFormProps {
 }
 
 function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
+  const dialogRef = useDialog(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     bylaw_number: initial?.bylaw_number ?? "",
@@ -121,11 +124,11 @@ function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[80vh] flex flex-col sm:max-h-[80vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Bylaw" : "New Bylaw"}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
         </div>
         <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
           {error && <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>}
@@ -160,6 +163,7 @@ function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
 // ---------------------------------------------------------------------------
 
 function FineSchedulePanel({ bylaw }: { bylaw: Bylaw }) {
+  const confirm = useConfirm();
   const qc = useQueryClient();
   const { addToast } = useToast();
   const [adding, setAdding] = useState(false);
@@ -201,7 +205,7 @@ function FineSchedulePanel({ bylaw }: { bylaw: Bylaw }) {
         </button>
       </div>
       {sorted.length === 0 && !adding && (
-        <p className="text-sm text-slate-400 italic">No fine schedule set.</p>
+        <p className="text-sm text-slate-500 italic">No fine schedule set.</p>
       )}
       {sorted.length > 0 && (
         <table className="w-full text-sm">
@@ -227,11 +231,14 @@ function FineSchedulePanel({ bylaw }: { bylaw: Bylaw }) {
                 </td>
                 <td className="py-1 text-right">
                   <button
-                    onClick={() => {
-                      if (confirm("Delete this fine schedule entry?")) deleteMutation.mutate(fs.id);
+                    onClick={async () => {
+                      if (await confirm({ title: "Delete fine schedule entry?", message: "This removes the entry from the bylaw's fine schedule.", confirmLabel: "Delete", danger: true })) {
+                        deleteMutation.mutate(fs.id);
+                      }
                     }}
+                    aria-label="Delete fine schedule entry"
                     disabled={deleteMutation.isPending}
-                    className="text-slate-400 hover:text-red-500 disabled:opacity-30"
+                    className="text-slate-500 hover:text-red-500 disabled:opacity-30"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -327,6 +334,7 @@ interface BulkImportModalProps {
 }
 
 function BulkImportModal({ onClose }: BulkImportModalProps) {
+  const dialogRef2 = useDialog(onClose);
   const qc = useQueryClient();
   const { addToast } = useToast();
   const [json, setJson] = useState("");
@@ -364,11 +372,11 @@ function BulkImportModal({ onClose }: BulkImportModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+    <div ref={dialogRef2} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-3xl sm:mx-4 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Bulk Import Bylaws</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
@@ -485,7 +493,7 @@ function BylawRow({ item, onEdit }: { item: BylawListItem; onEdit: () => void })
         <td className="px-4 py-3 font-mono text-sm text-slate-600">{item.bylaw_number}</td>
         <td className="px-4 py-3">
           <p className="font-medium text-sm">{item.title}</p>
-          {item.section && <p className="text-xs text-slate-400">Section {item.section}</p>}
+          {item.section && <p className="text-xs text-slate-500">Section {item.section}</p>}
         </td>
         <td className="px-4 py-3">
           <span className={`badge ${CATEGORY_COLOURS[item.category]}`}>{categoryLabel(item.category)}</span>
@@ -494,18 +502,18 @@ function BylawRow({ item, onEdit }: { item: BylawListItem; onEdit: () => void })
         <td className="px-4 py-3 text-right">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="text-slate-400 hover:text-blue-600 mr-2"
+            className="text-slate-500 hover:text-blue-600 mr-2"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
-          {expanded ? <ChevronUp className="w-4 h-4 inline text-slate-400" /> : <ChevronDown className="w-4 h-4 inline text-slate-400" />}
+          {expanded ? <ChevronUp className="w-4 h-4 inline text-slate-500" /> : <ChevronDown className="w-4 h-4 inline text-slate-500" />}
         </td>
       </tr>
       {expanded && (
         <tr className="bg-slate-50 border-b border-slate-200">
           <td colSpan={5} className="px-6 py-4">
             {!bylaw ? (
-              <p className="text-sm text-slate-400">Loading…</p>
+              <p className="text-sm text-slate-500">Loading…</p>
             ) : (
               <div className="max-w-3xl">
                 <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mb-4">
@@ -550,10 +558,10 @@ export default function BylawsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+    <div className="page">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg md:text-xl font-semibold text-slate-900">Bylaw Library</h1>
+          <h1 className="page-title">Bylaw Library</h1>
           <p className="text-sm text-slate-500 mt-0.5">Versioned bylaw reference with fine schedules</p>
         </div>
         <div className="flex gap-2 self-start sm:self-auto">
@@ -636,7 +644,7 @@ export default function BylawsPage() {
                 <td colSpan={5} className="px-4 py-12 text-center">
                   <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm text-slate-500 font-medium">No bylaws found.</p>
-                  <p className="text-xs text-slate-400 mt-1">Create your first bylaw using the button above.</p>
+                  <p className="text-xs text-slate-500 mt-1">Create your first bylaw using the button above.</p>
                 </td>
               </tr>
             )}

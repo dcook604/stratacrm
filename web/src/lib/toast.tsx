@@ -32,9 +32,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const addToast = useCallback((type: ToastType, message: string) => {
     const id = _nextId++;
     setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
+    // Errors stay until dismissed so they can actually be read.
+    if (type !== "error") {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 5000);
+    }
   }, []);
 
   const removeToast = useCallback((id: number) => {
@@ -45,10 +48,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
       {children}
       {/* Toast container — fixed bottom-right */}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
+      <div
+        className="fixed bottom-4 right-4 left-4 sm:left-auto z-[120] flex flex-col gap-2 sm:max-w-sm"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}
+            role={toast.type === "error" ? "alert" : "status"}
             className={`pointer-events-auto flex items-start gap-3 rounded-lg px-4 py-3 shadow-lg text-sm font-medium animate-slide-up ${
               toast.type === "success"
                 ? "bg-green-600 text-white"
@@ -60,7 +68,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <span className="flex-1">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}
-              className="text-white/70 hover:text-white shrink-0"
+              className="text-white/80 hover:text-white shrink-0"
+              aria-label="Dismiss notification"
             >
               ✕
             </button>

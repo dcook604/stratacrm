@@ -1,3 +1,4 @@
+import { useConfirm } from "../components/ConfirmDialog";
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import BackLink from "../components/ui/BackLink";
@@ -17,12 +18,13 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <dt className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-900">{value || <span className="text-slate-400">—</span>}</dd>
+      <dd className="mt-1 text-sm text-slate-900">{value || <span className="text-slate-500">—</span>}</dd>
     </div>
   );
 }
 
 export default function PartyDetailPage() {
+  const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const partyId = Number(id);
   const qc = useQueryClient();
@@ -100,7 +102,7 @@ export default function PartyDetailPage() {
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{party.full_name}</h1>
+          <h1 className="page-title">{party.full_name}</h1>
           <p className="text-slate-500 text-sm mt-1">
             {PARTY_TYPE_LABELS[party.party_type]}
             {party.is_property_manager && " · Property Manager"}
@@ -114,10 +116,14 @@ export default function PartyDetailPage() {
                 <Edit2 className="w-4 h-4" /> Edit
               </button>
               <button
-                onClick={() => {
-                  if (confirm(`Delete ${party.full_name}? This cannot be undone.`)) {
-                    deleteMut.mutate();
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Delete ${party.full_name}?`,
+                    message: "The party and its contact details will be permanently removed.",
+                    confirmLabel: "Delete party",
+                    danger: true,
+                  });
+                  if (ok) deleteMut.mutate();
                 }}
                 disabled={deleteMut.isPending}
                 className="btn-danger"
@@ -248,7 +254,7 @@ export default function PartyDetailPage() {
           <h2 className="text-sm font-semibold text-slate-700">Contact Methods</h2>
         </div>
         {party.contact_methods.length === 0 ? (
-          <div className="px-6 py-4 text-slate-400 text-sm">No contact methods on file.</div>
+          <div className="px-6 py-4 text-slate-500 text-sm">No contact methods on file.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {party.contact_methods.map((cm) => (
@@ -257,11 +263,14 @@ export default function PartyDetailPage() {
                 <span className="flex-1 font-mono">{cm.value}</span>
                 {cm.is_primary && <span className="badge-blue">Primary</span>}
                 <button
-                  onClick={() => {
-                    if (confirm("Remove this contact method?")) delCmMut.mutate(cm.id);
+                  onClick={async () => {
+                    if (await confirm({ title: "Remove this contact method?", confirmLabel: "Remove", danger: true })) {
+                      delCmMut.mutate(cm.id);
+                    }
                   }}
-                  className="text-slate-400 hover:text-red-500 transition-colors"
+                  className="text-slate-500 hover:text-red-500 transition-colors"
                   title="Remove"
+                  aria-label="Remove contact method"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
