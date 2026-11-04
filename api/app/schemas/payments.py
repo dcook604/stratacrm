@@ -114,6 +114,13 @@ class PaymentScheduleListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PaginatedPaymentSchedules(BaseModel):
+    items: list[PaymentScheduleListItem]
+    total: int
+    skip: int
+    limit: int
+
+
 # ---------------------------------------------------------------------------
 # Payment Records
 # ---------------------------------------------------------------------------
@@ -192,3 +199,10 @@ class PaymentListItem(BaseModel):
     payment_method: Optional[PaymentMethod] = None
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedPayments(BaseModel):
+    items: list[PaymentListItem]
+    total: int
+    skip: int
+    limit: int

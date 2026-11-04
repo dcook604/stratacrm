@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.audit import log_action
@@ -57,6 +57,7 @@ from app.schemas.infractions import (
     InfractionListItem,
     InfractionUpdate,
     LotMini,
+    PaginatedInfractions,
     NoticeCreate,
     NoticeOut,
     PartyMini,
@@ -186,7 +187,7 @@ _TRANSITIONS: dict[InfractionEventType, tuple[set[InfractionStatus], Optional[In
 # Routes
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=list[InfractionListItem])
+@router.get("", response_model=PaginatedInfractions)
 def list_infractions(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -194,6 +195,8 @@ def list_infractions(
     lot_id: Optional[int] = Query(None),
     bylaw_id: Optional[int] = Query(None),
     open_only: bool = Query(False),
+    search: Optional[str] = Query(None, max_length=200),
+    sort: str = Query("date:desc"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
@@ -219,10 +222,34 @@ def list_infractions(
     if bylaw_id:
         stmt = stmt.where(Infraction.bylaw_id == bylaw_id)
 
-    stmt = stmt.order_by(Infraction.complaint_received_date.desc()).offset(skip).limit(limit)
+    if search:
+        # complaint_source is confidential, so it is deliberately not searched here.
+        term = f"%{search}%"
+        conds = [
+            Infraction.description.ilike(term),
+            Infraction.lot.has(Lot.unit_number.ilike(term)),
+            Infraction.primary_party.has(Party.full_name.ilike(term)),
+            Infraction.bylaw.has(Bylaw.title.ilike(term)),
+        ]
+        if search.strip().isdigit():
+            conds.append(Infraction.lot.has(Lot.strata_lot_number == int(search.strip())))
+        stmt = stmt.where(or_(*conds))
+
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
+
+    key, _sep, direction = sort.partition(":")
+    sort_cols = {
+        "date": Infraction.complaint_received_date,
+        "status": Infraction.status,
+        "fine": Infraction.assessed_fine_amount,
+        "created": Infraction.created_at,
+    }
+    col = sort_cols.get(key, Infraction.complaint_received_date)
+    order = col.asc() if direction == "asc" else col.desc()
+    stmt = stmt.order_by(order, Infraction.id.desc()).offset(skip).limit(limit)
     infractions = db.execute(stmt).scalars().all()
 
-    return [
+    items = [
         InfractionListItem(
             id=i.id,
             lot=LotMini.model_validate(i.lot),
@@ -236,6 +263,7 @@ def list_infractions(
         )
         for i in infractions
     ]
+    return PaginatedInfractions(items=items, total=total, skip=skip, limit=limit)
 
 
 @router.post("", response_model=InfractionDetail, status_code=status.HTTP_201_CREATED,

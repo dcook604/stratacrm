@@ -46,6 +46,7 @@ def list_lots(
     search: Optional[str] = Query(
         None, description="Filter by unit number, SL#, parking stall, or locker number"
     ),
+    sort: str = Query("lot:asc"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=1000),
 ):
@@ -75,8 +76,12 @@ def list_lots(
 
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
 
+    key, _sep, direction = sort.partition(":")
+    sort_cols = {"lot": Lot.strata_lot_number, "unit": Lot.unit_number, "sqft": Lot.square_feet}
+    col = sort_cols.get(key, Lot.strata_lot_number)
+    order = col.desc() if direction == "desc" else col.asc()
     lots = db.execute(
-        stmt.order_by(Lot.strata_lot_number).offset(skip).limit(limit)
+        stmt.order_by(order, Lot.id).offset(skip).limit(limit)
     ).scalars().all()
 
     items = []

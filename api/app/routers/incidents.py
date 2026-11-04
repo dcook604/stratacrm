@@ -49,6 +49,7 @@ def list_incidents(
     category: Optional[str] = Query(None),
     open_only: bool = Query(False),
     search: Optional[str] = Query(None),
+    sort: str = Query("date:desc"),
     skip: int = Query(0, ge=0),
     limit: int = Query(25, ge=1, le=500),
 ):
@@ -78,6 +79,18 @@ def list_incidents(
             )
         )
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
+    key, _sep, direction = sort.partition(":")
+    sort_cols = {
+        "date": Incident.incident_date,
+        "status": Incident.status,
+        "reference": Incident.reference,
+        "category": Incident.category,
+    }
+    if key in sort_cols and sort != "date:desc":
+        col = sort_cols[key]
+        stmt = stmt.order_by(None).order_by(
+            col.asc() if direction == "asc" else col.desc(), Incident.id.desc()
+        )
     items = db.execute(stmt.offset(skip).limit(limit)).scalars().all()
     return PaginatedIncidents(items=list(items), total=total, skip=skip, limit=limit)
 

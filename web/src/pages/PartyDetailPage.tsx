@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import BackLink from "../components/ui/BackLink";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Edit2, Check, X, Trash2 } from "lucide-react";
+import { Edit2, Check, X, Trash2 } from "lucide-react";
 import { partiesApi, type Party, type ContactMethodType } from "../lib/api";
 import { ROLE_LABELS, roleBadgeClass, formatDate, PARTY_TYPE_LABELS } from "../lib/utils";
 
@@ -87,9 +88,7 @@ export default function PartyDetailPage() {
   if (error || !party) {
     return (
       <div className="p-4 sm:p-8">
-        <Link to="/parties" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-4">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Link>
+        <BackLink fallback="/parties" label="Back to Parties" className="mb-4" />
         <p className="text-red-600">Party not found.</p>
       </div>
     );
@@ -97,9 +96,7 @@ export default function PartyDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
-      <Link to="/parties" className="text-blue-600 hover:underline text-sm flex items-center gap-1 mb-6">
-        <ArrowLeft className="w-4 h-4" /> Back to Parties
-      </Link>
+      <BackLink fallback="/parties" label="Back to Parties" className="mb-6" />
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>

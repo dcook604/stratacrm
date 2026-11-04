@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.audit import log_action
@@ -47,6 +47,8 @@ from app.schemas.payments import (
     PaymentNotificationOut,
     PaymentRecordPayment,
     PaymentScheduleCreate,
+    PaginatedPaymentSchedules,
+    PaginatedPayments,
     PaymentScheduleListItem,
     PaymentScheduleOut,
     PaymentScheduleUpdate,
@@ -57,6 +59,20 @@ from app.schemas.payments import (
 from app.config import settings
 
 router = APIRouter(prefix="/payments", tags=["payments"])
+
+
+def _lot_party_search(model, search: str):
+    """Case-insensitive match on lot unit/SL# or party name for a model with lot + party relations."""
+    term = f"%{search}%"
+    conds = [
+        model.lot.has(Lot.unit_number.ilike(term)),
+        model.party.has(Party.full_name.ilike(term)),
+    ]
+    digits = search.strip().upper().removeprefix("SL")
+    if digits.isdigit():
+        conds.append(model.lot.has(Lot.strata_lot_number == int(digits)))
+    return or_(*conds)
+
 
 
 # ---------------------------------------------------------------------------
@@ -166,13 +182,14 @@ def update_payment_config(
 # Payment Schedules
 # ---------------------------------------------------------------------------
 
-@router.get("/schedules", response_model=list[PaymentScheduleListItem])
+@router.get("/schedules", response_model=PaginatedPaymentSchedules)
 def list_schedules(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
     lot_id: Optional[int] = Query(None),
     party_id: Optional[int] = Query(None),
     active_only: bool = Query(False),
+    search: Optional[str] = Query(None, max_length=200),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
@@ -187,7 +204,15 @@ def list_schedules(
         stmt = stmt.where(PaymentSchedule.party_id == party_id)
     if active_only:
         stmt = stmt.where(PaymentSchedule.is_active.is_(True))
+    if search:
+        stmt = stmt.where(
+            or_(
+                PaymentSchedule.description.ilike(f"%{search}%"),
+                _lot_party_search(PaymentSchedule, search),
+            )
+        )
 
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
     stmt = stmt.order_by(PaymentSchedule.created_at.desc()).offset(skip).limit(limit)
     schedules = db.execute(stmt).scalars().all()
 
@@ -215,7 +240,7 @@ def list_schedules(
             next_due_date=next_due,
             outstanding_balance=balance,
         ))
-    return result
+    return PaginatedPaymentSchedules(items=result, total=total, skip=skip, limit=limit)
 
 
 @router.post("/schedules", response_model=PaymentScheduleOut,
@@ -352,7 +377,7 @@ def PaymentMini(p: Payment) -> dict:
 # Payment Records
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=list[PaymentListItem])
+@router.get("", response_model=PaginatedPayments)
 def list_payments(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -361,6 +386,8 @@ def list_payments(
     party_id: Optional[int] = Query(None),
     schedule_id: Optional[int] = Query(None),
     overdue_only: bool = Query(False),
+    search: Optional[str] = Query(None, max_length=200),
+    sort: str = Query("due:desc"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
@@ -383,9 +410,25 @@ def list_payments(
             Payment.due_date < dt_date.today(),
         )
 
-    stmt = stmt.order_by(Payment.due_date.desc()).offset(skip).limit(limit)
-    payments = db.execute(stmt).scalars().all()
-    return [_payment_to_list_item(p) for p in payments]
+    if search:
+        stmt = stmt.where(_lot_party_search(Payment, search))
+
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
+
+    key, _sep, direction = sort.partition(":")
+    sort_cols = {
+        "due": Payment.due_date,
+        "amount": Payment.amount_due,
+        "status": Payment.status,
+    }
+    col = sort_cols.get(key, Payment.due_date)
+    order = col.asc() if direction == "asc" else col.desc()
+    payments = db.execute(
+        stmt.order_by(order, Payment.id.desc()).offset(skip).limit(limit)
+    ).scalars().all()
+    return PaginatedPayments(
+        items=[_payment_to_list_item(p) for p in payments], total=total, skip=skip, limit=limit
+    )
 
 
 @router.post("", response_model=PaymentOut,

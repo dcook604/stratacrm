@@ -20,6 +20,7 @@ from app.models import (
     Lot,
     Party,
     User,
+    UserRole,
 )
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -39,7 +40,7 @@ def _rank(vector, tsquery):
 def search(
     q: str = Query(..., min_length=1, max_length=200),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     tq = _tsquery(q)
 
@@ -60,16 +61,21 @@ def search(
         .limit(10)
     ).scalars().all()
 
-    # Infractions — description (A), complaint_source (B)
+    # Infractions — description (A), complaint_source (B). complaint_source is
+    # confidential, so only admins may match against it.
+    if current_user.role == UserRole.admin:
+        infraction_vector = Infraction.search_vector
+    else:
+        infraction_vector = func.to_tsvector("english", Infraction.description)
     infractions = db.execute(
         select(Infraction)
-        .where(Infraction.search_vector.op("@@")(tq))
+        .where(infraction_vector.op("@@")(tq))
         .options(
             selectinload(Infraction.lot),
             selectinload(Infraction.primary_party),
             selectinload(Infraction.bylaw),
         )
-        .order_by(_rank(Infraction.search_vector, tq))
+        .order_by(_rank(infraction_vector, tq))
         .limit(10)
     ).scalars().all()
 
