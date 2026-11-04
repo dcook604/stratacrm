@@ -108,7 +108,7 @@ export function EntityPicker({ value, label, onChange, search, queryKey, placeho
         />
       )}
       {open && (
-        <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-md shadow-lg text-sm">
+        <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-surface border border-slate-200 rounded-md shadow-lg text-sm">
           {options?.length === 0 && !isFetching && <li className="px-3 py-2 text-slate-500">No matches</li>}
           {options?.map((o) => (
             <li key={o.id}>

@@ -160,7 +160,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] px-4" role="dialog" aria-modal="true" aria-label="Search">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-xl bg-white rounded-xl shadow-2xl overflow-hidden" onKeyDown={onKeyDown}>
+      <div className="relative w-full max-w-xl bg-surface rounded-xl shadow-2xl overflow-hidden" onKeyDown={onKeyDown}>
         <div className="flex items-center gap-2 px-4 border-b border-slate-200">
           <Search className="w-4 h-4 text-slate-500" />
           <input

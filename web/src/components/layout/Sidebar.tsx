@@ -2,12 +2,13 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Building2, Users, BookOpen, AlertTriangle,
-  Wrench, FileText, LogOut, Shield, X, Mail, BarChart3, DollarSign, ScrollText,
+  Wrench, FileText, LogOut, Shield, X, Mail, BarChart3, DollarSign, ScrollText, Sun, Moon, Monitor,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
 import { useSidebar } from "../../hooks/useSidebar";
 import { SearchTrigger } from "../GlobalSearch";
+import { useTheme } from "../../lib/theme";
 import { readListMemory, writeListMemory } from "../../lib/listMemory";
 
 interface NavItem {
@@ -63,6 +64,8 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { open, setOpen } = useSidebar();
   const remembered = useRememberedSearch();
+  const theme = useTheme();
+  const ThemeIcon = theme.pref === "light" ? Sun : theme.pref === "dark" ? Moon : Monitor;
 
   async function handleLogout() {
     try {
@@ -91,7 +94,7 @@ export default function Sidebar() {
       {/* Sidebar: overlay drawer on mobile, static sidebar on desktop */}
       <aside
         className={cn(
-          "flex flex-col bg-slate-900 text-slate-100",
+          "keep-dark flex flex-col bg-slate-900 text-slate-100",
           /* Mobile: fixed overlay drawer with slide transition */
           "fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-300 ease-in-out",
           open ? "translate-x-0" : "-translate-x-full",
@@ -154,6 +157,15 @@ export default function Sidebar() {
               <p className="text-xs text-slate-400 capitalize">{user?.role.replace("_", " ")}</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={theme.cycle}
+            className="mt-1 w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            aria-label={`Theme: ${theme.pref}. Click to change`}
+          >
+            <ThemeIcon className="w-4 h-4 shrink-0" aria-hidden />
+            Theme: <span className="capitalize">{theme.pref}</span>
+          </button>
           <button
             onClick={handleLogout}
             disabled={logout.isPending}

@@ -49,7 +49,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {/* Toast container — fixed bottom-right */}
       <div
-        className="fixed bottom-4 right-4 left-4 sm:left-auto z-[120] flex flex-col gap-2 sm:max-w-sm"
+        className="keep-dark fixed bottom-4 right-4 left-4 sm:left-auto z-[120] flex flex-col gap-2 sm:max-w-sm"
         aria-live="polite"
         aria-atomic="false"
       >

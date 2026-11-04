@@ -156,7 +156,7 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
 
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
-      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
+      <div className="bg-surface rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Record New Infraction</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">

@@ -25,7 +25,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900">
+    <div className="keep-dark min-h-screen flex items-center justify-center bg-slate-900">
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-8">
@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-xl shadow-xl p-8">
+        <div className="bg-surface rounded-xl shadow-xl p-8">
           {success ? (
             <div className="text-center space-y-4">
               <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3">

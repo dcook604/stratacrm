@@ -169,7 +169,7 @@ export default function AuditLogPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -247,7 +247,7 @@ export default function AuditLogPage() {
       </div>
 
       {total > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+        <div className="bg-surface rounded-xl shadow-sm border border-slate-200">
           <Pagination
             page={page}
             pageSize={pageSize}

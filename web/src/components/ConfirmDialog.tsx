@@ -78,7 +78,7 @@ function ConfirmModal({ opts, onResult }: { opts: ConfirmOptions; onResult: (v: 
       onKeyDown={onKeyDown}
       onClick={(e) => { if (e.target === e.currentTarget) onResult(false); }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5">
+      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-sm p-5">
         <div className="flex items-start gap-3">
           {opts.danger && (
             <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">

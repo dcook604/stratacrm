@@ -47,7 +47,7 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900">
+    <div className="keep-dark min-h-screen flex items-center justify-center bg-slate-900">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-4">
@@ -62,7 +62,7 @@ export default function ChangePasswordPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-xl p-8">
+        <div className="bg-surface rounded-xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="current-password" className="label">Current (temporary) password</label>

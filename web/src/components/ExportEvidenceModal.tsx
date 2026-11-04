@@ -55,7 +55,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
 
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
-      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg sm:mx-4 flex flex-col">
+      <div className="bg-surface rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg sm:mx-4 flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">

@@ -110,7 +110,7 @@ export default function ShareIncidentPage() {
   if (error || !data) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-xl shadow p-8 text-center space-y-3">
+        <div className="max-w-md w-full bg-surface rounded-xl shadow p-8 text-center space-y-3">
           <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
           <h1 className="font-semibold text-slate-900">Link Unavailable</h1>
           <p className="text-slate-500 text-sm">
@@ -138,7 +138,7 @@ export default function ShareIncidentPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-slate-900 px-6 py-5">
+      <div className="keep-dark bg-slate-900 px-6 py-5">
         <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">Spectrum 4 · Strata Plan BCS2611</p>
         <h1 className="text-white text-xl font-bold">Incident Report</h1>
         <p className="text-slate-400 text-sm mt-0.5">{data.reference}</p>
@@ -146,7 +146,7 @@ export default function ShareIncidentPage() {
 
       <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
         {/* Details card */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+        <div className="bg-surface rounded-xl shadow-sm border border-slate-200">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="font-semibold text-slate-900 text-sm">Details</h2>
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusColour}`}>
@@ -187,7 +187,7 @@ export default function ShareIncidentPage() {
 
         {/* Media */}
         {(visibleMedia.length > 0 || processingCount > 0) && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="bg-surface rounded-xl shadow-sm border border-slate-200">
             <div className="px-5 py-4 border-b border-slate-100">
               <h2 className="font-semibold text-slate-900 text-sm">
                 Media Attachments ({visibleMedia.length})

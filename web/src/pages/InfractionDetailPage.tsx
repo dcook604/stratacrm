@@ -251,7 +251,7 @@ function EventTimeline({ events }: { events: InfractionEvent[] }) {
     <ol className="relative border-l border-slate-200 space-y-4 pl-6">
       {sorted.map((ev) => (
         <li key={ev.id} className="relative">
-          <span className="absolute -left-[25px] flex items-center justify-center w-5 h-5 bg-white border border-slate-200 rounded-full">
+          <span className="absolute -left-[25px] flex items-center justify-center w-5 h-5 bg-surface border border-slate-200 rounded-full">
             <EventIcon type={ev.event_type} />
           </span>
           <div className="card px-4 py-3">

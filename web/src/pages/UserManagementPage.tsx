@@ -61,7 +61,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
-      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
+      <div className="bg-surface rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Add User</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
@@ -219,7 +219,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
 
   return (
     <div ref={dialogRef2} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
-      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
+      <div className="bg-surface rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Edit User</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
@@ -276,7 +276,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
                 disabled={isSelf}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
+              <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-surface after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
             </label>
             <div>
               <p className="text-sm font-medium text-slate-900">Active</p>
@@ -294,7 +294,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
                 onChange={(e) => setPwdResetRequired(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500" />
+              <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-surface after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500" />
             </label>
             <div>
               <p className="text-sm font-medium text-slate-900">Require password change on next login</p>
@@ -381,7 +381,7 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
 
   return (
     <div ref={dialogRef3} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
-      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
+      <div className="bg-surface rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto sm:max-h-[90vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">
             {isTemp ? "Assign Temporary Password" : "Reset Password"}
@@ -420,7 +420,7 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
                     onChange={(e) => setIsTemp(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500" />
+                  <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-surface after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500" />
                 </label>
                 <div>
                   <p className="text-sm font-medium text-slate-900">Require password change on next login</p>
@@ -568,7 +568,7 @@ export default function UserManagementPage() {
       </div>
 
       {/* Users table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (

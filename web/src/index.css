@@ -16,13 +16,13 @@
     @apply btn bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
   }
   .btn-secondary {
-    @apply btn bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-slate-400;
+    @apply btn bg-surface text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-slate-400;
   }
   .btn-danger {
     @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
   }
   .input {
-    @apply block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400
+    @apply block w-full rounded-md border border-slate-300 bg-surface text-slate-900 px-3 py-2 text-sm placeholder-slate-400
            focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500
            disabled:bg-slate-50 disabled:text-slate-500;
   }
@@ -37,7 +37,7 @@
     @apply block text-sm font-medium text-slate-700 mb-1;
   }
   .card {
-    @apply bg-white rounded-lg border border-slate-200 shadow-sm;
+    @apply bg-surface rounded-lg border border-slate-200 shadow-sm;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
@@ -68,6 +68,11 @@
   .table-scroll thead th {
     @apply sticky top-0 z-10 bg-slate-50 shadow-[inset_0_-1px_0_theme(colors.slate.200)];
   }
+  /* Dark mode: 500/600 text shades are fixed (solid buttons rely on them), so lighten the text uses only. */
+  .dark .text-blue-500,  .dark .text-blue-600  { color: rgb(var(--c-blue-400) / var(--tw-text-opacity, 1)); }
+  .dark .text-red-500,   .dark .text-red-600   { color: rgb(var(--c-red-400) / var(--tw-text-opacity, 1)); }
+  .dark .text-green-600                        { color: rgb(var(--c-green-400) / var(--tw-text-opacity, 1)); }
+  .dark .text-amber-600                        { color: rgb(var(--c-amber-400) / var(--tw-text-opacity, 1)); }
   .stat-tile {
     @apply card px-3 md:px-4 py-3 text-center min-w-[70px] md:min-w-[80px];
   }

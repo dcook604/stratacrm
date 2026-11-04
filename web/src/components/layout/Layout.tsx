@@ -10,7 +10,7 @@ function MobileHeader() {
   const { open, toggle } = useSidebar();
   const search = useGlobalSearch();
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between bg-slate-900 text-white px-4 py-3 lg:hidden">
+    <header className="keep-dark sticky top-0 z-40 flex items-center justify-between bg-slate-900 text-white px-4 py-3 lg:hidden">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Strata Plan</p>
         <h1 className="text-white font-bold text-base leading-tight">BCS2611</h1>
@@ -62,7 +62,7 @@ function LayoutInner() {
     <div className="flex min-h-screen">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[130] focus:bg-white focus:text-slate-900 focus:px-3 focus:py-2 focus:rounded-md focus:shadow"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[130] focus:bg-surface focus:text-slate-900 focus:px-3 focus:py-2 focus:rounded-md focus:shadow"
       >
         Skip to content
       </a>

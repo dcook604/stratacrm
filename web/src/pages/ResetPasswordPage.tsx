@@ -50,9 +50,9 @@ export default function ResetPasswordPage() {
   // No token in URL — show error state
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="keep-dark min-h-screen flex items-center justify-center bg-slate-900">
         <div className="w-full max-w-sm">
-          <div className="bg-white rounded-xl shadow-xl p-8 text-center space-y-4">
+          <div className="bg-surface rounded-xl shadow-xl p-8 text-center space-y-4">
             <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
               <p className="text-sm text-red-700">
                 Invalid reset link. This link may be missing the required token.
@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900">
+    <div className="keep-dark min-h-screen flex items-center justify-center bg-slate-900">
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-8">
@@ -88,7 +88,7 @@ export default function ResetPasswordPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-xl shadow-xl p-8">
+        <div className="bg-surface rounded-xl shadow-xl p-8">
           {success ? (
             <div className="text-center space-y-4">
               <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3">
