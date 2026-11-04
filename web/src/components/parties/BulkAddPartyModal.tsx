@@ -181,7 +181,7 @@ export default function BulkAddPartyModal({ onClose }: Props) {
 
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
-      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-2xl sm:mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-2xl sm:mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Bulk Upload Parties</h2>

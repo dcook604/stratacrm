@@ -109,7 +109,7 @@ function LotCombobox({ lots, isLoading, selectedId, onSelect }: LotComboboxProps
       </div>
 
       {open && !selectedLot && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-md shadow-lg max-h-52 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full bg-surface border border-slate-200 rounded-md shadow-lg max-h-52 overflow-y-auto">
           {isLoading ? (
             <div className="px-3 py-2 text-sm text-slate-500">Loading…</div>
           ) : filtered.length === 0 ? (
@@ -198,7 +198,7 @@ export default function AddPartyModal({ onClose }: Props) {
 
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
-      <div className="bg-white rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Add Party</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-600" aria-label="Close">

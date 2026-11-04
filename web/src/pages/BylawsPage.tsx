@@ -1,3 +1,4 @@
+import { todayLocal } from "../lib/dates";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useDialog } from "../hooks/useDialog";
 import { useState } from "react";
@@ -65,7 +66,7 @@ function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
     title: initial?.title ?? "",
     full_text: initial?.full_text ?? "",
     category: (initial?.category ?? "noise") as BylawCategory,
-    active_from: initial?.active_from ?? new Date().toISOString().slice(0, 10),
+    active_from: initial?.active_from ?? todayLocal(),
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -125,7 +126,7 @@ function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
 
   return (
     <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
-      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[80vh] flex flex-col sm:max-h-[80vh]">
+      <div className="bg-surface rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-2xl sm:mx-4 max-h-[80vh] flex flex-col sm:max-h-[80vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Bylaw" : "New Bylaw"}</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close"><X className="w-5 h-5" /></button>
@@ -373,7 +374,7 @@ function BulkImportModal({ onClose }: BulkImportModalProps) {
 
   return (
     <div ref={dialogRef2} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
-      <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-3xl sm:mx-4 max-h-[85vh] flex flex-col">
+      <div className="bg-surface rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-3xl sm:mx-4 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">Bulk Import Bylaws</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close"><X className="w-5 h-5" /></button>
@@ -623,7 +624,7 @@ export default function BylawsPage() {
 
       {/* Table */}
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
         <table className="w-full min-w-[500px]">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">

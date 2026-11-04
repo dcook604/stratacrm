@@ -154,7 +154,7 @@ export default function PartiesPage() {
         {error ? (
           <div className="px-6 py-8"><ErrorState message="Failed to load parties." onRetry={() => refetch()} /></div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-scroll">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 {table.getHeaderGroups().map((hg) => (

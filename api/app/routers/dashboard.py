@@ -23,6 +23,8 @@ from app.models import (
     IssueStatus,
     Lot,
     Party,
+    Payment,
+    PaymentStatus,
     User,
 )
 from app.schemas.audit import AuditLogEntry, AuditLogResponse
@@ -94,6 +96,28 @@ def dashboard_stats(
         .limit(10)
     ).scalars().all()
 
+    # "Due soon" — open issues and unpaid payments falling due in the next 7 days
+    today = date.today()
+    horizon = today + timedelta(days=7)
+    upcoming_issues = db.execute(
+        select(Issue)
+        .where(func.date(Issue.due_date) >= today)
+        .where(func.date(Issue.due_date) <= horizon)
+        .where(Issue.status.in_(_OPEN_ISSUE_STATUSES))
+        .options(selectinload(Issue.assignee))
+        .order_by(Issue.due_date.asc())
+        .limit(10)
+    ).scalars().all()
+    upcoming_payments = db.execute(
+        select(Payment)
+        .where(Payment.due_date >= today)
+        .where(Payment.due_date <= horizon)
+        .where(Payment.status.in_([PaymentStatus.pending, PaymentStatus.partially_paid]))
+        .options(selectinload(Payment.lot), selectinload(Payment.party))
+        .order_by(Payment.due_date.asc())
+        .limit(10)
+    ).scalars().all()
+
     recent_audit = db.execute(
         select(AuditLog)
         .order_by(AuditLog.occurred_at.desc())
@@ -130,6 +154,27 @@ def dashboard_stats(
                 "assignee_email": i.assignee.email if i.assignee else None,
             }
             for i in overdue_issues
+        ],
+        "upcoming_issues": [
+            {
+                "id": i.id,
+                "title": i.title,
+                "due_date": i.due_date.isoformat() if i.due_date else None,
+                "priority": i.priority.value,
+                "assignee_email": i.assignee.email if i.assignee else None,
+            }
+            for i in upcoming_issues
+        ],
+        "upcoming_payments": [
+            {
+                "id": p.id,
+                "due_date": p.due_date.isoformat(),
+                "amount_due": str(p.amount_due),
+                "lot_number": p.lot.strata_lot_number if p.lot else None,
+                "unit_number": p.lot.unit_number if p.lot else None,
+                "party_name": p.party.full_name if p.party else None,
+            }
+            for p in upcoming_payments
         ],
         "recent_audit": [
             {

@@ -253,6 +253,21 @@ export interface DashboardStats {
     priority: string;
     assignee_email: string | null;
   }[];
+  upcoming_issues: {
+    id: number;
+    title: string;
+    due_date: string | null;
+    priority: string;
+    assignee_email: string | null;
+  }[];
+  upcoming_payments: {
+    id: number;
+    due_date: string;
+    amount_due: string;
+    lot_number: number | null;
+    unit_number: string | null;
+    party_name: string | null;
+  }[];
   recent_audit: {
     id: number;
     actor_email: string | null;

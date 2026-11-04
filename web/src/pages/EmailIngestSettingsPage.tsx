@@ -21,7 +21,7 @@ function Badge({ ok, label }: { ok: boolean; label: string }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-surface rounded-xl border border-slate-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
         <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{title}</h2>
       </div>
@@ -294,7 +294,7 @@ export default function EmailIngestSettingsPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors
                   ${aiProvider === p
                     ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-blue-400"
+                    : "bg-surface text-slate-700 border-slate-300 hover:border-blue-400"
                   }`}
               >
                 {p === "anthropic" ? "Anthropic Claude" : "DeepSeek"}
@@ -429,7 +429,7 @@ export default function EmailIngestSettingsPage() {
             onClick={() => testMutation.mutate()}
             disabled={testMutation.isPending || !config.imap_configured}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
-              border border-slate-300 bg-white text-slate-700 hover:bg-slate-50
+              border border-slate-300 bg-surface text-slate-700 hover:bg-slate-50
               disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {testMutation.isPending
@@ -496,7 +496,7 @@ export default function EmailIngestSettingsPage() {
               />
               <div className={`w-10 h-6 rounded-full transition-colors
                 ${enabled ? "bg-blue-600" : "bg-slate-200"}`} />
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-surface rounded-full shadow
                 transition-transform ${enabled ? "translate-x-4" : "translate-x-0"}`} />
             </div>
             <span className="text-sm text-slate-700">
