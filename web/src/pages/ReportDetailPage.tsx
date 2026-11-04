@@ -54,7 +54,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+      <Icon className="w-4 h-4 text-slate-500 shrink-0" />
       <span className="text-slate-500 min-w-[100px]">{label}</span>
       <span className="text-slate-800 font-medium">{value}</span>
     </div>
@@ -77,7 +77,7 @@ function SummaryCard({ title, open, total, icon: Icon, color }: {
         <p className="text-xs text-slate-500 uppercase tracking-wider">{title}</p>
         <p className="text-xl font-bold text-slate-900">
           {open}
-          <span className="text-sm font-normal text-slate-400"> / {total}</span>
+          <span className="text-sm font-normal text-slate-500"> / {total}</span>
         </p>
       </div>
     </div>
@@ -142,7 +142,7 @@ export default function ReportDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Building2 className="w-6 h-6 text-blue-600" />
             Lot Summary Report — {lotLabel}
           </h1>
@@ -178,7 +178,7 @@ export default function ReportDetailPage() {
           Current Parties
         </h2>
         {data.parties.length === 0 ? (
-          <p className="text-sm text-slate-400">No parties currently assigned to this lot.</p>
+          <p className="text-sm text-slate-500">No parties currently assigned to this lot.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {data.parties.map((p) => (
@@ -225,7 +225,7 @@ export default function ReportDetailPage() {
           </h2>
         </div>
         {data.infractions.length === 0 ? (
-          <div className="p-6 text-center text-slate-400 text-sm">
+          <div className="p-6 text-center text-slate-500 text-sm">
             No infractions recorded for this lot.
           </div>
         ) : (
@@ -271,7 +271,7 @@ export default function ReportDetailPage() {
           </h2>
         </div>
         {data.incidents.length === 0 ? (
-          <div className="p-6 text-center text-slate-400 text-sm">
+          <div className="p-6 text-center text-slate-500 text-sm">
             No incidents recorded for this lot.
           </div>
         ) : (
@@ -315,7 +315,7 @@ export default function ReportDetailPage() {
           </h2>
         </div>
         {data.issues.length === 0 ? (
-          <div className="p-6 text-center text-slate-400 text-sm">
+          <div className="p-6 text-center text-slate-500 text-sm">
             No issues recorded for this lot.
           </div>
         ) : (

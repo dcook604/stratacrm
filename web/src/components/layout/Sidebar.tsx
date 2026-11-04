@@ -8,12 +8,12 @@ import { cn } from "../../lib/utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
 import { useSidebar } from "../../hooks/useSidebar";
 import { SearchTrigger } from "../GlobalSearch";
+import { readListMemory, writeListMemory } from "../../lib/listMemory";
 
 interface NavItem {
   to: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  available?: boolean;
   adminOnly?: boolean;
 }
 
@@ -32,20 +32,10 @@ const NAV: NavItem[] = [
   { to: "/settings/email-ingest", icon: Mail, label: "Email Ingest", adminOnly: true },
 ];
 
-const MEMORY_KEY = "nav-list-state";
-
-function readMemory(): Record<string, string> {
-  try {
-    return JSON.parse(sessionStorage.getItem(MEMORY_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
-
 /** Remembers each section's last query string so sidebar links return to the same search/filters/page. */
 function useRememberedSearch() {
   const location = useLocation();
-  const [memory, setMemory] = useState<Record<string, string>>(readMemory);
+  const [memory, setMemory] = useState<Record<string, string>>(readListMemory);
 
   useEffect(() => {
     const section = "/" + location.pathname.split("/")[1];
@@ -58,7 +48,7 @@ function useRememberedSearch() {
     setMemory((prev) => {
       if ((prev[section] ?? "") === qs) return prev;
       const next = { ...prev, [section]: qs };
-      try { sessionStorage.setItem(MEMORY_KEY, JSON.stringify(next)); } catch {}
+      writeListMemory(next);
       return next;
     });
   }, [location.pathname, location.search]);
@@ -130,11 +120,10 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
+        <nav aria-label="Main" className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
           {NAV
             .filter(({ adminOnly }) => !adminOnly || user?.role === "admin")
-            .map(({ to, icon: Icon, label, available = true }) =>
-            available ? (
+            .map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={`${to}${remembered[to] ?? ""}`}
@@ -148,21 +137,10 @@ export default function Sidebar() {
                   )
                 }
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className="w-4 h-4 shrink-0" aria-hidden />
                 {label}
               </NavLink>
-            ) : (
-              <div
-                key={to}
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600 cursor-not-allowed select-none"
-                title="Coming in a future session"
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                {label}
-                <span className="ml-auto text-xs bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">Soon</span>
-              </div>
-            )
-          )}
+            ))}
         </nav>
 
         {/* User footer */}

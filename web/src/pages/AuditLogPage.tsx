@@ -42,8 +42,8 @@ function ChangesDisplay({ changes }: { changes: Record<string, unknown> }) {
           return (
             <div key={key} className="text-xs">
               <span className="font-medium text-slate-600">{label}:</span>{" "}
-              <span className="line-through text-slate-400">{formatValue(from)}</span>
-              <span className="mx-1 text-slate-400">→</span>
+              <span className="line-through text-slate-500">{formatValue(from)}</span>
+              <span className="mx-1 text-slate-500">→</span>
               <span className="text-slate-700">{formatValue(to)}</span>
             </div>
           );
@@ -109,11 +109,11 @@ export default function AuditLogPage() {
   const total = data?.total ?? 0;
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-4 md:space-y-6">
+    <div className="page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Activity Log</h1>
+          <h1 className="page-title">Activity Log</h1>
           <p className="text-sm text-slate-500 mt-1">
             Complete audit trail of all actions performed in the system
           </p>
@@ -123,7 +123,7 @@ export default function AuditLogPage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
+          <Filter className="w-4 h-4 text-slate-500" />
           <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Filters</span>
         </div>
 
@@ -185,7 +185,7 @@ export default function AuditLogPage() {
           </div>
         ) : error ? (
           <div className="p-8 text-center">
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3 inline-block">
               <p className="text-sm text-red-700">Failed to load activity log: {error.message}</p>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function AuditLogPage() {
           <div className="p-12 text-center">
             <ClipboardList className="w-10 h-10 text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-500 font-medium">No activity found.</p>
-            <p className="text-xs text-slate-400 mt-1">Activity will appear here as actions are performed.</p>
+            <p className="text-xs text-slate-500 mt-1">Activity will appear here as actions are performed.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -219,11 +219,11 @@ export default function AuditLogPage() {
                     <td className="px-4 py-3 text-sm text-slate-700">
                       <span className="font-medium capitalize">{entry.entity_name ?? entry.entity_type.replace(/_/g, " ")}</span>
                       {entry.entity_id != null && !entry.entity_name && (
-                        <span className="text-slate-400 ml-1">#{entry.entity_id}</span>
+                        <span className="text-slate-500 ml-1">#{entry.entity_id}</span>
                       )}
                     </td>
                     <td className="hidden sm:table-cell px-4 py-3 text-sm text-slate-600">
-                      {entry.actor_email ?? <span className="text-slate-400 italic">system</span>}
+                      {entry.actor_email ?? <span className="text-slate-500 italic">system</span>}
                     </td>
                     <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 max-w-xs">
                       {entry.changes && Object.keys(entry.changes).length > 0 ? (

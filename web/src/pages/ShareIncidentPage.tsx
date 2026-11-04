@@ -32,7 +32,7 @@ function MediaLightbox({
       <button
         className="absolute top-4 right-4 text-white/70 hover:text-white"
         onClick={onClose}
-      >
+       aria-label="Close">
         <X className="w-6 h-6" />
       </button>
 
@@ -102,7 +102,7 @@ export default function ShareIncidentPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
       </div>
     );
   }
@@ -155,26 +155,26 @@ export default function ShareIncidentPage() {
           </div>
           <div className="px-5 py-4 grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Date</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">Date</p>
               <p className="text-slate-800 font-medium">{fmtDatetime(data.incident_date)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Location</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">Location</p>
               <p className="text-slate-800 font-medium">{location}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Category</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">Category</p>
               <p className="text-slate-800 font-medium capitalize">{data.category.replace(/_/g, " ")}</p>
             </div>
             {data.reported_by && (
               <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Reported by</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">Reported by</p>
                 <p className="text-slate-800 font-medium">{data.reported_by}</p>
               </div>
             )}
           </div>
           <div className="px-5 pb-5">
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1.5">Description</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wide mb-1.5">Description</p>
             <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{data.description}</p>
           </div>
           {data.resolution && (
@@ -195,7 +195,7 @@ export default function ShareIncidentPage() {
             </div>
             <div className="p-4">
               {processingCount > 0 && (
-                <p className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
+                <p className="text-xs text-slate-500 mb-3 flex items-center gap-1.5">
                   <Loader2 className="w-3 h-3 animate-spin" />
                   {processingCount} file{processingCount > 1 ? "s" : ""} still processing…
                 </p>
@@ -232,7 +232,7 @@ export default function ShareIncidentPage() {
                       )}
                       {!isImage && !isVideo && (
                         <div className="w-full h-32 flex items-center justify-center">
-                          <FileText className="w-8 h-8 text-slate-400" />
+                          <FileText className="w-8 h-8 text-slate-500" />
                         </div>
                       )}
                       {doc.caption && (
@@ -249,7 +249,7 @@ export default function ShareIncidentPage() {
         )}
 
         {/* Expiry notice */}
-        <div className="flex items-center gap-2 text-xs text-slate-400 justify-center">
+        <div className="flex items-center gap-2 text-xs text-slate-500 justify-center">
           <Clock className="w-3.5 h-3.5" />
           <span>This link expires in {data.share_expires_days} days and is for authorised recipients only.</span>
         </div>

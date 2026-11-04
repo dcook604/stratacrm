@@ -1,3 +1,4 @@
+import { useDialog } from "../../hooks/useDialog";
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Download, Upload, AlertTriangle, CheckCircle } from "lucide-react";
@@ -143,6 +144,7 @@ function csvToRows(text: string): { rows: BulkPartyRow[]; parseErrors: string[] 
 }
 
 export default function BulkAddPartyModal({ onClose }: Props) {
+  const dialogRef = useDialog(onClose);
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -178,12 +180,12 @@ export default function BulkAddPartyModal({ onClose }: Props) {
   const canSubmit = rows.length > 0 && !mut.isPending && !result;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
       <div className="bg-white rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-2xl sm:mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200">
           <h2 className="font-semibold text-slate-900">Bulk Upload Parties</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -216,7 +218,7 @@ export default function BulkAddPartyModal({ onClose }: Props) {
               className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
               onClick={() => fileRef.current?.click()}
             >
-              <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
               {fileName ? (
                 <p className="text-sm font-medium text-slate-700">{fileName}</p>
               ) : (
@@ -303,7 +305,7 @@ export default function BulkAddPartyModal({ onClose }: Props) {
           )}
 
           {mut.isError && (
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
               {(mut.error as Error).message}
             </div>
           )}

@@ -255,7 +255,7 @@ export default function ImageEditor({ src, onConfirm, onCancel }: ImageEditorPro
         <button
           className="btn btn-secondary text-sm py-1.5 px-4 flex items-center gap-1.5"
           onClick={onCancel}
-        >
+         aria-label="Close">
           <X className="w-4 h-4" /> Cancel
         </button>
         <button

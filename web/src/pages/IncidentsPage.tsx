@@ -1,3 +1,6 @@
+import { useOpenCreate } from "../hooks/useOpenCreate";
+import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
+import { useDialog } from "../hooks/useDialog";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useListParams } from "../hooks/useListParams";
@@ -68,6 +71,7 @@ interface IncidentFormProps {
 }
 
 function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
+  const dialogRef = useDialog(onClose);
   const qc = useQueryClient();
   const { addToast } = useToast();
 
@@ -150,18 +154,18 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const isValid = form.incident_date && form.category.trim() && form.description.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-xl sm:mx-4 max-h-[85vh] flex flex-col sm:max-h-[85vh]">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">{initial ? "Edit Incident" : "Log New Incident"}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+            <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -175,7 +179,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
               />
             </div>
             <div>
-              <label className="label">Time <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="label">Time <span className="text-slate-500 font-normal">(optional)</span></label>
               <input
                 type="time"
                 className="input"
@@ -259,7 +263,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
           </div>
 
           <div>
-            <label className="label">Reported By <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label">Reported By <span className="text-slate-500 font-normal">(optional)</span></label>
             <input
               type="text"
               className="input"
@@ -283,7 +287,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
                 </select>
               </div>
               <div>
-                <label className="label">Resolution Notes <span className="text-slate-400 font-normal">(optional)</span></label>
+                <label className="label">Resolution Notes <span className="text-slate-500 font-normal">(optional)</span></label>
                 <textarea
                   className="input min-h-[80px] resize-y"
                   value={form.resolution}
@@ -510,7 +514,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
             />
           </div>
           <div>
-            <label className="label text-xs">Caption <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label text-xs">Caption <span className="text-slate-500 font-normal">(optional)</span></label>
             <input
               type="text"
               className="input text-sm"
@@ -521,7 +525,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
           </div>
           <div>
             <label className="label text-xs flex items-center gap-1">
-              <Tag className="w-3 h-3" /> Tags <span className="text-slate-400 font-normal">(comma-separated, optional)</span>
+              <Tag className="w-3 h-3" /> Tags <span className="text-slate-500 font-normal">(comma-separated, optional)</span>
             </label>
             <input
               type="text"
@@ -591,7 +595,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
       )}
 
       {docs && docs.length === 0 && !showForm && (
-        <p className="text-xs text-slate-400 italic">No media attached yet.</p>
+        <p className="text-xs text-slate-500 italic">No media attached yet.</p>
       )}
 
       {docs && docs.length > 0 && (
@@ -613,7 +617,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
                   {/* Re-edit button (top-left) */}
                   <button
                     onClick={(e) => { e.stopPropagation(); startReEdit(doc); }}
-                    className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded p-0.5 shadow text-slate-400 hover:text-blue-600"
+                    className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded p-0.5 shadow text-slate-500 hover:text-blue-600"
                     title="Re-edit image"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -639,7 +643,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
                   href={doc.download_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center h-32 bg-slate-50 text-slate-400"
+                  className="flex items-center justify-center h-32 bg-slate-50 text-slate-500"
                 >
                   <FileText className="w-8 h-8" />
                 </a>
@@ -682,7 +686,7 @@ function MediaPanel({ incidentId }: { incidentId: number }) {
                 ) : (
                   <button
                     onClick={() => setConfirmDelete(doc.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded p-0.5 shadow text-slate-400 hover:text-red-600"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded p-0.5 shadow text-slate-500 hover:text-red-600"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -767,7 +771,7 @@ function NotesPanel({ incidentId }: { incidentId: number }) {
                 <span className="text-xs text-slate-500 font-medium">
                   {note.author_name || note.author_email || "Unknown"}
                 </span>
-                <span className="text-xs text-slate-400">{fmtDatetime(note.created_at)}</span>
+                <span className="text-xs text-slate-500">{fmtDatetime(note.created_at)}</span>
                 <button
                   className="ml-auto text-slate-300 hover:text-red-500 transition-colors"
                   title="Delete note"
@@ -930,6 +934,14 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
           if ((e.target as HTMLElement).closest("input[type=checkbox]")) return;
           setExpanded((x) => !x);
         }}
+        tabIndex={0}
+        aria-expanded={expanded}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            setExpanded((x) => !x);
+          }
+        }}
       >
         <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
           <input
@@ -939,9 +951,10 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             onChange={onToggleSelect}
           />
         </td>
-        <td className="px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
+        <td className="hidden md:table-cell px-4 py-3 font-mono text-sm text-slate-500">{incident.reference}</td>
         <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDatetime(incident.incident_date)}</td>
         <td className="px-4 py-3 text-sm font-medium">
+          <span className="md:hidden block text-xs font-mono font-normal text-slate-500">{incident.reference}</span>
           <div className="flex items-center gap-1.5">
             {incident.category}
             {incident.source === "email" && (
@@ -952,7 +965,7 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             )}
           </div>
         </td>
-        <td className="px-4 py-3 text-sm text-slate-500">
+        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500">
           {incident.lot
             ? <Link to={`/lots/${incident.lot.id}`} className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{locationLabel}</Link>
             : locationLabel}
@@ -991,14 +1004,14 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             <>
               <button
                 onClick={() => onEdit()}
-                className="text-slate-400 hover:text-blue-600"
+                className="text-slate-500 hover:text-blue-600"
                 title="Edit"
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setConfirmDelete(true)}
-                className="text-slate-400 hover:text-red-600"
+                className="text-slate-500 hover:text-red-600"
                 title="Delete"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -1006,11 +1019,16 @@ function IncidentRow({ incident, onEdit, initialExpanded, isSelected, onToggleSe
             </>
           )}
           {!confirmDelete && (
-            <span onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }} className="cursor-pointer">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }}
+              className="cursor-pointer"
+              aria-label={expanded ? "Collapse details" : "Expand details"}
+            >
               {expanded
-                ? <ChevronUp className="w-4 h-4 text-slate-400" />
-                : <ChevronDown className="w-4 h-4 text-slate-400" />}
-            </span>
+                ? <ChevronUp className="w-4 h-4 text-slate-500" />
+                : <ChevronDown className="w-4 h-4 text-slate-500" />}
+            </button>
           )}
         </td>
       </tr>
@@ -1094,6 +1112,7 @@ function MergeDialog({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const dialogRef2 = useDialog(onCancel);
   const selected = incidents.filter((i) => selectedIds.has(i.id));
   const firstInList = selected.length > 0 ? selected[0].id : null;
   const effectivePrimary = mergePrimaryId ?? firstInList;
@@ -1101,14 +1120,14 @@ function MergeDialog({
   const otherCount = effectivePrimary ? selected.length - 1 : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+    <div ref={dialogRef2} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg sm:mx-4 max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <GitMerge className="w-5 h-5 text-slate-500" />
             Merge {selected.length} Incidents
           </h2>
-          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onCancel} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1141,7 +1160,7 @@ function MergeDialog({
                     <span className={`badge ${STATUS_COLOURS[inc.status]}`}>{STATUS_LABELS[inc.status]}</span>
                   </div>
                   <p className="text-sm text-slate-600 mt-0.5 line-clamp-1">{inc.category}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {inc.lot
                       ? lotLabel(inc.lot)
                       : inc.common_area_description || "Common area"}
@@ -1211,6 +1230,7 @@ export default function IncidentsPage() {
   const pageSize = Number(values.size) || 25;
 
   const [showCreate, setShowCreate] = useState(false);
+  useOpenCreate(() => setShowCreate(true));
   const [editIncident, setEditIncident] = useState<Incident | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -1239,7 +1259,7 @@ export default function IncidentsPage() {
     onError: (e: Error) => addToast("error", e.message),
   });
 
-  const { data: paged, isLoading } = useQuery({
+  const { data: paged, isLoading, error: listError, refetch } = useQuery({
     queryKey: ["incidents", { statusFilter, openOnly, search, sort, page, pageSize }],
     queryFn: () =>
       incidentsApi.list({
@@ -1264,10 +1284,10 @@ export default function IncidentsPage() {
   });
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+    <div className="page">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg md:text-xl font-semibold text-slate-900 flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <FileText className="w-5 h-5 text-slate-500" />
             Incidents
           </h1>
@@ -1301,7 +1321,7 @@ export default function IncidentsPage() {
         <div className="card border-blue-300 bg-blue-50/40 overflow-hidden">
           <div className="px-4 py-2 border-b border-blue-200 flex items-center justify-between">
             <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Linked Incident</span>
-            <button onClick={() => setOpenIdDismissed(true)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setOpenIdDismissed(true)} className="text-slate-500 hover:text-slate-600">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -1336,7 +1356,7 @@ export default function IncidentsPage() {
           ))}
         </select>
         {total > 0 && (
-          <span className="text-xs text-slate-400 ml-auto">{total} incident{total !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-slate-500 ml-auto">{total} incident{total !== 1 ? "s" : ""}</span>
         )}
       </div>
       <ActiveFilters
@@ -1354,7 +1374,7 @@ export default function IncidentsPage() {
 
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px]">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-2 py-3 w-10">
@@ -1371,7 +1391,7 @@ export default function IncidentsPage() {
                   }}
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">
                 <SortButton label="Ref" sortKey="reference" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">
@@ -1380,7 +1400,7 @@ export default function IncidentsPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <SortButton label="Category" sortKey="category" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Location</th>
+              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Location</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">
                 <SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} />
               </th>
@@ -1388,19 +1408,28 @@ export default function IncidentsPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400">Loading…</td>
-              </tr>
+            {isLoading && <TableSkeleton columns={7} />}
+            {!isLoading && listError && (
+              <TableMessage columns={7}>
+                <ErrorState message="Failed to load incidents." onRetry={() => refetch()} />
+              </TableMessage>
             )}
-            {!isLoading && incidents.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400">
-                  {search || statusValue ? (
-                    <>No incidents match these filters. <button className="underline" onClick={clearAll}>Clear all</button></>
-                  ) : "No incidents found."}
-                </td>
-              </tr>
+            {!isLoading && !listError && incidents.length === 0 && (
+              <TableMessage columns={7}>
+                {search || statusValue ? (
+                  <EmptyState
+                    icon={FileText}
+                    title="No incidents match these filters"
+                    action={<button className="btn-secondary text-xs px-3 py-1.5" onClick={clearAll}>Clear all filters</button>}
+                  />
+                ) : (
+                  <EmptyState
+                    icon={FileText}
+                    title="No incidents logged yet"
+                    action={<button className="btn-primary text-xs px-3 py-1.5" onClick={() => setShowCreate(true)}><Plus className="w-3.5 h-3.5" /> Log Incident</button>}
+                  />
+                )}
+              </TableMessage>
             )}
             {incidents.map((inc) => (
               <IncidentRow

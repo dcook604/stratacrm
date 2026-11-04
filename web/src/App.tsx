@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useMe } from "./hooks/useAuth";
 import { ToastProvider } from "./lib/toast";
+import { ConfirmProvider } from "./components/ConfirmDialog";
 import Layout from "./components/layout/Layout";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -46,6 +47,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <ToastProvider>
+    <ConfirmProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -83,6 +85,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ConfirmProvider>
     </ToastProvider>
   );
 }

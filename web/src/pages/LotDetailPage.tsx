@@ -1,3 +1,4 @@
+import { useUnsavedWarning } from "../hooks/useUnsavedWarning";
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,9 @@ import {
 } from "../lib/api";
 import { ROLE_LABELS, roleBadgeClass, formatDate, lotLabel } from "../lib/utils";
 import { fmtDatetime } from "../lib/dates";
-import BackLink from "../components/ui/BackLink";
+import Breadcrumbs from "../components/ui/Breadcrumbs";
+import { listPath } from "../lib/listMemory";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 // ---------------------------------------------------------------------------
 // Badge helpers
@@ -50,7 +53,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <dt className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-900">{value || <span className="text-slate-400">—</span>}</dd>
+      <dd className="mt-1 text-sm text-slate-900">{value || <span className="text-slate-500">—</span>}</dd>
     </div>
   );
 }
@@ -130,6 +133,9 @@ export default function LotDetailPage() {
     setEditing(true);
   }
 
+  useDocumentTitle(lot ? lotLabel(lot) : undefined);
+  useUnsavedWarning(editing);
+
   if (isLoading) {
     return (
       <div className="p-4 sm:p-8">
@@ -144,7 +150,7 @@ export default function LotDetailPage() {
   if (error || !lot) {
     return (
       <div className="p-4 sm:p-8">
-        <BackLink fallback="/lots" label="Back to Lots" className="mb-4" />
+        <Breadcrumbs className="mb-4" items={[{ label: "Lots", to: listPath("/lots") }, { label: "Not found" }]} />
         <p className="text-red-600">Lot not found.</p>
       </div>
     );
@@ -152,11 +158,11 @@ export default function LotDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
-      <BackLink fallback="/lots" label="Back to Lots" className="mb-6" />
+      <Breadcrumbs className="mb-4" items={[{ label: "Lots", to: listPath("/lots") }, { label: lotLabel(lot) }]} />
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="page-title">
             {lotLabel(lot)}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -192,7 +198,7 @@ export default function LotDetailPage() {
       )}
 
       {updateMut.error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {(updateMut.error as Error).message}
         </div>
       )}
@@ -364,7 +370,7 @@ export default function LotDetailPage() {
               <dd className="mt-1">
                 {lot.suspected_airbnb
                   ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200"><Home className="w-3 h-3" />Flagged</span>
-                  : <span className="text-sm text-slate-400">—</span>
+                  : <span className="text-sm text-slate-500">—</span>
                 }
               </dd>
             </div>
@@ -377,7 +383,7 @@ export default function LotDetailPage() {
                       {lot.locker_number && <p className="mt-1">Locker {lot.locker_number}</p>}
                       {lot.locker_signup_date && <p className="text-xs text-slate-500">Signed up {formatDate(lot.locker_signup_date)}</p>}
                     </div>
-                  : <span className="text-sm text-slate-400">—</span>
+                  : <span className="text-sm text-slate-500">—</span>
                 }
               </dd>
             </div>
@@ -394,6 +400,7 @@ export default function LotDetailPage() {
           <button
             className={`card p-3 sm:p-4 text-left hover:border-amber-300 transition-colors ${expandedSection === "infractions" ? "border-amber-400 bg-amber-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "infractions" ? null : "infractions")}
+            aria-expanded={expandedSection === "infractions"}
           >
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
@@ -409,6 +416,7 @@ export default function LotDetailPage() {
           <button
             className={`card p-3 sm:p-4 text-left hover:border-blue-300 transition-colors ${expandedSection === "incidents" ? "border-blue-400 bg-blue-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "incidents" ? null : "incidents")}
+            aria-expanded={expandedSection === "incidents"}
           >
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <FileText className="w-4 h-4 text-blue-500 shrink-0" />
@@ -424,6 +432,7 @@ export default function LotDetailPage() {
           <button
             className={`card p-3 sm:p-4 text-left hover:border-purple-300 transition-colors ${expandedSection === "issues" ? "border-purple-400 bg-purple-50/30" : ""}`}
             onClick={() => setExpandedSection(expandedSection === "issues" ? null : "issues")}
+            aria-expanded={expandedSection === "issues"}
           >
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
               <Wrench className="w-4 h-4 text-purple-500 shrink-0" />
@@ -447,12 +456,12 @@ export default function LotDetailPage() {
               <AlertTriangle className="w-4 h-4 text-amber-500" />
               Infractions
             </h2>
-            <button onClick={() => setExpandedSection(null)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setExpandedSection(null)} className="text-slate-500 hover:text-slate-600">
               <ChevronUp className="w-4 h-4" />
             </button>
           </div>
           {!infractions || infractions.length === 0 ? (
-            <p className="px-6 py-6 text-sm text-slate-400 text-center">No infractions recorded for this lot.</p>
+            <p className="px-6 py-6 text-sm text-slate-500 text-center">No infractions recorded for this lot.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[500px] text-sm">
@@ -472,7 +481,7 @@ export default function LotDetailPage() {
                       <td className="px-4 py-3 font-mono text-slate-500">{inf.id}</td>
                       <td className="px-4 py-3 text-slate-700">
                         <span className="font-medium">{inf.bylaw.bylaw_number}</span>
-                        <span className="text-slate-400 ml-1 text-xs">{inf.bylaw.title}</span>
+                        <span className="text-slate-500 ml-1 text-xs">{inf.bylaw.title}</span>
                       </td>
                       <td className="px-4 py-3 text-slate-600">#{inf.occurrence_number}</td>
                       <td className="px-4 py-3">
@@ -503,12 +512,12 @@ export default function LotDetailPage() {
               <FileText className="w-4 h-4 text-blue-500" />
               Incidents
             </h2>
-            <button onClick={() => setExpandedSection(null)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setExpandedSection(null)} className="text-slate-500 hover:text-slate-600">
               <ChevronUp className="w-4 h-4" />
             </button>
           </div>
           {!incidents || incidents.length === 0 ? (
-            <p className="px-6 py-6 text-sm text-slate-400 text-center">No incidents recorded for this lot.</p>
+            <p className="px-6 py-6 text-sm text-slate-500 text-center">No incidents recorded for this lot.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] text-sm">
@@ -559,12 +568,12 @@ export default function LotDetailPage() {
               <Wrench className="w-4 h-4 text-purple-500" />
               Issues
             </h2>
-            <button onClick={() => setExpandedSection(null)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => setExpandedSection(null)} className="text-slate-500 hover:text-slate-600">
               <ChevronUp className="w-4 h-4" />
             </button>
           </div>
           {!issues || issues.length === 0 ? (
-            <p className="px-6 py-6 text-sm text-slate-400 text-center">No issues linked to this lot.</p>
+            <p className="px-6 py-6 text-sm text-slate-500 text-center">No issues linked to this lot.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] text-sm">
@@ -621,7 +630,7 @@ export default function LotDetailPage() {
           <h2 className="text-sm font-semibold text-slate-700">Current Assignments</h2>
         </div>
         {lot.current_assignments.length === 0 ? (
-          <div className="px-6 py-8 text-center text-slate-400 text-sm">
+          <div className="px-6 py-8 text-center text-slate-500 text-sm">
             No current assignments. Import the owner list to populate this lot.
           </div>
         ) : (
@@ -663,7 +672,7 @@ export default function LotDetailPage() {
                   ) : (
                     <button
                       onClick={() => setConfirmDeleteId(a.id)}
-                      className="text-slate-400 hover:text-red-500 transition-colors"
+                      className="text-slate-500 hover:text-red-500 transition-colors"
                       title="Remove assignment"
                     >
                       <Trash2 className="w-4 h-4" />

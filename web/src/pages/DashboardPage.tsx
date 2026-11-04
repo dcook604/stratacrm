@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2, Users, AlertTriangle, FileText, Wrench,
-  Activity, Clock,
+  Activity, Clock, Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { dashboardApi, type DashboardStats } from "../lib/api";
 import { formatDateTime } from "../lib/utils";
-import { fmtDatetime } from "../lib/dates";
+import { fmtDatetime, timeAgo } from "../lib/dates";
+import { ErrorState } from "../components/ui/States";
 
 // ---------------------------------------------------------------------------
 // Stat card
@@ -96,7 +97,7 @@ function AttentionSection({ data }: { data: DashboardStats }) {
                 <li key={issue.id} className="text-sm flex items-center justify-between">
                   <span className="text-slate-700">
                     <span className="font-medium">{issue.title}</span>
-                    <span className="text-slate-400 ml-2 capitalize">
+                    <span className="text-slate-500 ml-2 capitalize">
                       [{issue.priority}] due {fmtDatetime(issue.due_date)}
                       {issue.assignee_email ? ` · ${issue.assignee_email}` : ""}
                     </span>
@@ -136,17 +137,24 @@ const ACTION_META: Record<string, { label: string; className: string }> = {
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
-  const { data, isLoading, error } = useQuery<DashboardStats>({
+  const { data, isLoading, error, refetch } = useQuery<DashboardStats>({
     queryKey: ["dashboard-stats"],
     queryFn: dashboardApi.stats,
     refetchInterval: 60_000,
   });
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Spectrum 4 — Strata Plan BCS2611</p>
+    <div className="page">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="text-slate-500 text-sm mt-1">Spectrum 4 — Strata Plan BCS2611</p>
+        </div>
+        <div className="flex flex-wrap gap-2" aria-label="Quick actions" role="group">
+          <Link to="/incidents?new=1" className="btn-secondary text-sm"><Plus className="w-4 h-4" /> Log incident</Link>
+          <Link to="/infractions?new=1" className="btn-secondary text-sm"><Plus className="w-4 h-4" /> Record infraction</Link>
+          <Link to="/issues?new=1" className="btn-secondary text-sm"><Plus className="w-4 h-4" /> Create issue</Link>
+        </div>
       </div>
 
       {/* Stats */}
@@ -163,8 +171,11 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {error instanceof Error ? error.message : "Failed to load dashboard stats."}
+        <div className="card p-6">
+          <ErrorState
+            message={error instanceof Error ? error.message : "Failed to load dashboard stats."}
+            onRetry={() => refetch()}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -224,7 +235,7 @@ export default function DashboardPage() {
           </Link>
         </div>
         {!data?.recent_audit?.length ? (
-          <div className="px-4 md:px-6 py-8 text-center text-slate-400 text-sm">No activity yet.</div>
+          <div className="px-4 md:px-6 py-8 text-center text-slate-500 text-sm">No activity yet.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {data.recent_audit.map((entry) => {
@@ -240,11 +251,11 @@ export default function DashboardPage() {
                   <span className="text-slate-700 flex-1 min-w-0 truncate capitalize">
                     {entry.entity_name ?? entity}{entry.entity_id != null && !entry.entity_name ? ` #${entry.entity_id}` : ""}
                   </span>
-                  <span className="text-slate-400 text-xs shrink-0 hidden sm:flex items-center gap-2">
+                  <span className="text-slate-500 text-xs shrink-0 hidden sm:flex items-center gap-2">
                     {entry.actor_email && (
                       <span className="truncate max-w-[160px]">{entry.actor_email}</span>
                     )}
-                    <span className="whitespace-nowrap">{formatDateTime(entry.occurred_at)}</span>
+                    <time className="whitespace-nowrap" dateTime={entry.occurred_at} title={formatDateTime(entry.occurred_at)}>{timeAgo(entry.occurred_at)}</time>
                   </span>
                 </li>
               );

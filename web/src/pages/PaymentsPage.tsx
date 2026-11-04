@@ -1,3 +1,6 @@
+import MoneyInput from "../components/ui/MoneyInput";
+import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
+import { useDialog } from "../hooks/useDialog";
 import { useState, useEffect } from "react";
 import { useListParams } from "../hooks/useListParams";
 import SearchInput from "../components/ui/SearchInput";
@@ -44,11 +47,11 @@ export default function PaymentsPage() {
   const setTab = (t: Tab) => setSp(t === "payments" ? {} : { tab: t });
 
   return (
-    <div className="space-y-6">
+    <div className="page">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Payments</h1>
+          <h1 className="page-title">Payments</h1>
           <p className="text-sm text-slate-500 mt-1">
             Track locker rental payments and manage notification schedules
           </p>
@@ -103,7 +106,7 @@ function PaymentsTab() {
   const { addToast } = useToast();
   const qc = useQueryClient();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["payments", { statusFilter, searchQuery, sort, page, pageSize }],
     queryFn: () => paymentsApi.list({
       status: statusFilter || undefined,
@@ -192,11 +195,28 @@ function PaymentsTab() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="p-8 text-center text-slate-400 text-sm">Loading...</td></tr>
+              <TableSkeleton columns={7} />
+            ) : error ? (
+              <TableMessage columns={7}>
+                <ErrorState message="Failed to load payments." onRetry={() => refetch()} />
+              </TableMessage>
             ) : filtered?.length === 0 ? (
-              <tr><td colSpan={7} className="p-8 text-center text-slate-400 text-sm">
-                {error ? "Failed to load payments." : searchQuery || statusFilter ? <>No payments match these filters. <button className="underline" onClick={clearAll}>Clear all</button></> : "No payments found"}
-              </td></tr>
+              <TableMessage columns={7}>
+                {searchQuery || statusFilter ? (
+                  <EmptyState
+                    icon={DollarSign}
+                    title="No payments match these filters"
+                    action={<button className="btn-secondary text-xs px-3 py-1.5" onClick={clearAll}>Clear all filters</button>}
+                  />
+                ) : (
+                  <EmptyState
+                    icon={DollarSign}
+                    title="No payment records yet"
+                    hint="Records are created from schedules, or add a one-off payment."
+                    action={<button className="btn-primary text-xs px-3 py-1.5" onClick={() => setCreateModalOpen(true)}><Plus className="w-3.5 h-3.5" /> Record Payment</button>}
+                  />
+                )}
+              </TableMessage>
             ) : (
               filtered?.map((p) => (
                 <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
@@ -217,7 +237,7 @@ function PaymentsTab() {
                   </td>
                   <td className="p-3 text-sm text-slate-700">
                     <div className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <Calendar className="w-3.5 h-3.5 text-slate-500" />
                       {formatDate(p.due_date)}
                     </div>
                   </td>
@@ -324,10 +344,7 @@ function RecordPaymentModal({ payment, onClose, onRecord, loading }: {
 
         <div>
           <label className="label">Amount Paid</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-            <input className="input pl-7" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          </div>
+          <MoneyInput value={amount} onChange={setAmount} required />
         </div>
 
         <div>
@@ -436,10 +453,7 @@ function CreatePaymentModal({ onClose }: { onClose: () => void }) {
 
         <div>
           <label className="label">Amount Due</label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-            <input className="input pl-7" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          </div>
+          <MoneyInput value={amount} onChange={setAmount} required />
         </div>
 
         <div>
@@ -518,12 +532,12 @@ function SchedulesTab() {
 
       <div className="grid gap-4">
         {isLoading ? (
-          <div className="text-center text-slate-400 text-sm py-8">Loading...</div>
+          <div className="text-center text-slate-500 text-sm py-8">Loading...</div>
         ) : schedules?.length === 0 ? (
           <div className="card p-8 text-center">
             <DollarSign className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500 text-sm">No payment schedules created yet.</p>
-            <p className="text-slate-400 text-xs mt-1">
+            <p className="text-slate-500 text-xs mt-1">
               Create a schedule to start tracking locker rental payments.
             </p>
           </div>
@@ -543,7 +557,7 @@ function SchedulesTab() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-slate-900">${parseFloat(s.amount).toFixed(2)}</p>
-                  <p className="text-xs text-slate-400 capitalize">{s.frequency}</p>
+                  <p className="text-xs text-slate-500 capitalize">{s.frequency}</p>
                 </div>
               </div>
 
@@ -692,10 +706,7 @@ function ScheduleFormModal({ scheduleId, onClose }: { scheduleId?: number; onClo
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="label">Amount</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-              <input className="input pl-7" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-            </div>
+            <MoneyInput value={amount} onChange={setAmount} required />
           </div>
           <div>
             <label className="label">Frequency</label>
@@ -765,7 +776,7 @@ function ConfigTab() {
   });
 
   if (isLoading || !form) {
-    return <div className="text-center text-slate-400 text-sm py-8">Loading...</div>;
+    return <div className="text-center text-slate-500 text-sm py-8">Loading...</div>;
   }
 
   function setField<K extends keyof PaymentConfig>(key: K, value: PaymentConfig[K]) {
@@ -915,7 +926,7 @@ function ReminderDaysInput({ value, onChange }: { value: number[]; onChange: (v:
           Add
         </button>
       </div>
-      <p className="text-xs text-slate-400 mt-1">Press Enter or click Add. Sorted descending.</p>
+      <p className="text-xs text-slate-500 mt-1">Press Enter or click Add. Sorted descending.</p>
     </div>
   );
 }
@@ -929,12 +940,13 @@ function Th({ children }: { children: React.ReactNode }) {
 }
 
 function Modal({ onClose, title, children }: { onClose: () => void; title: string; children: React.ReactNode }) {
+  const dialogRef = useDialog(onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-slate-100 text-slate-400">
+          <button onClick={onClose} className="p-1 rounded hover:bg-slate-100 text-slate-500" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>

@@ -1,3 +1,4 @@
+import { ErrorState } from "../components/ui/States";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -35,14 +36,14 @@ const columns = [
   }),
   col.accessor("unit_number", {
     header: "Unit",
-    cell: (info) => info.getValue() ?? <span className="text-slate-400">—</span>,
+    cell: (info) => info.getValue() ?? <span className="text-slate-500">—</span>,
     size: 100,
   }),
   col.accessor("square_feet", {
     header: "Sq Ft",
     cell: (info) => {
       const v = info.getValue();
-      return v ? Number(v).toLocaleString() : <span className="text-slate-400">—</span>;
+      return v ? Number(v).toLocaleString() : <span className="text-slate-500">—</span>;
     },
     size: 90,
   }),
@@ -58,7 +59,7 @@ const columns = [
         lot.scooter_lockers,
         lot.locker_number,
       ].filter(Boolean);
-      if (!parts.length) return <span className="text-slate-400">—</span>;
+      if (!parts.length) return <span className="text-slate-500">—</span>;
       return <span className="text-xs">{parts.join(", ")}</span>;
     },
   }),
@@ -66,7 +67,7 @@ const columns = [
     header: "Owner(s)",
     cell: (info) => {
       const owners = info.getValue();
-      if (!owners.length) return <span className="text-slate-400">Unassigned</span>;
+      if (!owners.length) return <span className="text-slate-500">Unassigned</span>;
       return owners.join(", ");
     },
   }),
@@ -74,7 +75,7 @@ const columns = [
     header: "Tenant(s)",
     cell: (info) => {
       const tenants = info.getValue();
-      if (!tenants.length) return <span className="text-slate-400">—</span>;
+      if (!tenants.length) return <span className="text-slate-500">—</span>;
       return tenants.join(", ");
     },
   }),
@@ -104,7 +105,7 @@ export default function LotsPage() {
   const pageSize = Number(values.size) || 50;
 
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["lots", { page, search, sort, pageSize }],
     queryFn: () =>
       lotsApi.list({ skip: page * pageSize, limit: pageSize, search: search || undefined, sort }),
@@ -124,7 +125,7 @@ export default function LotsPage() {
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-2">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Lots</h1>
+          <h1 className="page-title">Lots</h1>
           <p className="text-slate-500 text-sm mt-1">
             {data ? `${data.total} lots total` : "Loading…"}
           </p>
@@ -146,7 +147,7 @@ export default function LotsPage() {
 
       <div className="card overflow-hidden -mx-4 sm:mx-0">
         {error ? (
-          <div className="px-6 py-8 text-center text-red-600 text-sm">Failed to load lots.</div>
+          <div className="px-6 py-8"><ErrorState message="Failed to load lots." onRetry={() => refetch()} /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -200,11 +201,11 @@ export default function LotsPage() {
                     ))}
                 {!isLoading && !data?.items.length && (
                   <tr>
-                    <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-500">
                       <div className="flex flex-col items-center gap-2">
                         <Search className="w-8 h-8 text-slate-300" />
                         <p className="text-slate-500 font-medium">No lots found.</p>
-                        <p className="text-slate-400 text-xs">
+                        <p className="text-slate-500 text-xs">
                           {search ? <>No matches for “{search}”. <button className="underline" onClick={clearAll}>Clear search</button></> : "Try adjusting your search."}
                         </p>
                       </div>

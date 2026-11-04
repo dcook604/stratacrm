@@ -6,7 +6,9 @@ import {
   XCircle, Clock, Mail, MessageSquare, Gavel, DollarSign, Plus,
 } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
-import BackLink from "../components/ui/BackLink";
+import Breadcrumbs from "../components/ui/Breadcrumbs";
+import { listPath } from "../lib/listMemory";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import {
   infractionsApi,
   type InfractionDetail,
@@ -61,8 +63,8 @@ function EventIcon({ type }: { type: InfractionEventType }) {
     case "decision_made": return <CheckCircle className={`${cls} text-slate-500`} />;
     case "fine_levied": return <DollarSign className={`${cls} text-red-500`} />;
     case "payment_received": return <CheckCircle className={`${cls} text-green-500`} />;
-    case "dismissed": return <XCircle className={`${cls} text-slate-400`} />;
-    default: return <Clock className={`${cls} text-slate-400`} />;
+    case "dismissed": return <XCircle className={`${cls} text-slate-500`} />;
+    default: return <Clock className={`${cls} text-slate-500`} />;
   }
 }
 
@@ -109,7 +111,7 @@ function AddEventForm({ infractionId, currentStatus, onDone }: AddEventProps) {
 
   if (allowed.length === 0) {
     return (
-      <p className="text-sm text-slate-400 italic">
+      <p className="text-sm text-slate-500 italic">
         No further events can be added in this status.
       </p>
     );
@@ -118,7 +120,7 @@ function AddEventForm({ infractionId, currentStatus, onDone }: AddEventProps) {
   return (
     <div className="space-y-3">
       {error && (
-        <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
       )}
       <div>
         <label className="label">Event Type</label>
@@ -133,7 +135,7 @@ function AddEventForm({ infractionId, currentStatus, onDone }: AddEventProps) {
         </select>
       </div>
       <div>
-        <label className="label">Notes <span className="text-slate-400 font-normal">(optional)</span></label>
+        <label className="label">Notes <span className="text-slate-500 font-normal">(optional)</span></label>
         <textarea
           className="input min-h-[80px] resize-y"
           value={notes}
@@ -185,7 +187,7 @@ function GenerateNoticePanel({ inf, onDone }: NoticeGenProps) {
 
   if (inf.status !== "open") {
     return (
-      <p className="text-sm text-slate-400 italic">
+      <p className="text-sm text-slate-500 italic">
         Notice can only be generated when the infraction is in <strong>Open</strong> status.
       </p>
     );
@@ -194,7 +196,7 @@ function GenerateNoticePanel({ inf, onDone }: NoticeGenProps) {
   return (
     <div className="space-y-3">
       {error && (
-        <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
       )}
       <p className="text-sm text-slate-600">
         Generates a s.135 notice PDF (WeasyPrint) and advances status to <strong>Notice Sent</strong>.
@@ -255,14 +257,14 @@ function EventTimeline({ events }: { events: InfractionEvent[] }) {
           <div className="card px-4 py-3">
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm font-semibold">{EVENT_LABELS[ev.event_type]}</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {new Date(ev.occurred_at).toLocaleDateString("en-CA", {
                   year: "numeric", month: "short", day: "numeric",
                 })}
               </p>
             </div>
             {ev.actor_email && (
-              <p className="text-xs text-slate-400 mb-1">{ev.actor_email}</p>
+              <p className="text-xs text-slate-500 mb-1">{ev.actor_email}</p>
             )}
             {ev.notes && (
               <p className="text-sm text-slate-600">{ev.notes}</p>
@@ -295,16 +297,18 @@ export default function InfractionDetailPage() {
     enabled: !!infractionId,
   });
 
+  useDocumentTitle(inf ? `INF-${inf.id}` : undefined);
+
   if (isLoading) {
     return (
-      <div className="p-6 text-sm text-slate-400">Loading…</div>
+      <div className="p-6 text-sm text-slate-500">Loading…</div>
     );
   }
 
   if (error || !inf) {
     return (
       <div className="p-6 text-sm text-red-600">
-        Could not load infraction. <Link to="/infractions" className="text-blue-600 underline">Back to list</Link>
+        Could not load infraction. <Link to={listPath("/infractions")} className="text-blue-600 underline">Back to list</Link>
       </div>
     );
   }
@@ -316,12 +320,12 @@ export default function InfractionDetailPage() {
     <div className="p-6 space-y-6 max-w-4xl">
       {/* Breadcrumb */}
       <div>
-        <BackLink fallback="/infractions" label="Back to Infractions" className="mb-3" />
+        <Breadcrumbs className="mb-3" items={[{ label: "Infractions", to: listPath("/infractions") }, { label: `INF-${inf.id}` }]} />
 
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-slate-900">
+              <h1 className="page-title">
                 INF-{inf.id}
               </h1>
               <span className={`badge ${STATUS_COLOURS[inf.status]}`}>
@@ -399,10 +403,10 @@ export default function InfractionDetailPage() {
             </h3>
             <p className="font-medium text-sm">
               {inf.bylaw.bylaw_number}
-              {inf.bylaw.section && <span className="text-slate-400"> § {inf.bylaw.section}</span>}
+              {inf.bylaw.section && <span className="text-slate-500"> § {inf.bylaw.section}</span>}
             </p>
             <p className="text-sm text-slate-600 mt-0.5">{inf.bylaw.title}</p>
-            <p className="text-xs text-slate-400 mt-1 capitalize">
+            <p className="text-xs text-slate-500 mt-1 capitalize">
               {inf.bylaw.category.replace("_", " ")}
             </p>
           </div>
@@ -439,11 +443,11 @@ export default function InfractionDetailPage() {
             </h3>
             <dl className="space-y-2 text-sm">
               <div>
-                <dt className="text-xs text-slate-400">Received</dt>
+                <dt className="text-xs text-slate-500">Received</dt>
                 <dd>{fmtDatetime(inf.complaint_received_date)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">Description</dt>
+                <dt className="text-xs text-slate-500">Description</dt>
                 <dd className="text-slate-700 whitespace-pre-wrap">{inf.description}</dd>
               </div>
             </dl>
@@ -462,7 +466,7 @@ export default function InfractionDetailPage() {
                       <p className="font-medium capitalize">
                         {n.delivery_method.replace("_", " ")}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-slate-500">
                         {n.delivered_at
                           ? new Date(n.delivered_at).toLocaleDateString("en-CA", {
                               year: "numeric", month: "short", day: "numeric",
@@ -495,7 +499,7 @@ export default function InfractionDetailPage() {
             s.135 Event Trail
           </h3>
           {inf.events.length === 0 ? (
-            <p className="text-sm text-slate-400 italic">No events yet.</p>
+            <p className="text-sm text-slate-500 italic">No events yet.</p>
           ) : (
             <EventTimeline events={inf.events} />
           )}

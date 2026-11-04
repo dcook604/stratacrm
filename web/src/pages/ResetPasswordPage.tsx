@@ -53,7 +53,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="w-full max-w-sm">
           <div className="bg-white rounded-xl shadow-xl p-8 text-center space-y-4">
-            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
+            <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
               <p className="text-sm text-red-700">
                 Invalid reset link. This link may be missing the required token.
               </p>
@@ -134,7 +134,7 @@ export default function ResetPasswordPage() {
               </div>
 
               {error && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
+                <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-4 py-3">
                   <p className="text-sm text-red-700">{error}</p>
                 </div>
               )}

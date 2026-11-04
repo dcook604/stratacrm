@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Building2, Users, AlertTriangle, FileText, Wrench, Loader2 } from "lucide-react";
 import { searchApi } from "../lib/api";
+import { listPath } from "../lib/listMemory";
 
 interface Ctx {
   open: () => void;
@@ -27,8 +28,26 @@ function isTyping(el: EventTarget | null) {
 export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
+    // "g" then a letter jumps to a section (g d = Dashboard, g l = Lots, …), like GitHub/Gmail.
+    let pendingG = 0;
+    const GO: Record<string, string> = {
+      d: "/dashboard", l: "/lots", p: "/parties", b: "/bylaws", i: "/incidents",
+      f: "/infractions", s: "/issues", m: "/payments", r: "/reports",
+    };
     function onKey(e: KeyboardEvent) {
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && !isTyping(e.target) && !document.querySelector('[role="dialog"], [role="alertdialog"]')) {
+        const k = e.key.toLowerCase();
+        if (pendingG && Date.now() - pendingG < 1200 && GO[k]) {
+          pendingG = 0;
+          e.preventDefault();
+          navigate(listPath(GO[k]));
+          return;
+        }
+        pendingG = k === "g" ? Date.now() : 0;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsOpen((o) => !o);
@@ -39,7 +58,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [navigate]);
 
   const value = useMemo(() => ({ open: () => setIsOpen(true) }), []);
 
@@ -63,7 +82,7 @@ export function SearchTrigger({ className = "" }: { className?: string }) {
     >
       <Search className="w-4 h-4" />
       <span className="flex-1 text-left">Search…</span>
-      <kbd className="hidden lg:inline text-[10px] text-slate-400 border border-slate-600 rounded px-1">
+      <kbd className="hidden lg:inline text-[10px] text-slate-500 border border-slate-600 rounded px-1">
         {isMac ? "⌘K" : "Ctrl K"}
       </kbd>
     </button>
@@ -143,7 +162,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-xl bg-white rounded-xl shadow-2xl overflow-hidden" onKeyDown={onKeyDown}>
         <div className="flex items-center gap-2 px-4 border-b border-slate-200">
-          <Search className="w-4 h-4 text-slate-400" />
+          <Search className="w-4 h-4 text-slate-500" />
           <input
             autoFocus
             value={text}
@@ -151,13 +170,23 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             placeholder="Search lots, people, infractions, incidents, issues…"
             className="flex-1 py-3.5 text-sm outline-none bg-transparent"
           />
-          {isFetching && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-          <kbd className="text-[10px] text-slate-400 border border-slate-200 rounded px-1">Esc</kbd>
+          {isFetching && <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />}
+          <kbd className="text-[10px] text-slate-500 border border-slate-200 rounded px-1">Esc</kbd>
         </div>
         <div ref={listRef} className="max-h-[60vh] overflow-y-auto py-1">
           {q.length < 2 && (
-            <p className="px-4 py-6 text-sm text-slate-400 text-center">
+            <p className="px-4 py-6 text-sm text-slate-500 text-center">
               Type at least 2 characters. Supports "exact phrases", OR and -exclude.
+              <span className="block mt-2 text-xs">
+                Shortcuts: <kbd className="border border-slate-200 rounded px-1">g</kbd> then{" "}
+                <kbd className="border border-slate-200 rounded px-1">d</kbd> Dashboard ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">l</kbd> Lots ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">p</kbd> Parties ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">i</kbd> Incidents ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">f</kbd> Infractions ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">s</kbd> Issues ·{" "}
+                <kbd className="border border-slate-200 rounded px-1">m</kbd> Payments
+              </span>
             </p>
           )}
           {error && <p className="px-4 py-6 text-sm text-red-600 text-center">Search failed. Try again.</p>}
@@ -171,7 +200,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             return (
               <div key={h.key}>
                 {header && (
-                  <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{h.group}</p>
+                  <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{h.group}</p>
                 )}
                 <button
                   type="button"
@@ -180,7 +209,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                   onClick={() => go(h)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left ${idx === active ? "bg-blue-50" : ""}`}
                 >
-                  <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+                  <Icon className="w-4 h-4 text-slate-500 shrink-0" />
                   <span className="min-w-0">
                     <span className="block text-sm text-slate-900 truncate">{h.title}</span>
                     {h.subtitle && <span className="block text-xs text-slate-500 truncate">{h.subtitle}</span>}

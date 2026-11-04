@@ -1,3 +1,4 @@
+import { useDialog } from "../hooks/useDialog";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, Download, FileText, Loader2 } from "lucide-react";
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
+  const dialogRef = useDialog(onClose);
   const [lotSearch, setLotSearch] = useState(
     initialLot ? lotLabel(initialLot) : ""
   );
@@ -52,7 +54,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-center bg-black/50 sm:pt-16">
       <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg sm:mx-4 flex flex-col">
 
         {/* Header */}
@@ -61,7 +63,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
             <FileText className="w-5 h-5 text-blue-600" />
             <h2 className="text-base font-semibold">Export Incident Evidence Package</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 p-1" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -74,7 +76,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
           </p>
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
+            <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</div>
           )}
 
           {/* Lot selector */}
@@ -85,7 +87,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
                 <div className="flex-1 input bg-slate-50 text-slate-700 flex items-center">
                   <span className="font-medium">{lotLabel(selectedLot)}</span>
                   {selectedLot.owners.length > 0 && (
-                    <span className="ml-2 text-xs text-slate-400">— {selectedLot.owners.join(", ")}</span>
+                    <span className="ml-2 text-xs text-slate-500">— {selectedLot.owners.join(", ")}</span>
                   )}
                 </div>
                 <button
@@ -115,7 +117,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
                       >
                         <span className="font-medium">{lotLabel(l)}</span>
                         {l.owners.length > 0 && (
-                          <span className="ml-2 text-xs text-slate-400">{l.owners.join(", ")}</span>
+                          <span className="ml-2 text-xs text-slate-500">{l.owners.join(", ")}</span>
                         )}
                       </button>
                     ))}
@@ -128,7 +130,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
           {/* Date range */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">From Date <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="label">From Date <span className="text-slate-500 font-normal">(optional)</span></label>
               <input
                 type="date"
                 className="input"
@@ -137,7 +139,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="label">To Date <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="label">To Date <span className="text-slate-500 font-normal">(optional)</span></label>
               <input
                 type="date"
                 className="input"
@@ -149,7 +151,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
 
           {/* Category filter */}
           <div>
-            <label className="label">Category Filter <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="label">Category Filter <span className="text-slate-500 font-normal">(optional)</span></label>
             <input
               type="text"
               className="input"
@@ -170,7 +172,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
               />
               <div>
                 <span className="text-sm font-medium text-slate-700">Include notes & timeline</span>
-                <p className="text-xs text-slate-400">All staff updates and email replies per incident</p>
+                <p className="text-xs text-slate-500">All staff updates and email replies per incident</p>
               </div>
             </label>
             <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -182,7 +184,7 @@ export default function ExportEvidenceModal({ initialLot, onClose }: Props) {
               />
               <div>
                 <span className="text-sm font-medium text-slate-700">Include photo attachments</span>
-                <p className="text-xs text-slate-400">Images embedded in the PDF; video files listed by name only</p>
+                <p className="text-xs text-slate-500">Images embedded in the PDF; video files listed by name only</p>
               </div>
             </label>
           </div>
