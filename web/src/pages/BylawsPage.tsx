@@ -1,3 +1,4 @@
+import { todayLocal } from "../lib/dates";
 import { useConfirm } from "../components/ConfirmDialog";
 import { useDialog } from "../hooks/useDialog";
 import { useState } from "react";
@@ -65,7 +66,7 @@ function BylawFormModal({ initial, onClose, onSaved }: BylawFormProps) {
     title: initial?.title ?? "",
     full_text: initial?.full_text ?? "",
     category: (initial?.category ?? "noise") as BylawCategory,
-    active_from: initial?.active_from ?? new Date().toISOString().slice(0, 10),
+    active_from: initial?.active_from ?? todayLocal(),
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -623,7 +624,7 @@ export default function BylawsPage() {
 
       {/* Table */}
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
         <table className="w-full min-w-[500px]">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">

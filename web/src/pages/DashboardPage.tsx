@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2, Users, AlertTriangle, FileText, Wrench,
-  Activity, Clock, Plus,
+  Activity, Clock, Plus, CalendarClock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { dashboardApi, type DashboardStats } from "../lib/api";
@@ -119,6 +119,52 @@ function AttentionSection({ data }: { data: DashboardStats }) {
 }
 
 // ---------------------------------------------------------------------------
+// Due soon section
+// ---------------------------------------------------------------------------
+
+function UpcomingSection({ data }: { data: DashboardStats }) {
+  const issues = data.upcoming_issues ?? [];
+  const payments = data.upcoming_payments ?? [];
+
+  return (
+    <div className="card">
+      <div className="px-4 md:px-6 py-4 border-b border-slate-200 flex items-center gap-2">
+        <CalendarClock className="w-4 h-4 text-slate-500" aria-hidden />
+        <h2 className="font-semibold text-slate-900 text-sm">Due in the next 7 days</h2>
+      </div>
+      {issues.length === 0 && payments.length === 0 ? (
+        <p className="px-4 md:px-6 py-6 text-center text-slate-500 text-sm">Nothing due this week.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {issues.map((i) => (
+            <li key={`i${i.id}`} className="px-4 md:px-6 py-3 flex items-center gap-3 text-sm min-w-0">
+              <span className="badge-amber shrink-0">Issue</span>
+              <span className="flex-1 min-w-0 truncate text-slate-700">
+                {i.title}
+                <span className="text-slate-500 capitalize"> · {i.priority}</span>
+              </span>
+              <time className="text-xs text-slate-500 shrink-0" dateTime={i.due_date ?? undefined}>{fmtDatetime(i.due_date)}</time>
+              <Link to={`/issues?open=${i.id}`} className="text-xs text-blue-600 hover:text-blue-800 shrink-0">View →</Link>
+            </li>
+          ))}
+          {payments.map((p) => (
+            <li key={`p${p.id}`} className="px-4 md:px-6 py-3 flex items-center gap-3 text-sm min-w-0">
+              <span className="badge-blue shrink-0">Payment</span>
+              <span className="flex-1 min-w-0 truncate text-slate-700">
+                SL{p.lot_number}{p.unit_number ? ` Unit ${p.unit_number}` : ""} · {p.party_name ?? "Unknown party"}
+                <span className="text-slate-500"> · ${Number(p.amount_due).toFixed(2)}</span>
+              </span>
+              <time className="text-xs text-slate-500 shrink-0" dateTime={p.due_date}>{fmtDatetime(p.due_date)}</time>
+              <Link to="/payments" className="text-xs text-blue-600 hover:text-blue-800 shrink-0">View →</Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Action labels for audit log
 // ---------------------------------------------------------------------------
 
@@ -219,6 +265,9 @@ export default function DashboardPage() {
 
       {/* Needs attention */}
       {data && <AttentionSection data={data} />}
+
+      {/* Due soon */}
+      {data && <UpcomingSection data={data} />}
 
       {/* Recent activity */}
       <div className="card">

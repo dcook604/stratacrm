@@ -10,7 +10,7 @@ import ActiveFilters from "../components/ui/ActiveFilters";
 import { SortButton } from "../components/ui/SortHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge, Download } from "lucide-react";
-import { fmtDatetime } from "../lib/dates";
+import { fmtDatetime, todayLocal } from "../lib/dates";
 import { lotLabel } from "../lib/utils";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document, type EntityNote } from "../lib/api";
 import { useToast } from "../lib/toast";
@@ -85,7 +85,7 @@ function IncidentFormModal({ initial, onClose, onSaved }: IncidentFormProps) {
   const initialTimeVal = extractedTime && extractedTime !== "00:00" ? extractedTime : "";
 
   const [form, setForm] = useState({
-    incident_date: extractedDate || new Date().toISOString().slice(0, 10),
+    incident_date: extractedDate || todayLocal(),
     incident_time: initialTimeVal,
     lot_id: initial?.lot?.id ? String(initial.lot.id) : "",
     common_area_description: initial?.common_area_description ?? "",
@@ -1373,7 +1373,7 @@ export default function IncidentsPage() {
       />
 
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">

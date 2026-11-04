@@ -1,3 +1,4 @@
+import { fmtDatetimeFull } from "../lib/dates";
 import { useDialog } from "../hooks/useDialog";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -596,7 +597,7 @@ export default function UserManagementPage() {
             <p className="text-xs text-slate-500 mt-1">Add a user using the button above.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-scroll">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
@@ -646,13 +647,7 @@ export default function UserManagementPage() {
                     </td>
                     <td className="hidden lg:table-cell px-4 py-3 text-sm text-slate-500">
                       {u.last_login_at
-                        ? new Date(u.last_login_at).toLocaleDateString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
+                        ? fmtDatetimeFull(u.last_login_at)
                         : "Never"}
                     </td>
                     <td className="px-4 py-3 text-right">

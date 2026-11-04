@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X, AlertTriangle } from "lucide-react";
-import { fmtDatetime } from "../lib/dates";
+import { fmtDatetime, todayLocal } from "../lib/dates";
 import {
   infractionsApi,
   bylawsApi,
@@ -78,7 +78,7 @@ function CreateInfractionModal({ onClose, onCreated }: CreateModalProps) {
     lot_id: "",
     primary_party_id: "",
     bylaw_id: "",
-    complaint_received_date: new Date().toISOString().slice(0, 10),
+    complaint_received_date: todayLocal(),
     complaint_time: "",
     complaint_source: "",
     description: "",
@@ -494,7 +494,7 @@ export default function InfractionsPage() {
 
       {/* Table */}
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">

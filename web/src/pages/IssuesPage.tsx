@@ -670,7 +670,7 @@ export default function IssuesPage() {
       />
 
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">

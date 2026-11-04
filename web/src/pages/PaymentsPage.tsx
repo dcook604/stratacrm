@@ -1,3 +1,4 @@
+import { todayLocal } from "../lib/dates";
 import MoneyInput from "../components/ui/MoneyInput";
 import { TableSkeleton, TableMessage, EmptyState, ErrorState } from "../components/ui/States";
 import { useDialog } from "../hooks/useDialog";
@@ -181,6 +182,7 @@ function PaymentsTab() {
 
       {/* Table */}
       <div className="card overflow-hidden">
+        <div className="table-scroll">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -272,6 +274,7 @@ function PaymentsTab() {
             )}
           </tbody>
         </table>
+        </div>
         <Pagination
           page={page}
           pageSize={pageSize}
@@ -312,7 +315,7 @@ function RecordPaymentModal({ payment, onClose, onRecord, loading }: {
   loading: boolean;
 }) {
   const [amount, setAmount] = useState(payment.amount_due);
-  const [paidDate, setPaidDate] = useState(new Date().toISOString().split("T")[0]);
+  const [paidDate, setPaidDate] = useState(todayLocal());
   const [method, setMethod] = useState<string>("");
   const [ref, setRef] = useState("");
   const [notes, setNotes] = useState("");

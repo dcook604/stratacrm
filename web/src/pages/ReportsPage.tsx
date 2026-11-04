@@ -165,7 +165,7 @@ export default function ReportsPage() {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
           <table className="w-full">
             <thead>
               {table.getHeaderGroups().map((hg) => (

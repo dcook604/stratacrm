@@ -1,3 +1,4 @@
+import { fmtDate } from "../lib/dates";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import BackLink from "../components/ui/BackLink";
@@ -246,7 +247,7 @@ export default function ReportDetailPage() {
                   <tr key={inf.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-4 py-2.5 text-slate-700">{inf.party_name ?? "—"}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-slate-600">{inf.bylaw_number}</td>
-                    <td className="px-4 py-2.5 text-slate-700">{new Date(inf.complaint_received_date).toLocaleDateString("en-CA")}</td>
+                    <td className="px-4 py-2.5 text-slate-700">{fmtDate(inf.complaint_received_date)}</td>
                     <td className="px-4 py-2.5 text-slate-700">{inf.assessed_fine_amount != null ? `$${Number(inf.assessed_fine_amount).toFixed(2)}` : "—"}</td>
                     <td className="px-4 py-2.5"><StatusBadge status={inf.status} /></td>
                     <td className="px-4 py-2.5">
@@ -290,7 +291,7 @@ export default function ReportDetailPage() {
                 {data.incidents.map((inc) => (
                   <tr key={inc.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-4 py-2.5 text-slate-700">{inc.category}</td>
-                    <td className="px-4 py-2.5 text-slate-700">{new Date(inc.incident_date).toLocaleDateString("en-CA")}</td>
+                    <td className="px-4 py-2.5 text-slate-700">{fmtDate(inc.incident_date)}</td>
                     <td className="px-4 py-2.5 text-slate-600 max-w-xs truncate">{inc.description}</td>
                     <td className="px-4 py-2.5"><StatusBadge status={inc.status} /></td>
                     <td className="px-4 py-2.5">
@@ -337,7 +338,7 @@ export default function ReportDetailPage() {
                     <td className="px-4 py-2.5 font-medium text-slate-700">{iss.title}</td>
                     <td className="px-4 py-2.5"><PriorityBadge priority={iss.priority} /></td>
                     <td className="px-4 py-2.5 text-slate-700">
-                      {iss.due_date ? new Date(iss.due_date).toLocaleDateString("en-CA") : "—"}
+                      {fmtDate(iss.due_date)}
                     </td>
                     <td className="px-4 py-2.5 text-slate-600">{iss.assignee_name ?? "—"}</td>
                     <td className="px-4 py-2.5"><StatusBadge status={iss.status} /></td>

@@ -1,3 +1,4 @@
+import { fmtDate, fmtDatetimeFull } from "./dates";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { LotAssignmentRole, PartyType } from "./api";
@@ -6,20 +7,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" });
-}
-
-export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString("en-CA", {
-    year: "numeric", month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
+// One set of date rules lives in lib/dates.ts; these names are kept for existing imports.
+export const formatDate = fmtDate;
+export const formatDateTime = fmtDatetimeFull;
 
 /** Display label for a lot. strata_lot_number === 0 is the synthetic Common Area lot. */
 export function lotLabel(lot: { strata_lot_number: number; unit_number?: string | null }): string {

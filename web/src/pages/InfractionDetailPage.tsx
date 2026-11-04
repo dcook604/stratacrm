@@ -5,7 +5,7 @@ import {
   AlertTriangle, FileText, Send, CheckCircle,
   XCircle, Clock, Mail, MessageSquare, Gavel, DollarSign, Plus,
 } from "lucide-react";
-import { fmtDatetime } from "../lib/dates";
+import { fmtDatetime, fmtDate } from "../lib/dates";
 import Breadcrumbs from "../components/ui/Breadcrumbs";
 import { listPath } from "../lib/listMemory";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
@@ -258,9 +258,7 @@ function EventTimeline({ events }: { events: InfractionEvent[] }) {
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm font-semibold">{EVENT_LABELS[ev.event_type]}</p>
               <p className="text-xs text-slate-500">
-                {new Date(ev.occurred_at).toLocaleDateString("en-CA", {
-                  year: "numeric", month: "short", day: "numeric",
-                })}
+                {fmtDate(ev.occurred_at)}
               </p>
             </div>
             {ev.actor_email && (
@@ -468,12 +466,8 @@ export default function InfractionDetailPage() {
                       </p>
                       <p className="text-xs text-slate-500">
                         {n.delivered_at
-                          ? new Date(n.delivered_at).toLocaleDateString("en-CA", {
-                              year: "numeric", month: "short", day: "numeric",
-                            })
-                          : new Date(n.created_at).toLocaleDateString("en-CA", {
-                              year: "numeric", month: "short", day: "numeric",
-                            })}
+                          ? fmtDate(n.delivered_at)
+                          : fmtDate(n.created_at)}
                       </p>
                     </div>
                     {n.pdf_url && (

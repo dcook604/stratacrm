@@ -196,7 +196,7 @@ export default function AuditLogPage() {
             <p className="text-xs text-slate-500 mt-1">Activity will appear here as actions are performed.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="table-scroll">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
