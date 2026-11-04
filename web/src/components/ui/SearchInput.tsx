@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 
 interface Props {
@@ -12,13 +12,25 @@ interface Props {
 /** Debounced search box. `value` is the committed value (normally from the URL). */
 export default function SearchInput({ value, onChange, placeholder = "Search…", className = "", autoFocus }: Props) {
   const [text, setText] = useState(value);
+  const committed = useRef(value);
 
-  // Follow external changes (Back button, "Clear all").
-  useEffect(() => setText(value), [value]);
+  function commit(v: string) {
+    committed.current = v;
+    onChange(v);
+  }
+
+  // Follow external changes (Back button, "Clear all") but never echo our own commits back,
+  // which could clobber characters typed while the URL was updating.
+  useEffect(() => {
+    if (value !== committed.current) {
+      committed.current = value;
+      setText(value);
+    }
+  }, [value]);
 
   useEffect(() => {
-    if (text === value) return;
-    const t = setTimeout(() => onChange(text), 300);
+    if (text === committed.current) return;
+    const t = setTimeout(() => commit(text), 300);
     return () => clearTimeout(t);
   }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -32,7 +44,7 @@ export default function SearchInput({ value, onChange, placeholder = "Search…"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") onChange(text);
+          if (e.key === "Enter" && text !== committed.current) commit(text);
         }}
         className="input pl-9 pr-8"
         aria-label={placeholder}
@@ -40,7 +52,7 @@ export default function SearchInput({ value, onChange, placeholder = "Search…"
       {text && (
         <button
           type="button"
-          onClick={() => { setText(""); onChange(""); }}
+          onClick={() => { setText(""); commit(""); }}
           className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
           aria-label="Clear search"
         >

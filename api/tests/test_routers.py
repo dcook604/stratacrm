@@ -33,6 +33,8 @@ class TestProtectedEndpoints:
             "/api/infractions",
             "/api/incidents",
             "/api/issues",
+            "/api/payments",
+            "/api/payments/schedules",
             "/api/documents",
             "/api/auth/me",
             "/api/email-ingest/config",

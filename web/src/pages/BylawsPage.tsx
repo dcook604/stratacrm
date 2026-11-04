@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useListParams } from "../hooks/useListParams";
+import SearchInput from "../components/ui/SearchInput";
+import ActiveFilters from "../components/ui/ActiveFilters";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, ChevronDown, ChevronUp, Pencil, X, BookOpen, Upload, CheckCircle, AlertTriangle } from "lucide-react";
 import { bylawsApi, type Bylaw, type BylawCategory, type BylawListItem, type BylawBulkItem, type BylawBulkResult } from "../lib/api";
@@ -523,9 +526,10 @@ function BylawRow({ item, onEdit }: { item: BylawListItem; onEdit: () => void })
 // ---------------------------------------------------------------------------
 
 export default function BylawsPage() {
-  const [categoryFilter, setCategoryFilter] = useState<BylawCategory | "">("");
-  const [search, setSearch] = useState("");
-  const [showInactive, setShowInactive] = useState(false);
+  const { values, update, clearAll } = useListParams({ q: "", category: "", superseded: "" });
+  const categoryFilter = values.category as BylawCategory | "";
+  const search = values.q;
+  const showInactive = values.superseded === "1";
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editBylaw, setEditBylaw] = useState<Bylaw | null>(null);
@@ -564,17 +568,16 @@ export default function BylawsPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:flex-wrap sm:items-center">
-        <input
-          type="search"
-          placeholder="Search bylaws…"
-          className="input w-full sm:w-56"
+        <SearchInput
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search bylaws…"
+          className="w-full sm:w-64"
         />
         <select
           className="input w-44"
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as BylawCategory | "")}
+          onChange={(e) => update({ category: e.target.value })}
         >
           <option value="">All categories</option>
           {CATEGORIES.map((c) => (
@@ -586,11 +589,21 @@ export default function BylawsPage() {
             type="checkbox"
             className="rounded border-slate-300"
             checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
+            onChange={(e) => update({ superseded: e.target.checked ? "1" : "" })}
           />
           Show superseded
         </label>
       </div>
+      <ActiveFilters
+        chips={[
+          ...(search ? [{ label: `Search: “${search}”`, onRemove: () => update({ q: "" }) }] : []),
+          ...(categoryFilter
+            ? [{ label: `Category: ${CATEGORIES.find((c) => c.value === categoryFilter)?.label ?? categoryFilter}`, onRemove: () => update({ category: "" }) }]
+            : []),
+          ...(showInactive ? [{ label: "Including superseded", onRemove: () => update({ superseded: "" }) }] : []),
+        ]}
+        onClearAll={clearAll}
+      />
 
       {/* Table */}
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">

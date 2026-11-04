@@ -102,7 +102,7 @@ function AttentionSection({ data }: { data: DashboardStats }) {
                     </span>
                   </span>
                   <Link
-                    to="/issues"
+                    to={`/issues?open=${issue.id}`}
                     className="text-xs text-blue-600 hover:text-blue-800 ml-3 shrink-0"
                   >
                     View →
@@ -186,21 +186,21 @@ export default function DashboardPage() {
             icon={AlertTriangle}
             label="Open Infractions"
             value={data?.open_infractions}
-            to="/infractions"
+            to="/infractions?status=active"
             color="bg-amber-500"
           />
           <StatCard
             icon={FileText}
             label="Open Incidents"
             value={data?.open_incidents}
-            to="/incidents"
+            to="/incidents?status=active"
             color="bg-orange-500"
           />
           <StatCard
             icon={Wrench}
             label="Open Issues"
             value={data?.open_issues}
-            to="/issues"
+            to="/issues?status=active"
             color="bg-slate-500"
           />
         </div>

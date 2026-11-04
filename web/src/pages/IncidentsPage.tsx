@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import { useListParams } from "../hooks/useListParams";
+import SearchInput from "../components/ui/SearchInput";
+import Pagination from "../components/ui/Pagination";
+import ActiveFilters from "../components/ui/ActiveFilters";
+import { SortButton } from "../components/ui/SortHeader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge, Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Plus, X, FileText, ChevronDown, ChevronUp, Pencil, Upload, Trash2, Tag, AlertTriangle, Edit3, Mail, MessageSquare, Send, GitMerge, Download } from "lucide-react";
 import { fmtDatetime } from "../lib/dates";
 import { lotLabel } from "../lib/utils";
 import { incidentsApi, lotsApi, documentsApi, type Incident, type IncidentStatus, type Document, type EntityNote } from "../lib/api";
@@ -1183,8 +1188,9 @@ function MergeDialog({
 // Main page
 // ---------------------------------------------------------------------------
 
-const STATUS_FILTERS: { value: IncidentStatus | ""; label: string }[] = [
+const STATUS_FILTERS: { value: IncidentStatus | "" | "active"; label: string }[] = [
   { value: "", label: "All statuses" },
+  { value: "active", label: "Active (open + in progress)" },
   { value: "pending_assignment", label: "Pending Assignment" },
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
@@ -1192,18 +1198,17 @@ const STATUS_FILTERS: { value: IncidentStatus | ""; label: string }[] = [
   { value: "closed", label: "Closed" },
 ];
 
-const PAGE_SIZE = 25;
-
 export default function IncidentsPage() {
   const [searchParams] = useSearchParams();
   const openId = searchParams.get("open") ? Number(searchParams.get("open")) : null;
 
-  const [statusFilter, setStatusFilter] = useState<IncidentStatus | "">("");
-  const [openOnly, setOpenOnly] = useState(false);
-  const [page, setPage] = useState(0);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const searchDebounce = useRef<ReturnType<typeof setTimeout>>();
+  const { values, page, setPage, update, clearAll } = useListParams({ q: "", status: "", sort: "date:desc", size: "25" });
+  const search = values.q;
+  const sort = values.sort;
+  const statusValue = values.status;
+  const openOnly = statusValue === "active";
+  const statusFilter = (openOnly ? "" : statusValue) as IncidentStatus | "";
+  const pageSize = Number(values.size) || 25;
 
   const [showCreate, setShowCreate] = useState(false);
   const [editIncident, setEditIncident] = useState<Incident | null>(null);
@@ -1216,30 +1221,10 @@ export default function IncidentsPage() {
   const qc2 = useQueryClient();
   const { addToast } = useToast();
 
-  // Debounce search input
+  // A selection only makes sense for the rows currently on screen.
   useEffect(() => {
-    if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    searchDebounce.current = setTimeout(() => {
-      if (searchInput !== search) {
-        setSearch(searchInput);
-        setPage(0);
-      }
-    }, 300);
-  }, [searchInput]);
-
-  // Reset to page 0 when filters change
-  function applyStatusFilter(v: IncidentStatus | "") {
-    setStatusFilter(v);
-    setPage(0);
     setSelectedIds(new Set());
-    if (v) setOpenOnly(false);
-  }
-  function applyOpenOnly(v: boolean) {
-    setOpenOnly(v);
-    setPage(0);
-    setSelectedIds(new Set());
-    if (v) setStatusFilter("");
-  }
+  }, [page, search, statusValue, sort, pageSize]);
 
   const mergeMut = useMutation({
     mutationFn: ({ primaryId, mergeIds }: { primaryId: number; mergeIds: number[] }) =>
@@ -1255,20 +1240,21 @@ export default function IncidentsPage() {
   });
 
   const { data: paged, isLoading } = useQuery({
-    queryKey: ["incidents", { statusFilter, openOnly, search, page }],
+    queryKey: ["incidents", { statusFilter, openOnly, search, sort, page, pageSize }],
     queryFn: () =>
       incidentsApi.list({
         status: statusFilter || undefined,
         open_only: openOnly,
         search: search || undefined,
-        skip: page * PAGE_SIZE,
-        limit: PAGE_SIZE,
+        sort,
+        skip: page * pageSize,
+        limit: pageSize,
       }),
+    placeholderData: (prev) => prev,
   });
 
   const incidents = paged?.items ?? [];
   const total = paged?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // Fetch the deep-linked incident separately so it's always visible regardless of page
   const { data: linkedIncident } = useQuery({
@@ -1333,38 +1319,38 @@ export default function IncidentsPage() {
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <input
-            type="search"
-            placeholder="Search incidents…"
-            className="input pl-8 w-52"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={(v) => update({ q: v })}
+          placeholder="Search reference, description, category, reporter…"
+          className="flex-1 min-w-[220px] max-w-md"
+        />
         <select
-          className="input w-44"
-          value={statusFilter}
-          onChange={(e) => applyStatusFilter(e.target.value as IncidentStatus | "")}
+          className="input w-52"
+          value={statusValue}
+          onChange={(e) => update({ status: e.target.value })}
+          aria-label="Filter by status"
         >
-          {STATUS_FILTERS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+          {STATUS_FILTERS.map((st) => (
+            <option key={st.value} value={st.value}>{st.label}</option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="rounded border-slate-300"
-            checked={openOnly}
-            onChange={(e) => applyOpenOnly(e.target.checked)}
-          />
-          Active only
-        </label>
         {total > 0 && (
           <span className="text-xs text-slate-400 ml-auto">{total} incident{total !== 1 ? "s" : ""}</span>
         )}
       </div>
+      <ActiveFilters
+        chips={[
+          ...(search ? [{ label: `Search: “${search}”`, onRemove: () => update({ q: "" }) }] : []),
+          ...(statusValue
+            ? [{
+                label: `Status: ${STATUS_FILTERS.find((f) => f.value === statusValue)?.label ?? statusValue}`,
+                onRemove: () => update({ status: "" }),
+              }]
+            : []),
+        ]}
+        onClearAll={clearAll}
+      />
 
       <div className="card p-0 overflow-hidden -mx-4 sm:mx-0">
         <div className="overflow-x-auto">
@@ -1385,11 +1371,19 @@ export default function IncidentsPage() {
                   }}
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">Ref</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Category</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-20">
+                <SortButton label="Ref" sortKey="reference" sort={sort} onSort={(v) => update({ sort: v })} />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">
+                <SortButton label="Date" sortKey="date" sort={sort} onSort={(v) => update({ sort: v })} firstDir="desc" />
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <SortButton label="Category" sortKey="category" sort={sort} onSort={(v) => update({ sort: v })} />
+              </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Location</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">
+                <SortButton label="Status" sortKey="status" sort={sort} onSort={(v) => update({ sort: v })} />
+              </th>
               <th className="w-20" />
             </tr>
           </thead>
@@ -1402,7 +1396,9 @@ export default function IncidentsPage() {
             {!isLoading && incidents.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400">
-                  No incidents found.
+                  {search || statusValue ? (
+                    <>No incidents match these filters. <button className="underline" onClick={clearAll}>Clear all</button></>
+                  ) : "No incidents found."}
                 </td>
               </tr>
             )}
@@ -1427,28 +1423,13 @@ export default function IncidentsPage() {
         </table>
         </div>
 
-        {/* Pagination controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
-            <button
-              className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1 disabled:opacity-40"
-              disabled={page === 0}
-              onClick={() => { setPage((p) => p - 1); setSelectedIds(new Set()); }}
-            >
-              <ChevronLeft className="w-4 h-4" /> Prev
-            </button>
-            <span className="text-xs text-slate-500">
-              Page {page + 1} of {totalPages}
-            </span>
-            <button
-              className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1 disabled:opacity-40"
-              disabled={page >= totalPages - 1}
-              onClick={() => { setPage((p) => p + 1); setSelectedIds(new Set()); }}
-            >
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPage={setPage}
+          onPageSize={(n) => update({ size: String(n) })}
+        />
       </div>
 
       {showCreate && (
